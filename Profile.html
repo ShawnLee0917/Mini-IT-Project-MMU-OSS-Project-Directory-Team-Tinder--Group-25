@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile | MMU OSSD</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+
+<nav class="bg-red-700 text-white shadow-md sticky top-0 z-50">
+    <div class="container mx-auto px-6 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-4">
+            <button id="menu-btn" class="text-white focus:outline-none p-1 hover:bg-red-800 rounded transition">
+                <i class="fas fa-bars text-xl"></i>
+            </button>
+            <a href="Navigation.html" class="hover:opacity-80 transition flex items-center gap-4">
+                <i class="fas fa-arrow-left text-xl"></i>
+                <h1 class="text-2xl font-extrabold tracking-tighter">
+                    MMU <span class="font-light text-red-200">OSSD</span>
+                </h1>
+            </a>
+        </div>
+        <div class="flex space-x-8 items-center font-medium">
+            <a href="Search.html" class="hover:text-red-200 transition text-sm">Search</a>
+            <a href="My_Projects.html" class="hover:text-red-200 transition text-sm">My Projects</a>
+            <div class="bg-red-900 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-400">
+                <span class="text-sm">student@mmu.edu.my</span>
+                <i class="fas fa-user-circle text-lg text-red-200"></i>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<main class="container mx-auto px-6 py-12">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
+        
+        <div class="space-y-6">
+            <div class="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 text-center">
+                <div class="w-24 h-24 bg-red-100 text-red-600 rounded-full mx-auto flex items-center justify-center text-3xl font-black mb-4">
+                    S
+                </div>
+                <h2 class="text-2xl font-black">MMU Student</h2>
+                <p class="text-gray-400 text-sm">Faculty of Computing & Informatics</p>
+                
+                <div class="mt-8 pt-8 border-t border-gray-50 grid grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-xl font-black text-red-600">12</p>
+                        <p class="text-[10px] uppercase font-bold text-gray-400">Rank</p>
+                    </div>
+                    <div>
+                        <p class="text-xl font-black text-red-600">450</p>
+                        <p class="text-[10px] uppercase font-bold text-gray-400">Karma</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gray-900 p-6 rounded-3xl text-white">
+                <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Badges</h3>
+                <div class="flex gap-3">
+                    <i class="fas fa-fire-alt text-orange-400 text-2xl" title="Early Adopter"></i>
+                    <i class="fas fa-code text-blue-400 text-2xl" title="Python Expert"></i>
+                    <i class="fas fa-handshake text-green-400 text-2xl" title="Top Contributor"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="lg:col-span-2 space-y-8">
+            <section class="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6">Skills & Tech Stack</h3>
+                <div class="flex flex-wrap gap-2">
+                    <span class="bg-gray-100 px-4 py-2 rounded-xl text-sm font-semibold text-gray-700">Python</span>
+                    <span class="bg-gray-100 px-4 py-2 rounded-xl text-sm font-semibold text-gray-700">Flask</span>
+                    <span class="bg-gray-100 px-4 py-2 rounded-xl text-sm font-semibold text-gray-700">Tailwind CSS</span>
+                    <span class="bg-gray-100 px-4 py-2 rounded-xl text-sm font-semibold text-gray-700">SQLite</span>
+                </div>
+            </section>
+
+            <section class="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6">My Projects</h3>
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between p-4 border border-gray-50 rounded-2xl hover:bg-gray-50 transition">
+                        <div>
+                            <h4 class="font-bold text-gray-800">MMU Open Source Directory</h4>
+                            <p class="text-xs text-gray-400">Active • 5 Contributors</p>
+                        </div>
+                        <i class="fas fa-chevron-right text-gray-300"></i>
+                    </div>
+                    <div class="p-4 border border-dashed border-gray-200 rounded-2xl text-center text-gray-400 text-sm">
+                        + List another project for handover
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+</main>
+
+</body>
+</html>
