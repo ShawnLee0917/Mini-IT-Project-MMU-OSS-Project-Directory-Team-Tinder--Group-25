@@ -1,0 +1,202 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Find a Project | MMU OSSD</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .filter-chip:checked + label {
+            background-color: #be123c;
+            color: white;
+            border-color: #be123c;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+
+<nav class="bg-red-700 text-white shadow-md sticky top-0 z-50">
+    <div class="container mx-auto px-6 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-4">
+            <button id="menu-btn" class="text-white focus:outline-none p-1 hover:bg-red-800 rounded transition">
+                <i class="fas fa-bars text-xl"></i>
+            </button>
+            <a href="Navigation.html" class="hover:opacity-80 transition flex items-center gap-4">
+                <i class="fas fa-arrow-left text-xl"></i>
+                <h1 class="text-2xl font-extrabold tracking-tighter">
+                    MMU <span class="font-light text-red-200">OSSD</span>
+                </h1>
+            </a>
+        </div>
+        <div class="hidden md:flex space-x-8 items-center font-medium">
+            <a href="Search.html" class="text-red-200 border-b-2 border-red-200">Search</a>
+            <a href="My_Projects.html" class="hover:text-red-200 transition">My Projects</a>
+            <div class="bg-red-800 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-500/50">
+                <a href="Profile.html">
+                    <span class="text-sm">student@mmu.edu.my</span>
+                    <i class="fas fa-user-circle text-lg"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<header class="bg-white border-b py-12">
+    <div class="container mx-auto px-6">
+        <div class="max-w-4xl">
+        <h2 class="text-4xl font-black text-gray-900">Join a Mission</h2>
+        <p class="text-gray-500 mt-2 text-lg">Find projects that match your skills and keep the MMU legacy alive.</p>
+            
+        <div class="mt-8 flex flex-col md:flex-row gap-4">
+            <div class="relative flex-grow">
+                <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                <input type="text" placeholder="Search by tech stack (React, Python, Flutter...)" 
+                       class="w-full pl-12 pr-4 py-4 rounded-xl border-2 border-gray-100 focus:border-red-500 focus:outline-none transition">
+            </div>
+            <select class="bg-white border-2 border-gray-100 px-6 py-4 rounded-xl font-semibold text-gray-600 focus:outline-none focus:border-red-500">
+                <option>All Faculties</option>
+                <option>FCI</option>
+                <option>FAIE</option>
+                <option>FCM</option>
+                <option>FOM</option>
+                <option>FAC</option>
+                <option>FCA</option>
+            </select>
+                <button class="bg-red-600 text-white px-8 py-4 rounded-xl font-bold hover:bg-red-700 transition shadow-lg shadow-red-100">
+                    Search
+                </button>
+            </div>
+
+            <div class="mt-4 flex flex-wrap gap-2 items-center">
+                <span class="text-xs font-bold text-gray-400 uppercase tracking-widest mr-2">Trending:</span>
+                <span class="px-3 py-1 bg-gray-100 rounded-full text-xs font-medium text-gray-600 cursor-pointer hover:bg-gray-200">#React</span>
+                <span class="px-3 py-1 bg-gray-100 rounded-full text-xs font-medium text-gray-600 cursor-pointer hover:bg-gray-200">#MachineLearning</span>
+                <span class="px-3 py-1 bg-gray-100 rounded-full text-xs font-medium text-gray-600 cursor-pointer hover:bg-gray-200">#IoT</span>
+                <span class="px-3 py-1 bg-gray-100 rounded-full text-xs font-medium text-gray-600 cursor-pointer hover:bg-gray-200">#MobileApp</span>
+            </div>
+        </div>
+    </div>
+</header>
+
+<main class="container mx-auto px-6 py-10">
+    <div class="flex flex-col lg:flex-row gap-10">
+        
+        <aside class="w-full lg:w-64 space-y-8">
+            <div>
+                <h4 class="text-sm font-black text-gray-800 uppercase mb-4">Project Status</h4>
+                <div class="space-y-2">
+                    <label class="flex items-center space-x-3 text-gray-600 cursor-pointer">
+                        <input type="checkbox" class="w-4 h-4 rounded text-red-600 focus:ring-red-500">
+                        <span class="text-sm">Seeking Maintainer</span>
+                    </label>
+                    <label class="flex items-center space-x-3 text-gray-600 cursor-pointer">
+                        <input type="checkbox" class="w-4 h-4 rounded text-red-600 focus:ring-red-500">
+                        <span class="text-sm">Finished</span>
+                    </label>
+                    <label class="flex items-center space-x-3 text-gray-600 cursor-pointer">
+                        <input type="checkbox" class="w-4 h-4 rounded text-red-600 focus:ring-red-500">
+                        <span class="text-sm">Active</span>
+                    </label>
+                </div>
+            </div>
+
+            <div>
+                <h4 class="text-sm font-black text-gray-800 uppercase mb-4">Stack</h4>
+                <div class="flex flex-wrap gap-2">
+                    <input type="checkbox" id="python" class="hidden filter-chip">
+                    <label for="python" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Python</label>
+                    
+                    <input type="checkbox" id="js" class="hidden filter-chip">
+                    <label for="js" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">JavaScript</label>
+                    
+                    <input type="checkbox" id="HTML" class="hidden filter-chip">
+                    <label for="HTML" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">HTML</label>
+
+                    <input type="checkbox" id="CSS" class="hidden filter-chip">
+                    <label for="CSS" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">CSS</label>
+
+                    <input type="checkbox" id="dart" class="hidden filter-chip">
+                    <label for="dart" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Dart</label>
+
+                    <input type="checkbox" id="SQL" class="hidden filter-chip">
+                    <label for="SQL" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">SQL</label>
+
+                    <input type="checkbox" id="PHP" class="hidden filter-chip">
+                    <label for="PHP" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">PHP</label>
+
+                    <input type="checkbox" id="C++" class="hidden filter-chip">
+                    <label for="C++" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">C++</label>
+
+                    <input type="checkbox" id="Pandas" class="hidden filter-chip">
+                    <label for="Pandas" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Pandas</label>
+                    
+                    <input type="checkbox" id="NODEJS" class="hidden filter-chip">
+                    <label for="NODEJS" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">NODEJS</label>
+                    
+                    <input type="checkbox" id="Swift" class="hidden filter-chip">
+                    <label for="Swift" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Swift</label>
+
+                    <input type="checkbox" id="Kotlin" class="hidden filter-chip">
+                    <label for="Kotlin" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Kotlin</label>
+
+                    <input type="checkbox" id="Go" class="hidden filter-chip">
+                    <label for="Go" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Go</label>
+
+                    <input type="checkbox" id="R" class="hidden filter-chip">
+                    <label for="R" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">R</label>
+
+                    <input type="checkbox" id="Angular" class="hidden filter-chip">
+                    <label for="Angular" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Angular</label>
+
+                    <input type="checkbox" id="TypeScript" class="hidden filter-chip">
+                    <label for="TypeScript" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">TypeScript</label>
+
+                    <input type="checkbox" id="Rust" class="hidden filter-chip">
+                    <label for="Rust" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Rust</label>
+
+                    <input type="checkbox" id="Rust" class="hidden filter-chip">
+                    <label for="Rust" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Others</label>
+                </div>
+            </div>
+
+            <div class="pt-6 border-t border-gray-200">
+                <button type="button" onclick="window.location.href='Search.html'" class="text-sm font-bold text-red-600 hover:text-red-700 transition">
+                    Clear All Filters
+                </button>
+            </div>
+        </aside>
+
+        <div class="flex-grow">
+            <div class="flex justify-between items-center mb-6">
+                <span class="text-sm text-gray-500 font-medium">Showing <span class="text-gray-900 font-bold">0</span> projects</span>
+                <select class="bg-transparent text-sm font-bold text-gray-700 focus:outline-none cursor-pointer">
+                    <option>Newest First</option>
+                    <option>Most Matched</option>
+                </select>
+            </div>
+
+
+
+                <div class="hidden col-span-full py-20 text-center">
+                    <i class="fas fa-folder-open text-5xl text-gray-200 mb-4"></i>
+                    <h3 class="text-xl font-bold text-gray-400">No projects match your search</h3>
+                    <p class="text-gray-500">Try adjusting your filters or search keywords.</p>
+                </div>
+
+            </div>
+
+
+        </div>
+    </div>
+</main>
+
+<footer class="bg-gray-100 border-t mt-20 py-10">
+    <div class="container mx-auto px-6 text-center text-gray-400 text-sm">
+        &copy; 2026 Multimedia University Open Source Software Directory
+    </div>
+</footer>
+
+</body>
+</html>
