@@ -1,0 +1,127 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MMU Open Source Directory</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+
+<nav class="bg-red-700 text-white shadow-md sticky top-0 z-50">
+    <div class="container mx-auto px-6 py-3 flex items-center justify-between">
+        
+        <div class="flex items-center gap-4">
+            <button id="menu-btn" class="text-white focus:outline-none p-1 hover:bg-red-800 rounded transition">
+                <i class="fas fa-bars text-xl"></i>
+            </button>
+
+            <h1 class="text-2xl font-extrabold tracking-tighter">
+                MMU <span class="font-light text-red-200">OSSD</span>
+            </h1>
+        </div>
+
+        <div class="hidden md:flex space-x-8 items-center font-medium">
+            <a href="Search.html" class="hover:text-red-200 transition">Search</a>
+            <a href="My_Projects.html" class="hover:text-red-200 transition">My Projects</a>
+            <div class="bg-red-800 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-500/50 cursor-pointer">
+                <a href="Profile.html">
+                    <span class="text-sm">student@mmu.edu.my</span>
+                    <i class="fas fa-user-circle text-lg"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div id="mobile-menu" class="hidden bg-red-800 border-t border-red-600 shadow-inner">
+        <div class="px-6 py-4 flex flex-col space-y-4 font-semibold">
+            <a href="Search.html" class="hover:text-red-200 transition">Search</a>
+            <a href="Profile.html" class="hover:text-red-200 transition">My Teams</a>
+            <div class="pt-2 border-t border-red-700 text-xs font-light opacity-80">
+                student@mmu.edu.my
+            </div>
+        </div>
+    </div>
+</nav>
+
+<header class="bg-white border-b py-16">
+    <div class="container mx-auto px-6 text-center md:text-left">
+        <h2 class="text-5xl font-black text-gray-900 leading-tight">Project Heritage Hub</h2>
+        <p class="text-gray-500 mt-4 text-xl max-w-2xl">
+            Don't let your code die at graduation. Hand over the torch to the next batch of innovators.
+        </p>
+        <div class="mt-8 flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 justify-center md:justify-start">
+            <a href="List_Your_Project.html" class="bg-red-600 text-white px-8 py-4 rounded-xl font-bold hover:bg-red-700 transform hover:-translate-y-1 transition shadow-lg shadow-red-200 inline-flex items-center justify-center">
+                <i class="fas fa-plus mr-2"></i> List Your Project
+            </a>
+            <a href="Search.html" class="bg-white border-2 border-gray-200 text-gray-700 px-8 py-4 rounded-xl font-bold hover:bg-gray-50 transition">
+                Find a Team
+            </a>
+        </div>
+    </div>
+</header>
+
+<main class="container mx-auto px-6 py-10 grid grid-cols-1 lg:grid-cols-3 gap-10">
+    
+    <div class="lg:col-span-2 space-y-8">
+        
+        <div class="flex items-center">
+            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-[0.2em] whitespace-nowrap">
+                Active Projects for Takeover
+            </h3>
+            <div class="h-px bg-gray-200 flex-grow ml-4 mr-20"></div>
+        </div>
+
+        <div class="grid gap-6">
+            <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm italic text-gray-400">
+                No projects listed yet. Be the first to hand over the torch!
+            </div>
+        </div>
+    </div>
+
+    <div class="space-y-8">
+        <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+            <h3 class="font-black text-gray-800 text-lg mb-6 flex items-center">
+                <i class="fas fa-chart-line mr-3 text-red-600"></i> My Impact
+            </h3>
+            <div class="space-y-4">
+                <div class="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
+                    <span class="text-sm font-semibold text-gray-500 uppercase tracking-tighter">Active Projects</span>
+                    <span class="text-xl font-black text-red-600">00</span>
+                </div>
+                <div class="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
+                    <span class="text-sm font-semibold text-gray-500 uppercase tracking-tighter">Contributions</span>
+                    <span class="text-xl font-black text-red-600">00</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-br from-red-600 to-red-800 p-8 rounded-2xl shadow-xl shadow-red-100 relative overflow-hidden group">
+            <div class="absolute -right-4 -top-4 opacity-10 group-hover:scale-110 transition duration-500">
+                <i class="fas fa-handshake text-9xl"></i>
+            </div>
+            <h3 class="font-bold text-white text-xl mb-3 flex items-center">Team Tinder 🤝</h3>
+            <p class="text-sm text-red-100 mb-6 leading-relaxed">
+                The <span class="font-bold text-white">Smart Parking</span> project is looking for a <span class="underline decoration-white">Python dev</span>! You're a <span class="font-bold bg-white text-red-700 px-1 rounded">90% match</span>.
+            </p>
+            <button class="w-full bg-white text-red-700 py-3 rounded-xl text-sm font-black shadow-lg hover:bg-red-50 transition active:scale-95">
+                APPLY TO TEAM
+            </button>
+        </div>
+
+        <div class="p-6">
+            <h4 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Resources</h4>
+            <ul class="space-y-3">
+                <li><a href="#" class="text-sm text-gray-600 hover:text-red-600 font-medium transition italic"># How to document for takeover</a></li>
+                <li><a href="#" class="text-sm text-gray-600 hover:text-red-600 font-medium transition italic"># Choosing an OS license</a></li>
+            </ul>
+        </div>
+    </div>
+</main>
+
+</body>
+</html>
