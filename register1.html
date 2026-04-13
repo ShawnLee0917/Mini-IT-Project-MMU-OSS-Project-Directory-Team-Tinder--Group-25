@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MMU Registration</title>
+    <style>
+        body { font-family: sans-serif; max-width: 400px; margin: 50px auto; padding: 20px; }
+        input { width: 100%; padding: 8px; margin: 8px 0 20px; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background-color: #0056b3; color: white; border: none; cursor: pointer; }
+        button:hover { background-color: #004494; }
+    </style>
+</head>
+<body>
+
+    <h2>Register for an Account</h2>
+    <p><em>Note: Only @mmu.edu.my emails are allowed.</em></p>
+
+    <form method="POST" action="/register">
+        <label for="email">MMU Email:</label>
+        <input type="email" id="email" name="email" placeholder="student@mmu.edu.my" required>
+
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" required>
+
+        <button type="submit">Register</button>
+    </form>
+
+    <p style="text-align: center;">
+        Already have an account? <a href="/login">Login here</a>.
+    </p>
+
+</body>
+</html>
