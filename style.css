@@ -1,0 +1,401 @@
+/* Font Import */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+
+/* Base Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #f9fafb;
+    color: #111827;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Navigation */
+nav {
+    background-color: #b91c1c;
+    color: white;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+}
+
+nav .container {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0.75rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+nav .flex {
+    display: flex;
+    gap: 1rem;
+}
+
+#menu-btn {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 0.25rem;
+    transition: all 0.3s ease;
+}
+
+#menu-btn:hover {
+    background-color: #991b1b;
+}
+
+#menu-btn i {
+    font-size: 1.25rem;
+}
+
+nav h1 {
+    font-size: 1.5rem;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+}
+
+nav h1 .font-light {
+    font-weight: 300;
+    color: #fecaca;
+}
+
+/* Mobile Menu */
+#mobile-menu {
+    background-color: #991b1b;
+    border-top: 1px solid #7f1d1d;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#mobile-menu.hidden {
+    display: none;
+}
+
+#mobile-menu .px-6 {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    font-weight: 600;
+}
+
+#mobile-menu a {
+    color: white;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+#mobile-menu a:hover {
+    color: #fecaca;
+}
+
+/* Header */
+header {
+    background-color: white;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 4rem 1.5rem;
+}
+
+header .container {
+    max-width: 1280px;
+    margin: 0 auto;
+}
+
+header h2 {
+    font-size: 3rem;
+    font-weight: 900;
+    line-height: 1.2;
+    margin-bottom: 1rem;
+}
+
+header p {
+    color: #6b7280;
+    margin-top: 1rem;
+    font-size: 1.25rem;
+    max-width: 42rem;
+}
+
+header .button-group {
+    margin-top: 2rem;
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+}
+
+/* Buttons */
+.btn-primary {
+    background-color: #dc2626;
+    color: white;
+    padding: 1rem 2rem;
+    border-radius: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    box-shadow: 0 10px 15px -3px rgba(220, 38, 38, 0.3);
+}
+
+.btn-primary:hover {
+    background-color: #b91c1c;
+    transform: translateY(-4px);
+}
+
+.btn-secondary {
+    background-color: white;
+    border: 2px solid #e5e7eb;
+    color: #374151;
+    padding: 1rem 2rem;
+    border-radius: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-secondary:hover {
+    background-color: #f3f4f6;
+}
+
+/* Main Content */
+main {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 2.5rem 1.5rem;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
+}
+
+@media (min-width: 1024px) {
+    main {
+        grid-template-columns: 2fr 1fr;
+    }
+}
+
+/* Section Headers */
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.section-header h3 {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    white-space: nowrap;
+}
+
+.section-header .divider {
+    height: 1px;
+    background-color: #e5e7eb;
+    flex-grow: 1;
+    margin: 0 1.25rem 0 5rem;
+}
+
+/* Cards */
+.card {
+    background-color: white;
+    padding: 1.5rem;
+    border-radius: 1rem;
+    border: 1px solid #f3f4f6;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+}
+
+.card-empty {
+    font-style: italic;
+    color: #9ca3af;
+}
+
+/* Impact Card */
+.impact-card {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.impact-card h3 {
+    font-weight: 900;
+    color: #1f2937;
+    font-size: 1.125rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.impact-card h3 i {
+    color: #dc2626;
+}
+
+.impact-stat {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #f9fafb;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+}
+
+.impact-stat span {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: -0.025em;
+}
+
+.impact-stat strong {
+    font-size: 1.25rem;
+    font-weight: 900;
+    color: #dc2626;
+}
+
+/* Team Tinder Card */
+.team-card {
+    background: linear-gradient(to bottom right, #dc2626, #991b1b);
+    padding: 2rem;
+    border-radius: 1rem;
+    box-shadow: 0 20px 25px -5px rgba(220, 38, 38, 0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+.team-card:hover .handshake-icon {
+    transform: scale(1.1);
+}
+
+.handshake-icon {
+    position: absolute;
+    bottom: -1rem;
+    right: -1rem;
+    opacity: 0.1;
+    font-size: 9rem;
+    transition: transform 0.5s ease;
+}
+
+.team-card h3 {
+    font-weight: 700;
+    color: white;
+    font-size: 1.25rem;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.team-card p {
+    font-size: 0.875rem;
+    color: #fee2e2;
+    margin-bottom: 1.5rem;
+    line-height: 1.5;
+}
+
+.team-card p .highlight {
+    font-weight: 700;
+    color: white;
+}
+
+.team-card p .underline {
+    text-decoration: underline;
+    text-decoration-color: white;
+}
+
+.team-card p .badge {
+    font-weight: 700;
+    background-color: white;
+    color: #dc2626;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+}
+
+.team-card button {
+    width: 100%;
+    background-color: white;
+    color: #dc2626;
+    padding: 0.75rem;
+    border-radius: 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 900;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+.team-card button:hover {
+    background-color: #fef2f2;
+}
+
+.team-card button:active {
+    transform: scale(0.95);
+}
+
+/* Resources */
+.resources {
+    padding: 1.5rem;
+}
+
+.resources h4 {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 1rem;
+}
+
+.resources ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.resources a {
+    font-size: 0.875rem;
+    color: #4b5563;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.3s ease;
+    font-style: italic;
+}
+
+.resources a:hover {
+    color: #dc2626;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    header h2 {
+        font-size: 2rem;
+    }
+
+    header p {
+        font-size: 1rem;
+    }
+
+    .section-header .divider {
+        display: none;
+    }
+}
