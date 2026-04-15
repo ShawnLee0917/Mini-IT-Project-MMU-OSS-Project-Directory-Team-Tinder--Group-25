@@ -4,7 +4,7 @@ from . import db
 
 views = Blueprint('views', __name__)
 
-@views.route('/list_project', methods=['GET', 'POST'])
+@views.route('/create_project', methods=['GET', 'POST'])
 def list_project():
     if request.method == 'POST':
          
