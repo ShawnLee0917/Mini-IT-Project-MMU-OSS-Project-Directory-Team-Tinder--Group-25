@@ -3,31 +3,133 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" rel="stylesheet">
     <title>Login</title>
     <style>
-        body { font-family: sans-serif; max-width: 400px; margin: 50px auto; padding: 20px; }
-        input { width: 100%; padding: 8px; margin: 8px 0 20px; box-sizing: border-box; }
-        button { width: 100%; padding: 10px; background-color: #28a745; color: white; border: none; cursor: pointer; }
-        button:hover { background-color: #218838; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f9fafb; color: #111827; }
+        
+        .login-container {
+            max-width: 500px;
+            margin: 80px auto;
+            padding: 2rem;
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            border: 1px solid #f3f4f6;
+        }
+
+        .login-container h2 {
+            font-size: 2rem;
+            font-weight: 900;
+            color: #111827;
+            margin-bottom: 1rem;
+        }
+
+        .login-container p {
+            color: #6b7280;
+            font-size: 0.95rem;
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.5rem;
+            font-size: 0.95rem;
+        }
+
+        input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            box-sizing: border-box;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+            font-family: 'Inter', sans-serif;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #dc2626;
+            box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+        }
+
+        button {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: #dc2626;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            transition: all 0.3s ease;
+            font-size: 0.95rem;
+            font-family: 'Inter', sans-serif;
+        }
+
+        button:hover {
+            background-color: #b91c1c;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .login-footer {
+            text-align: center;
+            margin-top: 1.5rem;
+            color: #6b7280;
+            font-size: 0.95rem;
+        }
+
+        .login-footer a {
+            color: #dc2626;
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s ease;
+        }
+
+        .login-footer a:hover {
+            color: #b91c1c;
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
 
-    <h2>Login to Your Account</h2>
+    <div class="login-container">
+        <h2><i class="fas fa-sign-in-alt" style="color: #dc2626; margin-right: 0.5rem;"></i>Login</h2>
+        <p>Sign in to your MMU Open Source account</p>
 
-    <form method="POST" action="/login">
-        <label for="email">Email:</label>
-        <input type="email" id="email" name="email" required>
+        <form method="POST" action="/login">
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="email" id="email" name="email" placeholder="student@mmu.edu.my" required>
+            </div>
 
-        <label for="password">Password:</label>
-        <input type="password" id="password" name="password" required>
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" placeholder="Enter your password" required>
+            </div>
 
-        <button type="submit">Login</button>
-    </form>
+            <button type="submit"><i class="fas fa-sign-in-alt" style="margin-right: 0.5rem;"></i>Login</button>
+        </form>
 
-    <p style="text-align: center;">
-        Don't have an account yet? <a href="/register">Register here</a>.
-    </p>
+        <div class="login-footer">
+            Don't have an account yet? <a href="/register">Register here</a>
+        </div>
+    </div>
 
 </body>
 </html>

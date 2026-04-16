@@ -3,32 +3,147 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MMU Registration</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" rel="stylesheet">
+    <title>Register</title>
     <style>
-        body { font-family: sans-serif; max-width: 400px; margin: 50px auto; padding: 20px; }
-        input { width: 100%; padding: 8px; margin: 8px 0 20px; box-sizing: border-box; }
-        button { width: 100%; padding: 10px; background-color: #0056b3; color: white; border: none; cursor: pointer; }
-        button:hover { background-color: #004494; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f9fafb; color: #111827; }
+        
+        .register-container {
+            max-width: 500px;
+            margin: 80px auto;
+            padding: 2rem;
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            border: 1px solid #f3f4f6;
+        }
+
+        .register-container h2 {
+            font-size: 2rem;
+            font-weight: 900;
+            color: #111827;
+            margin-bottom: 0.5rem;
+        }
+
+        .register-container p {
+            color: #6b7280;
+            font-size: 0.95rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .register-container .note {
+            background-color: #fef2f2;
+            border-left: 4px solid #dc2626;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            border-radius: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.5rem;
+            font-size: 0.95rem;
+        }
+
+        input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            box-sizing: border-box;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+            font-family: 'Inter', sans-serif;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #dc2626;
+            box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+        }
+
+        button {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: #dc2626;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 700;
+            border-radius: 0.5rem;
+            transition: all 0.3s ease;
+            font-size: 0.95rem;
+            font-family: 'Inter', sans-serif;
+        }
+
+        button:hover {
+            background-color: #b91c1c;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .register-footer {
+            text-align: center;
+            margin-top: 1.5rem;
+            color: #6b7280;
+            font-size: 0.95rem;
+        }
+
+        .register-footer a {
+            color: #dc2626;
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s ease;
+        }
+
+        .register-footer a:hover {
+            color: #b91c1c;
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
 
-    <h2>Register for an Account</h2>
-    <p><em>Note: Only @mmu.edu.my emails are allowed.</em></p>
+    <div class="register-container">
+        <h2><i class="fas fa-user-plus" style="color: #dc2626; margin-right: 0.5rem;"></i>Register</h2>
+        <p>Create your MMU Open Source account</p>
 
-    <form method="POST" action="/register">
-        <label for="email">MMU Email:</label>
-        <input type="email" id="email" name="email" placeholder="student@mmu.edu.my" required>
+        <div class="note">
+            <i class="fas fa-info-circle" style="color: #dc2626; margin-right: 0.5rem;"></i>
+            <strong>Note:</strong> Only @mmu.edu.my emails are allowed.
+        </div>
 
-        <label for="password">Password:</label>
-        <input type="password" id="password" name="password" required>
+        <form method="POST" action="/register">
+            <div class="form-group">
+                <label for="email">MMU Email:</label>
+                <input type="email" id="email" name="email" placeholder="student@mmu.edu.my" required>
+            </div>
 
-        <button type="submit">Register</button>
-    </form>
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" placeholder="Create a strong password" required>
+            </div>
 
-    <p style="text-align: center;">
-        Already have an account? <a href="/login">Login here</a>.
-    </p>
+            <button type="submit"><i class="fas fa-user-plus" style="margin-right: 0.5rem;"></i>Register</button>
+        </form>
+
+        <div class="register-footer">
+            Already have an account? <a href="/login">Login here</a>
+        </div>
+    </div>
 
 </body>
 </html>
