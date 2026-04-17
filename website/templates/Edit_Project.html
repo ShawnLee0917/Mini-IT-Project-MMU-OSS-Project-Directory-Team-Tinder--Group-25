@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>List Your Project | MMU OSSD</title>
+    <title>Edit Project | MMU OSSD</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" rel="stylesheet">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
         body { font-family: 'Inter', sans-serif; }
-        .step-node.active { background-color: #dc2626; color: white; border-color: #dc2626; }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-900">
@@ -44,12 +43,12 @@
     <div class="max-w-3xl mx-auto">
         
         <div class="mb-12 text-center md:text-left">
-            <h2 class="text-4xl font-black text-gray-900 mb-2">Preserve Your Legacy</h2>
-            <p class="text-gray-500 font-medium">Fill in the details below to find the next generation of maintainers for your project.</p>
+            <h2 class="text-4xl font-black text-gray-900 mb-2">Update Your Project Info</h2>
+            <p class="text-gray-500 font-medium">Modify the details below to ensure potential successors see the latest project status.</p>
         </div>
 
         <div class="bg-white rounded-3xl shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
-            <form action="/list_project" method="POST" class="...">
+            <form action="{{ url_for('views.edit_project', project_id=project.id) }}" method="POST" class="p-8 space-y-8">
                 
                 <section class="space-y-6">
                     <div class="flex items-center gap-3">
@@ -60,14 +59,14 @@
                     <div class="grid grid-cols-1 gap-6">
                         <div>
                             <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Project Name</label>
-                            <input type="text" name="project_name" placeholder="e.g. MMU Smart Shuttle Tracker" 
+                            <input type="text" name="project_name" value="{{ project.project_name }}" 
                                 class="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 focus:border-red-500 focus:bg-white outline-none transition font-medium">
                         </div>
                         <div>
-                            <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Repository URL (GitHub/GitLab)</label>
+                            <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Repository URL</label>
                             <div class="relative">
                                 <i class="fab fa-github absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg"></i>
-                                <input type="url" name="repo_url" placeholder="https://github.com/username/repo" 
+                                <input type="url" name="repo_url" value="{{ project.repo_url }}" 
                                     class="w-full bg-gray-50 border-2 border-gray-100 rounded-xl pl-12 pr-4 py-3 focus:border-red-500 focus:bg-white outline-none transition font-medium">
                             </div>
                         </div>
@@ -85,17 +84,17 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Primary Languages</label>
-                            <input type="text" name="languages" placeholder="Python, React, PostgreSQL" 
+                            <input type="text" name="languages" value="{{ project.languages }}" 
                                 class="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 focus:border-red-500 focus:bg-white outline-none transition font-medium">
                         </div>
                         <div>
                             <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Target Roles Needed</label>
                             <select name="roles_needed" class="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 focus:border-red-500 focus:bg-white outline-none transition font-medium appearance-none">
-                                <option>Lead Maintainer</option>
-                                <option>Frontend Developer</option>
-                                <option>Backend Developer</option>
-                                <option>UI/UX Designer</option>
-                                <option>Documentation Writer</option>
+                                <option value="Lead Maintainer" {% if project.roles_needed == 'Lead Maintainer' %}selected{% endif %}>Lead Maintainer</option>
+                                <option value="Frontend Developer" {% if project.roles_needed == 'Frontend Developer' %}selected{% endif %}>Frontend Developer</option>
+                                <option value="Backend Developer" {% if project.roles_needed == 'Backend Developer' %}selected{% endif %}>Backend Developer</option>
+                                <option value="UI/UX Designer" {% if project.roles_needed == 'UI/UX Designer' %}selected{% endif %}>UI/UX Designer</option>
+                                <option value="Documentation Writer" {% if project.roles_needed == 'Documentation Writer' %}selected{% endif %}>Documentation Writer</option>
                             </select>
                         </div>
                     </div>
@@ -111,64 +110,23 @@
                     
                     <div>
                         <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Short Description</label>
-                        <textarea name="description" rows="4" placeholder="What does it do? Why should someone take it over?" 
-                            class="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 focus:border-red-500 focus:bg-white outline-none transition font-medium"></textarea>
-                    </div>
-                </section>
-
-                <section class="space-y-6">
-
-                    <div class="flex items-center gap-3">
-                        <span class="bg-red-100 text-red-600 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">4</span>
-                        <h3 class="text-xl font-bold">Upload Screenshots</h3>
-                    </div>
-
-                    <div class="mt-6 grid grid-cols-2 gap-4">
-                       <div class="h-40 bg-gray-100 rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-gray-400 group hover:border-red-200 hover:bg-red-50 transition cursor-pointer">
-                            <i class="fas fa-image mb-2 text-xl group-hover:text-red-400"></i>
-                            <span class="text-[10px] font-bold uppercase tracking-widest">View Screenshot</span>
-                        </div>
-                    </div>
-
-                    <div class="bg-yellow-50 border-1-4 border-yellow-400 p-4 rounded-r-xl">
-                        <div class="flex items-center gap-3 text-yellow-800 font-bold mb-1">
-                            <i class="fas fa-exclamation-triangle"></i>
-                            <span class="text-sm">Maintenance Tip</span>
-                        </div>
-                        <p class="text-xs text-yellow-700 leading-relaxed">
-                            Ensure your README includes a <strong>takeover guide</strong>. New maintainers appreciate knowing where the "skeletons" are buried!
-                        </p>
+                        <textarea name="description" rows="6" 
+                            class="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 focus:border-red-500 focus:bg-white outline-none transition font-medium">{{ project.description }}</textarea>
                     </div>
                 </section>
 
                 <div class="pt-6 flex flex-col md:flex-row gap-4">
                     <button type="submit" class="flex-grow bg-red-600 text-white px-8 py-4 rounded-2xl font-black hover:bg-red-700 transform hover:-translate-y-1 transition shadow-xl shadow-red-200">
-                        PUBLISH TO DIRECTORY
+                        SAVE ALL CHANGES
                     </button>
-                    <button type="button" onclick="window.location.href='Navigation.html'" class="px-8 py-4 text-gray-500 font-bold hover:text-gray-800 transition">
-                        Cancel
-                    </button>
+                    <a href="{{ url_for('views.project_page', project_id=project.id) }}" class="px-8 py-4 text-center text-gray-500 font-bold hover:text-gray-800 transition">
+                        Discard Changes
+                    </a>
                 </div>
             </form>
         </div>
-
-        <p class="mt-8 text-center text-gray-400 text-sm italic">
-            By listing your project, you agree to respond to takeover requests within 7 business days.
-        </p>
     </div>
 </main>
-
-<script>
-    // Simple logic for the menu (if you want it active on this page too)
-    const menuBtn = document.getElementById('menu-btn');
-    const mobileMenu = document.getElementById('mobile-menu');
-
-    if(menuBtn) {
-        menuBtn.addEventListener('click', () => {
-            mobileMenu.classList.toggle('hidden');
-        });
-    }
-</script>
 
 </body>
 </html>
