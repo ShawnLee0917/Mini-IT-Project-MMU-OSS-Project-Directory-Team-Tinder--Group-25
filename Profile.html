@@ -176,9 +176,9 @@
         <div class="bg-white rounded-3xl p-8 w-full max-w-lg shadow-xl">
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-2xl font-bold">List Your Project</h2>
-                <button id="close-project-modal-btn" class="text-gray-400 hover:text-gray-700 transition">
+                <a href="/List_Your_Project.html" id="close-project-modal-btn" class="text-gray-400 hover:text-gray-700 transition">
                     <i class="fas fa-times text-xl"></i>
-                </button>
+                </a>
             </div>
             <form id="add-project-form" class="space-y-4">
                 <div>
@@ -535,7 +535,6 @@
                 spinner.classList.add('hidden');
             }
         }
-
         // ── Logout ────────────────────────────────────────────────────────────────────
         async function logout() {
             if (IS_FILE) { showToast('Offline mode — no logout needed'); return; }
