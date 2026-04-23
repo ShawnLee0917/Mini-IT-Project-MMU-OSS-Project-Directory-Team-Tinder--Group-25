@@ -1,3 +1,4 @@
+import os
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from os import path
@@ -12,6 +13,12 @@ def create_app():
     app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{DB_NAME}'
 
     db.init_app(app)
+
+    UPLOAD_FOLDER = os.path.join(app.root_path, 'static/uploads')
+    app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+    if not os.path.exists(UPLOAD_FOLDER):
+        os.makedirs(UPLOAD_FOLDER)
 
     from .views import views
     app.register_blueprint(views, url_prefix='/')

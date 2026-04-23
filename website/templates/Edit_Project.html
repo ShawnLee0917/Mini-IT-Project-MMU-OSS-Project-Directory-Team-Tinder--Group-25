@@ -48,7 +48,7 @@
         </div>
 
         <div class="bg-white rounded-3xl shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
-            <form action="{{ url_for('views.edit_project', project_id=project.id) }}" method="POST" class="p-8 space-y-8">
+            <form action="{{ url_for('views.edit_project', project_id=project.id) }}" method="POST" enctype="multipart/form-data" class="p-8 space-y-8">
                 
                 <section class="space-y-6">
                     <div class="flex items-center gap-3">
@@ -115,6 +115,46 @@
                     </div>
                 </section>
 
+                <hr class="border-gray-100">
+
+                <section class="space-y-6">
+                    <div class="flex items-center gap-3">
+                        <span class="bg-red-100 text-red-600 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">4</span>
+                        <h3 class="text-xl font-bold">Manage Screenshots</h3>
+                    </div>
+                    
+                    <div class="space-y-6">
+                        {% if project.images %}
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            {% for image in project.images %}
+                            <div class="relative group border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                                <img src="{{ url_for('static', filename='uploads/' + image.filename) }}" class="w-full h-32 object-cover">
+                                
+                                <div class="absolute bottom-0 left-0 right-0 bg-white/90 p-2 border-t border-gray-200 flex justify-center items-center">
+                                    <label class="flex items-center gap-2 cursor-pointer text-red-700 hover:text-red-800">
+                                        <input type="checkbox" name="delete_images" value="{{ image.id }}" class="w-4 h-4 text-red-600 rounded">
+                                        <span class="font-bold text-xs">Delete</span>
+                                    </label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
+                        <div class="mt-4">
+                            <label class="block text-xs font-black text-gray-400 uppercase mb-2">Upload More Images</label>
+                            <label class="cursor-pointer block" id="drop-zone">
+                                <div id="drop-zone-content" class="h-32 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-gray-400 transition-all duration-300">
+                                    <i class="fas fa-cloud-upload-alt mb-2 text-2xl group-hover:text-red-400 transition"></i>
+                                    <span class="text-[10px] font-bold uppercase tracking-widest mt-1">Drag & Drop or Click to Choose</span>
+                                    <input type="file" name="screenshots" class="hidden" accept="image/*" multiple id="editImageInput">
+                                    <p id="editFileNameDisplay" class="text-xs mt-2 text-red-600 font-semibold"></p>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </section>
+
                 <div class="pt-6 flex flex-col md:flex-row gap-4">
                     <button type="submit" class="flex-grow bg-red-600 text-white px-8 py-4 rounded-2xl font-black hover:bg-red-700 transform hover:-translate-y-1 transition shadow-xl shadow-red-200">
                         SAVE ALL CHANGES
@@ -127,6 +167,60 @@
         </div>
     </div>
 </main>
+
+<script>
+    const menuBtn = document.getElementById('menu-btn');
+    const mobileMenu = document.getElementById('mobile-menu');
+
+    if (menuBtn && mobileMenu) {
+        menuBtn.addEventListener('click', () => {
+            mobileMenu.classList.toggle('hidden');
+        });
+    }
+
+    const dropZone = document.getElementById('drop-zone');
+    const dropZoneContent = document.getElementById('drop-zone-content');
+    const fileInput = document.getElementById('editImageInput');
+    const fileDisplay = document.getElementById('editFileNameDisplay');
+
+    function updateFileDisplay(files) {
+        if (files && files.length > 0) {
+            fileDisplay.innerText = "Selected " + files.length + " new file(s) to add.";
+        } else {
+            fileDisplay.innerText = "";
+        }
+    }
+
+    if (dropZone && fileInput) {
+        fileInput.addEventListener('change', function() {
+            updateFileDisplay(this.files);
+        });
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault(); 
+            dropZoneContent.classList.remove('border-gray-200', 'bg-gray-50');
+            dropZoneContent.classList.add('border-red-400', 'bg-red-50');
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZoneContent.classList.remove('border-red-400', 'bg-red-50');
+            dropZoneContent.classList.add('border-gray-200', 'bg-gray-50');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            
+            dropZoneContent.classList.remove('border-red-400', 'bg-red-50');
+            dropZoneContent.classList.add('border-gray-200', 'bg-gray-50');
+
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                fileInput.files = e.dataTransfer.files;
+                updateFileDisplay(fileInput.files);
+            }
+        });
+    }
+</script>
 
 </body>
 </html>
