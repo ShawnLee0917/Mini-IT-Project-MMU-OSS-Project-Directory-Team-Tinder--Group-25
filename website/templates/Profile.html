@@ -1,104 +1,380 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Profile | MMU OSSD</title>
+    <meta name="description" content="Your MMU Open Source Student Directory profile">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" rel="stylesheet">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+
         body { font-family: 'Inter', sans-serif; }
+        #avatar-wrapper:hover #avatar-overlay { opacity: 1; }
+        #avatar-overlay { transition: opacity 0.2s; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in { animation: fadeIn 0.35s ease both; }
     </style>
 </head>
+
 <body class="bg-gray-50 text-gray-900">
 
-<nav class="bg-red-700 text-white shadow-md sticky top-0 z-50">
-    <div class="container mx-auto px-6 py-3 flex items-center justify-between">
-        <div class="flex items-center gap-4">
-            <button id="menu-btn" class="text-white focus:outline-none p-1 hover:bg-red-800 rounded transition">
-                <i class="fas fa-bars text-xl"></i>
-            </button>
-            <a href="{{ url_for('views.home') }}" class="hover:opacity-80 transition flex items-center gap-4">
-                <i class="fas fa-arrow-left text-xl"></i>
-                <h1 class="text-2xl font-extrabold tracking-tighter">
-                    MMU <span class="font-light text-red-200">OSSD</span>
-                </h1>
-            </a>
-        </div>
-        <div class="flex space-x-8 items-center font-medium">
-            <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition text-sm">Search</a>
-            <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition text-sm">My Projects</a>
-            <div class="bg-red-900 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-400">
-                <span class="text-sm">student@mmu.edu.my</span>
-                <i class="fas fa-user-circle text-lg text-red-200"></i>
+    <nav class="bg-red-700 text-white shadow-md sticky top-0 z-50">
+        <div class="container mx-auto px-6 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <button id="menu-btn" class="text-white focus:outline-none p-1 hover:bg-red-800 rounded transition">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+                <a href="{{ url_for('views.home') }}" class="hover:opacity-80 transition flex items-center gap-4">
+                    <i class="fas fa-arrow-left text-xl"></i>
+                    <h1 class="text-2xl font-extrabold tracking-tighter">
+                        MMU <span class="font-light text-red-200">OSSD</span>
+                    </h1>
+                </a>
             </div>
+            <div class="hidden md:flex space-x-8 items-center font-medium">
+                <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
+                <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
+                <div class="bg-red-900 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-400">
+                    <span id="nav-email" class="text-sm">{{ session.get('user_email', 'Guest') }}</span>
+                    <i class="fas fa-user-circle text-lg text-red-200"></i>
+                </div>
+                <button id="logout-btn" class="bg-white text-red-700 hover:bg-red-50 text-xs font-bold px-3 py-2 rounded-xl transition">
+                    <i class="fas fa-sign-out-alt mr-1"></i>Logout
+                </button>
+            </div>
+        </div>
+
+        <div id="mobile-menu" class="hidden bg-red-800 border-t border-red-600 shadow-inner">
+            <div class="px-6 py-4 flex flex-col space-y-4 font-semibold">
+                <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
+                <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
+                <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
+                <a href="{{ url_for('views.list_project') }}" class="hover:text-red-200 transition">List Your Project</a>
+                <button id="logout-btn-mobile" class="text-left text-red-200 hover:text-white transition text-sm">
+                    <i class="fas fa-sign-out-alt mr-1"></i> Logout
+                </button>
+                <div class="pt-2 border-t border-red-700 text-xs font-light opacity-80" id="nav-email-mobile">
+                    {{ session.get('user_email', 'Guest') }}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto px-6 py-12 fade-in">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
+
+            <div class="space-y-6">
+                <div class="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 text-center">
+
+                    <div id="avatar-wrapper" class="relative w-24 h-24 mx-auto mb-4 cursor-pointer" title="Click to change photo">
+                        <div id="avatar-initials" class="w-24 h-24 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-3xl font-black">
+                            <i class="fas fa-spinner fa-spin text-2xl"></i>
+                        </div>
+                        <img id="avatar-img" src="" alt="Profile photo" class="hidden w-24 h-24 rounded-full object-cover absolute inset-0">
+                        <div id="avatar-overlay" class="absolute inset-0 bg-black bg-opacity-40 rounded-full flex items-center justify-center opacity-0">
+                            <i class="fas fa-camera text-white text-xl"></i>
+                        </div>
+                        <input type="file" id="avatar-input" accept="image/png,image/jpeg,image/gif,image/webp" class="hidden">
+                    </div>
+
+                    <h2 id="display-name" class="text-2xl font-black">Loading…</h2>
+                    <p id="display-faculty" class="text-gray-400 text-sm">…</p>
+                    <p id="display-bio" class="text-gray-500 text-sm mt-3 italic hidden"></p>
+
+                    <div class="mt-6 pt-6 border-t border-gray-50 grid grid-cols-2 gap-4">
+                        <div>
+                            <p id="display-rank" class="text-xl font-black text-red-600">–</p>
+                            <p class="text-[10px] uppercase font-bold text-gray-400">Rank</p>
+                        </div>
+                        <div>
+                            <p id="display-karma" class="text-xl font-black text-red-600">–</p>
+                            <p class="text-[10px] uppercase font-bold text-gray-400">Karma</p>
+                        </div>
+                    </div>
+
+                    <button id="open-edit-modal-btn" class="mt-6 w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2 rounded-xl border border-gray-200 transition text-sm">
+                        <i class="fas fa-pen mr-1"></i> Edit Profile
+                    </button>
+                </div>
+
+                <div class="bg-gray-900 p-6 rounded-3xl text-white">
+                    <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Badges</h3>
+                    <div class="flex gap-3">
+                        <i class="fas fa-fire-alt text-orange-400 text-2xl" title="Early Adopter"></i>
+                        <i class="fas fa-code text-blue-400 text-2xl" title="Python Expert"></i>
+                        <i class="fas fa-handshake text-green-400 text-2xl" title="Top Contributor"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-2 space-y-8">
+                <section class="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Skills &amp; Tech Stack</h3>
+                    <div id="display-skills" class="flex flex-wrap gap-2">
+                        <span class="bg-gray-100 px-4 py-2 rounded-xl text-sm font-semibold text-gray-400 italic">Loading…</span>
+                    </div>
+                </section>
+
+                <section class="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6">My Projects</h3>
+                    <div id="projects-list" class="space-y-4">
+                        <div class="p-4 bg-gray-50 text-gray-400 rounded-2xl text-center text-sm italic">
+                            Loading projects…
+                        </div>
+                    </div>
+                    
+                    <a href="{{ url_for('views.list_project') }}" class="block mt-4 w-full p-4 border border-dashed border-gray-200 rounded-2xl text-center text-gray-400 text-sm hover:bg-gray-50 hover:text-red-600 transition cursor-pointer font-bold">
+                        <i class="fas fa-plus mr-1"></i>List another project for handover
+                    </a>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <div id="toast" class="hidden fixed bottom-6 right-6 z-[70] px-6 py-3 rounded-2xl text-white text-sm font-semibold shadow-lg transition-all duration-300"></div>
+
+    <div id="edit-profile-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center px-4">
+        <div class="bg-white rounded-3xl p-8 w-full max-w-lg shadow-xl transform scale-100 transition-transform">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Edit Profile</h2>
+                <button id="close-modal-btn" class="text-gray-400 hover:text-gray-700 transition">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <form id="edit-profile-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Name</label>
+                    <input type="text" id="edit-name" class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-red-500 text-sm bg-gray-50">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Faculty</label>
+                    <input type="text" id="edit-faculty" class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-red-500 text-sm bg-gray-50">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Bio</label>
+                    <textarea id="edit-bio" rows="3" placeholder="Tell others a bit about yourself…" class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-red-500 text-sm bg-gray-50 resize-none"></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Skills &amp; Languages <span class="text-gray-400 font-normal">(comma separated)</span></label>
+                    <input type="text" id="edit-skills" placeholder="e.g. Python, JavaScript, React" class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-red-500 text-sm bg-gray-50">
+                </div>
+                <div class="pt-2 flex justify-end gap-3">
+                    <button type="button" id="cancel-edit-btn" class="px-5 py-2 rounded-xl border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50 transition">Cancel</button>
+                    <button type="submit" id="save-btn" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-xl font-bold transition text-sm flex items-center gap-2">
+                        <span id="save-label">Save Changes</span>
+                        <i id="save-spinner" class="fas fa-spinner fa-spin hidden"></i>
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
-</nav>
 
-<main class="container mx-auto px-6 py-12">
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
-        
-        <div class="space-y-6">
-            <div class="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 text-center">
-                <div class="w-24 h-24 bg-red-100 text-red-600 rounded-full mx-auto flex items-center justify-center text-3xl font-black mb-4">
-                    S
-                </div>
-                <h2 class="text-2xl font-black">MMU Student</h2>
-                <p class="text-gray-400 text-sm">Faculty of Computing & Informatics</p>
+    <script>
+        const API = '/api';
+
+        // 手机端菜单
+        document.getElementById('menu-btn').addEventListener('click', () => {
+            document.getElementById('mobile-menu').classList.toggle('hidden');
+        });
+
+        let toastTimer;
+        function showToast(msg, success = true) {
+            clearTimeout(toastTimer);
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = `fixed bottom-6 right-6 z-[70] px-6 py-3 rounded-2xl text-white text-sm font-semibold shadow-lg transition-all duration-300 ${success ? 'bg-green-600' : 'bg-red-600'}`;
+            toastTimer = setTimeout(() => t.classList.add('hidden'), 3500);
+        }
+
+        function renderSkills(skills) {
+            const el = document.getElementById('display-skills');
+            el.innerHTML = '';
+            (skills.length ? skills : ['No skills listed']).forEach(s => {
+                const span = document.createElement('span');
+                span.className = 'bg-gray-100 px-4 py-2 rounded-xl text-sm font-semibold text-gray-700';
+                span.textContent = s;
+                el.appendChild(span);
+            });
+        }
+
+        function setAvatar(name, avatarData) {
+            const initials = document.getElementById('avatar-initials');
+            const img = document.getElementById('avatar-img');
+            if (avatarData) {
+                img.src = avatarData;
+                img.classList.remove('hidden');
+                initials.classList.add('hidden');
+            } else {
+                initials.textContent = (name || 'S')[0].toUpperCase();
+                initials.classList.remove('hidden');
+                img.classList.add('hidden');
+            }
+        }
+
+        function setBio(bio) {
+            const el = document.getElementById('display-bio');
+            if (bio && bio.trim()) {
+                el.textContent = bio;
+                el.classList.remove('hidden');
+            } else {
+                el.classList.add('hidden');
+            }
+        }
+
+        async function loadProfile() {
+            try {
+                const res = await fetch(`${API}/profile`);
+                if (res.status === 401) { window.location.href = '/login'; return; }
+                if (!res.ok) throw new Error();
+                const d = await res.json();
                 
-                <div class="mt-8 pt-8 border-t border-gray-50 grid grid-cols-2 gap-4">
-                    <div>
-                        <p class="text-xl font-black text-red-600">12</p>
-                        <p class="text-[10px] uppercase font-bold text-gray-400">Rank</p>
-                    </div>
-                    <div>
-                        <p class="text-xl font-black text-red-600">450</p>
-                        <p class="text-[10px] uppercase font-bold text-gray-400">Karma</p>
-                    </div>
-                </div>
-            </div>
+                document.getElementById('display-name').textContent = d.name;
+                document.getElementById('display-faculty').textContent = d.faculty;
+                document.getElementById('display-rank').textContent = d.rank;
+                document.getElementById('display-karma').textContent = d.karma;
+                setBio(d.bio);
+                setAvatar(d.name, d.avatar_url || '');
+                renderSkills(d.skills);
+                
+                document.getElementById('edit-name').value = d.name;
+                document.getElementById('edit-faculty').value = d.faculty;
+                document.getElementById('edit-bio').value = d.bio || '';
+                document.getElementById('edit-skills').value = d.skills.join(', ');
+            } catch {
+                showToast('Could not load profile — is the server running?', false);
+            }
+        }
 
-            <div class="bg-gray-900 p-6 rounded-3xl text-white">
-                <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Badges</h3>
-                <div class="flex gap-3">
-                    <i class="fas fa-fire-alt text-orange-400 text-2xl" title="Early Adopter"></i>
-                    <i class="fas fa-code text-blue-400 text-2xl" title="Python Expert"></i>
-                    <i class="fas fa-handshake text-green-400 text-2xl" title="Top Contributor"></i>
-                </div>
-            </div>
-        </div>
+        async function saveProfile(name, faculty, bio, skills) {
+            const saveBtn = document.getElementById('save-btn');
+            const label = document.getElementById('save-label');
+            const spinner = document.getElementById('save-spinner');
+            saveBtn.disabled = true;
+            label.textContent = 'Saving…';
+            spinner.classList.remove('hidden');
 
-        <div class="lg:col-span-2 space-y-8">
-            <section class="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
-                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6">Skills & Tech Stack</h3>
-                <div class="flex flex-wrap gap-2">
-                    <span class="bg-gray-100 px-4 py-2 rounded-xl text-sm font-semibold text-gray-700">Python</span>
-                    <span class="bg-gray-100 px-4 py-2 rounded-xl text-sm font-semibold text-gray-700">Flask</span>
-                    <span class="bg-gray-100 px-4 py-2 rounded-xl text-sm font-semibold text-gray-700">Tailwind CSS</span>
-                    <span class="bg-gray-100 px-4 py-2 rounded-xl text-sm font-semibold text-gray-700">SQLite</span>
-                </div>
-            </section>
+            try {
+                const res = await fetch(`${API}/profile`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, faculty, bio, skills }),
+                });
+                if (!res.ok) throw new Error();
+                
+                document.getElementById('display-name').textContent = name;
+                document.getElementById('display-faculty').textContent = faculty;
+                setBio(bio);
+                renderSkills(skills);
+                document.getElementById('edit-profile-modal').classList.add('hidden');
+                showToast('Profile saved ✓');
+            } catch {
+                showToast('Failed to save', false);
+            } finally {
+                saveBtn.disabled = false;
+                label.textContent = 'Save Changes';
+                spinner.classList.add('hidden');
+            }
+        }
 
-            <section class="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
-                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6">My Projects</h3>
-                <div class="space-y-4">
-                    <div class="flex items-center justify-between p-4 border border-gray-50 rounded-2xl hover:bg-gray-50 transition">
+        async function uploadAvatar(file) {
+            showToast('Uploading photo…', true);
+            const form = new FormData();
+            form.append('avatar', file);
+            try {
+                const res = await fetch(`${API}/profile/avatar`, { method: 'POST', body: form });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error);
+                const img = document.getElementById('avatar-img');
+                img.src = data.avatar_url + '?t=' + Date.now();
+                img.classList.remove('hidden');
+                document.getElementById('avatar-initials').classList.add('hidden');
+                showToast('Photo updated ✓');
+            } catch (err) {
+                showToast(err.message || 'Upload failed', false);
+            }
+        }
+
+        async function loadProjects() {
+            try {
+                const res = await fetch(`${API}/projects`);
+                if (!res.ok) throw new Error();
+                const projects = await res.json();
+                renderProjects(projects);
+            } catch (err) {
+                console.error('Failed to load projects:', err);
+            }
+        }
+
+        function renderProjects(projects) {
+            const list = document.getElementById('projects-list');
+            if (!projects.length) {
+                list.innerHTML = `<div class="text-gray-400 text-sm italic text-center py-4">No projects yet. List one to get started!</div>`;
+                return;
+            }
+            list.innerHTML = projects.map(p => `
+                <a href="/project/${p.id}" class="block">
+                    <div class="flex items-center justify-between p-4 border border-gray-100 rounded-2xl hover:bg-red-50 hover:border-red-200 transition cursor-pointer">
                         <div>
-                            <h4 class="font-bold text-gray-800">MMU Open Source Directory</h4>
-                            <p class="text-xs text-gray-400">Active • 5 Contributors</p>
+                            <h4 class="font-bold text-gray-800">${escapeHtml(p.name)}</h4>
+                            <p class="text-xs text-gray-400 mt-1">${p.status} • ${p.contributors} Contributors</p>
                         </div>
                         <i class="fas fa-chevron-right text-gray-300"></i>
                     </div>
-                    <div class="p-4 border border-dashed border-gray-200 rounded-2xl text-center text-gray-400 text-sm">
-                        + List another project for handover
-                    </div>
-                </div>
-            </section>
-        </div>
-    </div>
-</main>
+                </a>
+            `).join('');
+        }
 
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        async function logout() {
+            await fetch(`${API}/logout`, { method: 'POST' });
+            window.location.href = '/login';
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Load initial data
+            await loadProfile();
+            await loadProjects();
+
+            // Modal logic
+            const modal = document.getElementById('edit-profile-modal');
+            document.getElementById('open-edit-modal-btn').addEventListener('click', () => modal.classList.remove('hidden'));
+            document.getElementById('close-modal-btn').addEventListener('click', () => modal.classList.add('hidden'));
+            document.getElementById('cancel-edit-btn').addEventListener('click', () => modal.classList.add('hidden'));
+            modal.addEventListener('click', e => { if (e.target === modal) modal.classList.add('hidden'); });
+
+            // Form submits
+            document.getElementById('edit-profile-form').addEventListener('submit', e => {
+                e.preventDefault();
+                const name = document.getElementById('edit-name').value.trim();
+                const faculty = document.getElementById('edit-faculty').value.trim();
+                const bio = document.getElementById('edit-bio').value.trim();
+                const skills = document.getElementById('edit-skills').value.split(',').map(s => s.trim()).filter(Boolean);
+                saveProfile(name, faculty, bio, skills);
+            });
+
+            // Avatar logic
+            document.getElementById('avatar-wrapper').addEventListener('click', () => document.getElementById('avatar-input').click());
+            document.getElementById('avatar-input').addEventListener('change', e => {
+                const file = e.target.files[0];
+                if (file) uploadAvatar(file);
+            });
+
+            // Logout
+            document.getElementById('logout-btn').addEventListener('click', logout);
+            document.getElementById('logout-btn-mobile').addEventListener('click', logout);
+        });
+    </script>
 </body>
 </html>

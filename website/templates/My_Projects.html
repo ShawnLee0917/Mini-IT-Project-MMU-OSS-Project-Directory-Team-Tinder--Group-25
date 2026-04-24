@@ -29,11 +29,27 @@
         <div class="hidden md:flex space-x-8 items-center font-medium">
             <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
             <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition border-b-2 border-red-200">My Projects</a>
-            <div class="bg-red-800 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-500/50">
-                <a href="{{ url_for('views.profile') }}">
-                    <span class="text-sm">student@mmu.edu.my</span>
-                    <i class="fas fa-user-circle text-lg"></i>
-                </a>
+            <a href="{{ url_for('views.profile') }}" class="bg-red-800 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-500/50 cursor-pointer hover:bg-red-900 transition">
+                <span id="nav-email" class="text-sm">{{ session.get('user_email', 'Guest') }}</span>
+                <i class="fas fa-user-circle text-lg"></i>
+            </a>
+            <button id="logout-btn" class="bg-white text-red-700 hover:bg-red-50 text-xs font-bold px-3 py-2 rounded-xl transition">
+                <i class="fas fa-sign-out-alt mr-1"></i>Logout
+            </button>
+        </div>
+    </div>
+
+    <div id="mobile-menu" class="hidden bg-red-800 border-t border-red-600 shadow-inner">
+        <div class="px-6 py-4 flex flex-col space-y-4 font-semibold">
+            <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
+            <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
+            <a href="{{ url_for('views.profile') }}" class="hover:text-red-200 transition">My Profile</a>
+            <a href="{{ url_for('views.list_project') }}" class="hover:text-red-200 transition">List Your Project</a>
+            <button id="logout-btn-mobile" class="text-left text-red-200 hover:text-white transition text-sm">
+                <i class="fas fa-sign-out-alt mr-1"></i> Logout
+            </button>
+            <div class="pt-2 border-t border-red-700 text-xs font-light opacity-80" id="nav-email-mobile">
+                {{ session.get('user_email', 'Guest') }}
             </div>
         </div>
     </div>
@@ -63,7 +79,7 @@
                 <div class="flex justify-between items-start mb-4">
                     <div>
                         <h4 class="text-xl font-bold text-gray-800">{{ project.project_name }}</h4>
-                        <span class="text-xs font-medium bg-green-100 text-green-700 px-2 py-1 rounded mt-2 inline-block">Active</span>
+                        <span class="text-xs font-medium bg-green-100 text-green-700 px-2 py-1 rounded mt-2 inline-block">{{ project.status }}</span>
                     </div>
                     <i class="fas fa-crown text-yellow-500" title="Project Lead"></i>
                 </div>
@@ -118,6 +134,26 @@
         </div>
     </section>
 </main>
+
+<script>
+    const API = '/api';
+
+    document.getElementById('menu-btn').addEventListener('click', () => {
+        document.getElementById('mobile-menu').classList.toggle('hidden');
+    });
+
+    async function logout() {
+        try {
+            await fetch(`${API}/logout`, { method: 'POST' });
+        } catch (err) {
+            console.error('Logout error:', err);
+        }
+        window.location.href = '/login';
+    }
+
+    document.getElementById('logout-btn').addEventListener('click', logout);
+    document.getElementById('logout-btn-mobile').addEventListener('click', logout);
+</script>
 
 </body>
 </html>

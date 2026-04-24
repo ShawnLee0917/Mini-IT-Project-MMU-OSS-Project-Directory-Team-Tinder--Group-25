@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -33,11 +34,28 @@
         <div class="hidden md:flex space-x-8 items-center font-medium">
             <a href="{{ url_for('views.search') }}" class="text-red-200 border-b-2 border-red-200">Search</a>
             <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
-            <div class="bg-red-800 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-500/50">
-                <a href="{{ url_for('views.profile') }}">
-                    <span class="text-sm">student@mmu.edu.my</span>
-                    <i class="fas fa-user-circle text-lg"></i>
-                </a>
+            <a href="{{ url_for('views.profile') }}" class="bg-red-800 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-500/50 cursor-pointer hover:bg-red-900 transition">
+                <span id="nav-email" class="text-sm">{{ session.get('user_email', 'Guest') }}</span>
+                <i class="fas fa-user-circle text-lg"></i>
+            </a>
+            <button id="logout-btn" class="bg-white text-red-700 hover:bg-red-50 text-xs font-bold px-3 py-2 rounded-xl transition">
+                <i class="fas fa-sign-out-alt mr-1"></i>Logout
+            </button>
+        </div>
+    </div>
+
+    <div id="mobile-menu" class="hidden bg-red-800 border-t border-red-600 shadow-inner">
+        <div class="px-6 py-4 flex flex-col space-y-4 font-semibold">
+            <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
+            <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
+            <a href="{{ url_for('views.profile') }}" class="hover:text-red-200 transition">My Profile</a>
+            <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
+            <a href="{{ url_for('views.list_project') }}" class="hover:text-red-200 transition">List Your Project</a>
+            <button id="logout-btn-mobile" class="text-left text-red-200 hover:text-white transition text-sm">
+                <i class="fas fa-sign-out-alt mr-1"></i> Logout
+            </button>
+            <div class="pt-2 border-t border-red-700 text-xs font-light opacity-80" id="nav-email-mobile">
+                {{ session.get('user_email', 'Guest') }}
             </div>
         </div>
     </div>
@@ -114,79 +132,67 @@
                     <input type="checkbox" id="HTML" class="hidden filter-chip">
                     <label for="HTML" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">HTML</label>
 
-                    <input type="checkbox" id="CSS" class="hidden filter-chip">
-                    <label for="CSS" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">CSS</label>
-
-                    <input type="checkbox" id="dart" class="hidden filter-chip">
-                    <label for="dart" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Dart</label>
-
-                    <input type="checkbox" id="SQL" class="hidden filter-chip">
-                    <label for="SQL" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">SQL</label>
-
-                    <input type="checkbox" id="PHP" class="hidden filter-chip">
-                    <label for="PHP" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">PHP</label>
-
-                    <input type="checkbox" id="C++" class="hidden filter-chip">
-                    <label for="C++" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">C++</label>
-
-                    <input type="checkbox" id="Pandas" class="hidden filter-chip">
-                    <label for="Pandas" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Pandas</label>
-                    
-                    <input type="checkbox" id="NODEJS" class="hidden filter-chip">
-                    <label for="NODEJS" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">NODEJS</label>
-                    
-                    <input type="checkbox" id="Swift" class="hidden filter-chip">
-                    <label for="Swift" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Swift</label>
-
-                    <input type="checkbox" id="Kotlin" class="hidden filter-chip">
-                    <label for="Kotlin" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Kotlin</label>
-
-                    <input type="checkbox" id="Go" class="hidden filter-chip">
-                    <label for="Go" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Go</label>
-
-                    <input type="checkbox" id="R" class="hidden filter-chip">
-                    <label for="R" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">R</label>
-
-                    <input type="checkbox" id="Angular" class="hidden filter-chip">
-                    <label for="Angular" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Angular</label>
-
-                    <input type="checkbox" id="TypeScript" class="hidden filter-chip">
-                    <label for="TypeScript" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">TypeScript</label>
+                    <input type="checkbox" id="React" class="hidden filter-chip">
+                    <label for="React" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">React</label>
 
                     <input type="checkbox" id="Rust" class="hidden filter-chip">
                     <label for="Rust" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Rust</label>
 
-                    <input type="checkbox" id="Rust" class="hidden filter-chip">
-                    <label for="Rust" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Others</label>
+                    <input type="checkbox" id="Others" class="hidden filter-chip">
+                    <label for="Others" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Others</label>
                 </div>
             </div>
 
             <div class="pt-6 border-t border-gray-200">
-                <button type="button" onclick="window.location.href='Search.html'" class="text-sm font-bold text-red-600 hover:text-red-700 transition">
+                <a href="{{ url_for('views.search') }}" class="text-sm font-bold text-red-600 hover:text-red-700 transition">
                     Clear All Filters
-                </button>
+                </a>
             </div>
         </aside>
 
         <div class="flex-grow">
             <div class="flex justify-between items-center mb-6">
-                <span class="text-sm text-gray-500 font-medium">Showing <span class="text-gray-900 font-bold">0</span> projects</span>
+                <span class="text-sm text-gray-500 font-medium">Showing <span class="text-gray-900 font-bold">{{ projects|length }}</span> projects</span>
                 <select class="bg-transparent text-sm font-bold text-gray-700 focus:outline-none cursor-pointer">
                     <option>Newest First</option>
                     <option>Most Matched</option>
                 </select>
             </div>
 
-
-
-                <div class="hidden col-span-full py-20 text-center">
-                    <i class="fas fa-folder-open text-5xl text-gray-200 mb-4"></i>
-                    <h3 class="text-xl font-bold text-gray-400">No projects match your search</h3>
-                    <p class="text-gray-500">Try adjusting your filters or search keywords.</p>
-                </div>
-
+            <div class="space-y-6">
+                {% if projects %}
+                    {% for project in projects %}
+                    <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition">
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="text-xl font-bold text-gray-900">{{ project.project_name }}</h3>
+                            <span class="text-xs font-bold bg-green-100 text-green-700 px-3 py-1 rounded-full uppercase tracking-wider">{{ project.status }}</span>
+                        </div>
+                        <p class="text-sm text-gray-500 mb-4 line-clamp-2">{{ project.description }}</p>
+                        
+                        <div class="flex items-center justify-between border-t border-gray-50 pt-4">
+                            <div class="flex flex-wrap gap-2">
+                                {% if project.languages %}
+                                    {% for lang in project.languages.split(',') %}
+                                        <span class="px-2 py-1 bg-gray-100 rounded-lg text-xs font-semibold text-gray-600">{{ lang.strip() }}</span>
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="px-2 py-1 bg-gray-100 rounded-lg text-xs font-semibold text-gray-600">Not specified</span>
+                                {% endif %}
+                            </div>
+                            <a href="{{ url_for('views.project_page', project_id=project.id) }}" class="text-red-600 text-sm font-bold hover:text-red-700 transition whitespace-nowrap ml-4">
+                                View Project →
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="py-20 text-center bg-white rounded-3xl border border-gray-100">
+                        <i class="fas fa-folder-open text-5xl text-gray-200 mb-4"></i>
+                        <h3 class="text-xl font-bold text-gray-400">No projects match your search</h3>
+                        <p class="text-gray-500 mt-2">Try adjusting your filters or search keywords.</p>
+                    </div>
+                {% endif %}
             </div>
-
 
         </div>
     </div>
@@ -197,6 +203,26 @@
         &copy; 2026 Multimedia University Open Source Software Directory
     </div>
 </footer>
+
+<script>
+    const API = '/api';
+
+    document.getElementById('menu-btn').addEventListener('click', () => {
+        document.getElementById('mobile-menu').classList.toggle('hidden');
+    });
+
+    async function logout() {
+        try {
+            await fetch(`${API}/logout`, { method: 'POST' });
+        } catch (err) {
+            console.error('Logout error:', err);
+        }
+        window.location.href = '/login';
+    }
+
+    document.getElementById('logout-btn').addEventListener('click', logout);
+    document.getElementById('logout-btn-mobile').addEventListener('click', logout);
+</script>
 
 </body>
 </html>

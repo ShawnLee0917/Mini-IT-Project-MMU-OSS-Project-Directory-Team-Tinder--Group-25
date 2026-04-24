@@ -32,10 +32,10 @@
             <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
             <div class="bg-red-800 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-500/50">
                 <a href="{{ url_for('views.profile') }}">
-                    <span class="text-sm">student@mmu.edu.my</span>
+                    <span class="text-sm">{{ session.get('user_email', 'Guest') }}</span>
                     <i class="fas fa-user-circle text-lg"></i>
                 </a>
-            </div>
+            </div>        
         </div>
     </div>
 </nav>
@@ -44,7 +44,7 @@
     <div class="px-4 pt-2 pb-4 space-y-1">
         <a href="{{ url_for('views.search') }}" class="block px-3 py-2 rounded-md font-medium hover:bg-red-700 transition">Search</a>
         <a href="{{ url_for('views.my_projects') }}" class="block px-3 py-2 rounded-md font-medium hover:bg-red-700 transition">My Projects</a>
-        <a href="{{ url_for('views.profile') }}" class="block px-3 py-2 rounded-md font-medium hover:bg-red-700 transition">Profile (student@mmu.edu.my)</a>
+        <a href="{{ url_for('views.profile') }}" class="block px-3 py-2 rounded-md font-medium hover:bg-red-700 transition">Profile ({{ session.get('user_email', 'student') }})</a>
     </div>
 </div>
 
@@ -57,7 +57,7 @@
         </div>
 
         <div class="bg-white rounded-3xl shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
-            <form action="/list_project" method="POST" enctype="multipart/form-data" class="p-8 space-y-8">
+            <form action="{{ url_for('views.list_project') }}" method="POST" enctype="multipart/form-data" class="p-8 space-y-8">
                 
                 <section class="space-y-6">
                     <div class="flex items-center gap-3">
@@ -68,14 +68,14 @@
                     <div class="grid grid-cols-1 gap-6">
                         <div>
                             <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Project Name</label>
-                            <input type="text" name="project_name" placeholder="e.g. MMU Smart Shuttle Tracker" 
+                            <input type="text" name="project_name" placeholder="e.g. MMU Smart Shuttle Tracker" required
                                 class="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 focus:border-red-500 focus:bg-white outline-none transition font-medium">
                         </div>
                         <div>
                             <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Repository URL (GitHub/GitLab)</label>
                             <div class="relative">
                                 <i class="fab fa-github absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg"></i>
-                                <input type="url" name="repo_url" placeholder="https://github.com/username/repo" 
+                                <input type="url" name="repo_url" placeholder="https://github.com/username/repo" required
                                     class="w-full bg-gray-50 border-2 border-gray-100 rounded-xl pl-12 pr-4 py-3 focus:border-red-500 focus:bg-white outline-none transition font-medium">
                             </div>
                         </div>
@@ -93,7 +93,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Primary Languages</label>
-                            <input type="text" name="languages" placeholder="Python, React, PostgreSQL" 
+                            <input type="text" name="languages" placeholder="Python, React, PostgreSQL" required
                                 class="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 focus:border-red-500 focus:bg-white outline-none transition font-medium">
                         </div>
                         <div>
@@ -119,7 +119,7 @@
                     
                     <div>
                         <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Short Description</label>
-                        <textarea name="description" rows="4" placeholder="What does it do? Why should someone take it over?" 
+                        <textarea name="description" rows="4" placeholder="What does it do? Why should someone take it over?" required
                             class="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 focus:border-red-500 focus:bg-white outline-none transition font-medium"></textarea>
                     </div>
                 </section>
