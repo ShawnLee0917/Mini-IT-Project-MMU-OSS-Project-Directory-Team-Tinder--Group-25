@@ -19,7 +19,7 @@
             <button id="menu-btn" class="text-white focus:outline-none p-1 hover:bg-red-800 rounded transition">
                 <i class="fas fa-bars text-xl"></i>
             </button>
-            <a href="{{ url_for('views.list_project') }}" class="hover:opacity-80 transition flex items-center gap-4">
+            <a href="{{ url_for('views.home') }}" class="hover:opacity-80 transition flex items-center gap-4">
                 <i class="fas fa-arrow-left text-xl"></i>
                 <h1 class="text-2xl font-extrabold tracking-tighter">
                     MMU <span class="font-light text-red-200">OSSD</span>
@@ -29,13 +29,27 @@
         <div class="hidden md:flex space-x-8 items-center font-medium">
             <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
             <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
-            <div class="bg-red-800 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-500/50">
-                <a href="{{ url_for('views.profile') }}">
-                    <span class="text-sm">student@mmu.edu.my</span>
-                    <i class="fas fa-user-circle text-lg"></i>
-                </a>
-            </div>
-        </div> 
+            <a href="{{ url_for('views.profile') }}" class="bg-red-800 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-500/50 cursor-pointer hover:bg-red-900 transition">
+                <span id="nav-email" class="text-sm">{{ session.get('user_email', 'Guest') }}</span>
+                <i class="fas fa-user-circle text-lg"></i>
+            </a>
+            <button id="logout-btn" class="bg-white text-red-700 hover:bg-red-50 text-xs font-bold px-3 py-2 rounded-xl transition">
+                <i class="fas fa-sign-out-alt mr-1"></i>Logout
+            </button>
+        </div>
+    </div>
+
+    <div id="mobile-menu" class="hidden bg-red-800 border-t border-red-600 shadow-inner">
+        <div class="px-6 py-4 flex flex-col space-y-4 font-semibold">
+            <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
+            <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
+            <a href="{{ url_for('views.profile') }}" class="hover:text-red-200 transition">My Profile</a>
+            <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
+            <a href="{{ url_for('views.list_project') }}" class="hover:text-red-200 transition">List Your Project</a>
+            <button id="logout-btn-mobile" class="text-left text-red-200 hover:text-white transition text-sm">
+                <i class="fas fa-sign-out-alt mr-1"></i> Logout
+            </button>
+        </div>
     </div>
 </nav>
 
@@ -44,21 +58,24 @@
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
                 <div class="flex items-center gap-3 mb-2">
-                    <span class="text-xs font-bold bg-green-100 text-green-700 px-3 py-1 rounded-full tracking-wider uppercase">Active Recruiting</span>
+                    <span class="text-xs font-bold bg-green-100 text-green-700 px-3 py-1 rounded-full tracking-wider uppercase">{{ project.status }}</span>
                     <span class="text-xs font-bold bg-gray-100 text-gray-600 px-3 py-1 rounded-full tracking-wider uppercase">
-                        Listed: {{ project.date_created.strftime('%Y-%m-%d') }}
+                        Listed: {{ project.created_at.strftime('%Y-%m-%d') }}
                     </span>
                 </div>
                 <h2 class="text-4xl font-black text-gray-900 leading-tight">{{ project.project_name }}</h2>
-<div class="flex gap-3">
-    <a href="{{ url_for('views.edit_project', project_id=project.id) }}" class="bg-yellow-100 text-yellow-700 px-6 py-3 rounded-xl font-bold hover:bg-yellow-200 transition flex items-center gap-2 border border-yellow-300">
-        <i class="fas fa-edit text-xl"></i> Edit
-    </a>
-    
-    <a href="{{ project.repo_url }}" target="_blank" class="bg-gray-100 text-gray-700 px-6 py-3 rounded-xl font-bold hover:bg-gray-200 transition flex items-center gap-2">
-        <i class="fab fa-github text-xl"></i> Repository
-    </a>
-</div>        </div>
+            </div>
+            
+            <div class="flex gap-3">
+                <a href="{{ url_for('views.edit_project', project_id=project.id) }}" class="bg-yellow-100 text-yellow-700 px-6 py-3 rounded-xl font-bold hover:bg-yellow-200 transition flex items-center gap-2 border border-yellow-300">
+                    <i class="fas fa-edit text-xl"></i> Edit
+                </a>
+                
+                <a href="{{ project.repo_url }}" target="_blank" class="bg-gray-100 text-gray-700 px-6 py-3 rounded-xl font-bold hover:bg-gray-200 transition flex items-center gap-2">
+                    <i class="fab fa-github text-xl"></i> Repository
+                </a>
+            </div>        
+        </div>
     </div>
 </header>
 
@@ -121,7 +138,6 @@
                             <i class="fas fa-image text-3xl mb-2"></i>
                             <span class="text-xs font-bold uppercase tracking-widest">
                                 No Screenshots Available
-
                             </span>
                         </div>
                     {% endif %}
@@ -131,27 +147,45 @@
         </div>
 
         <div class="space-y-8">
-            
             <div class="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm">
                 <h4 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Project Lead</h4>
                 <div class="flex items-center gap-4 mb-6">
                     <div class="w-14 h-14 rounded-full bg-red-100 border-2 border-red-200 flex items-center justify-center text-red-600 font-bold text-xl">
-                        TZ
+                        {{ project.user.name[0] | upper if project.user else 'U' }}
                     </div>
                     <div>
-                        <div class="font-bold text-gray-900 text-lg">Theng Zhong Yee</div>
-                        <div class="text-sm text-gray-500">FCI Student @ MMU</div>
+                        <div class="font-bold text-gray-900 text-lg">{{ project.user.name if project.user else 'Anonymous User' }}</div>
+                        <div class="text-sm text-gray-500">{{ project.user.faculty if project.user else 'MMU Student' }}</div>
                     </div>
                 </div>
                 
-                <a href="#" class="block text-center text-sm font-bold text-red-600 hover:text-red-700 bg-red-50 py-3 rounded-xl transition">
+                <a href="mailto:{{ project.user.email if project.user else '' }}" class="block text-center text-sm font-bold text-red-600 hover:text-red-700 bg-red-50 py-3 rounded-xl transition">
                     <i class="far fa-envelope mr-2"></i> Contact Lead
                 </a>
             </div>
-
         </div>
     </div>
 </main>
+
+<script>
+    const API = '/api';
+
+    document.getElementById('menu-btn').addEventListener('click', () => {
+        document.getElementById('mobile-menu').classList.toggle('hidden');
+    });
+
+    async function logout() {
+        try {
+            await fetch(`${API}/logout`, { method: 'POST' });
+        } catch (err) {
+            console.error('Logout error:', err);
+        }
+        window.location.href = '/login';
+    }
+
+    document.getElementById('logout-btn').addEventListener('click', logout);
+    document.getElementById('logout-btn-mobile').addEventListener('click', logout);
+</script>
 
 </body>
 </html>
