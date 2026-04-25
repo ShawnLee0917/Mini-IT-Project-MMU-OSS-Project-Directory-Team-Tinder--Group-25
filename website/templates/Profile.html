@@ -20,6 +20,81 @@
             to { opacity: 1; transform: translateY(0); }
         }
         .fade-in { animation: fadeIn 0.35s ease both; }
+
+        /* ── Animated Hamburger Button ─────────────────────────── */
+        .hamburger {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            border-radius: 8px;
+            padding: 6px;
+            gap: 5px;
+            transition: background 0.2s ease;
+            position: relative;
+        }
+        .hamburger:hover {
+            background: rgba(255,255,255,0.15);
+        }
+        .hamburger:focus-visible {
+            outline: 2px solid rgba(255,255,255,0.6);
+            outline-offset: 2px;
+        }
+        .hamburger .bar {
+            display: block;
+            width: 22px;
+            height: 2.5px;
+            border-radius: 99px;
+            background: #fff;
+            transition: transform 0.35s cubic-bezier(0.23, 1, 0.32, 1),
+                        opacity   0.25s ease,
+                        width     0.3s ease;
+            transform-origin: center;
+        }
+        /* Open state — morph into X */
+        .hamburger.is-open .bar:nth-child(1) {
+            transform: translateY(7.5px) rotate(45deg);
+        }
+        .hamburger.is-open .bar:nth-child(2) {
+            opacity: 0;
+            width: 0;
+        }
+        .hamburger.is-open .bar:nth-child(3) {
+            transform: translateY(-7.5px) rotate(-45deg);
+        }
+
+        /* ── Mobile menu slide-down animation ──────────────────── */
+        #mobile-menu {
+            max-height: 0;
+            overflow: hidden;
+            opacity: 0;
+            transition: max-height 0.38s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.28s ease;
+        }
+        #mobile-menu.menu-open {
+            max-height: 500px;
+            opacity: 1;
+        }
+        #mobile-menu a, #mobile-menu button, #mobile-menu div {
+            transform: translateY(-6px);
+            opacity: 0;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+        }
+        #mobile-menu.menu-open a, #mobile-menu.menu-open button, #mobile-menu.menu-open div {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        #mobile-menu a:nth-child(1)  { transition-delay: 0.05s; }
+        #mobile-menu a:nth-child(2)  { transition-delay: 0.09s; }
+        #mobile-menu a:nth-child(3)  { transition-delay: 0.13s; }
+        #mobile-menu a:nth-child(4)  { transition-delay: 0.17s; }
+        #mobile-menu a:nth-child(5)  { transition-delay: 0.21s; }
+        #mobile-menu button          { transition-delay: 0.25s; }
+        #mobile-menu #nav-email-mobile { transition-delay: 0.29s; }
     </style>
 </head>
 
@@ -28,8 +103,10 @@
     <nav class="bg-red-700 text-white shadow-md sticky top-0 z-50">
         <div class="container mx-auto px-6 py-3 flex items-center justify-between">
             <div class="flex items-center gap-4">
-                <button id="menu-btn" class="text-white focus:outline-none p-1 hover:bg-red-800 rounded transition">
-                    <i class="fas fa-bars text-xl"></i>
+                <button id="menu-btn" class="hamburger" aria-label="Toggle menu" aria-expanded="false">
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
                 </button>
                 <a href="{{ url_for('views.home') }}" class="hover:opacity-80 transition flex items-center gap-4">
                     <i class="fas fa-arrow-left text-xl"></i>
@@ -51,7 +128,7 @@
             </div>
         </div>
 
-        <div id="mobile-menu" class="hidden bg-red-800 border-t border-red-600 shadow-inner">
+        <div id="mobile-menu" class="bg-red-800 border-t border-red-600 shadow-inner">
             <div class="px-6 py-4 flex flex-col space-y-4 font-semibold">
                 <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
                 <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
@@ -72,7 +149,6 @@
 
             <div class="space-y-6">
                 <div class="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 text-center">
-
                     <div id="avatar-wrapper" class="relative w-24 h-24 mx-auto mb-4 cursor-pointer" title="Click to change photo">
                         <div id="avatar-initials" class="w-24 h-24 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-3xl font-black">
                             <i class="fas fa-spinner fa-spin text-2xl"></i>
@@ -179,11 +255,37 @@
     <script>
         const API = '/api';
 
-        // 手机端菜单
-        document.getElementById('menu-btn').addEventListener('click', () => {
-            document.getElementById('mobile-menu').classList.toggle('hidden');
+        // ── Smooth Mobile Menu Toggle ───────────────────────────────────────────
+        const menuBtn    = document.getElementById('menu-btn');
+        const mobileMenu = document.getElementById('mobile-menu');
+
+        function openMenu() {
+            mobileMenu.classList.add('menu-open');
+            menuBtn.classList.add('is-open');
+            menuBtn.setAttribute('aria-expanded', 'true');
+        }
+
+        function closeMenu() {
+            mobileMenu.classList.remove('menu-open');
+            menuBtn.classList.remove('is-open');
+            menuBtn.setAttribute('aria-expanded', 'false');
+        }
+
+        menuBtn.addEventListener('click', () => {
+            mobileMenu.classList.contains('menu-open') ? closeMenu() : openMenu();
         });
 
+        mobileMenu.querySelectorAll('a, button').forEach(el => {
+            el.addEventListener('click', closeMenu);
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!menuBtn.contains(e.target) && !mobileMenu.contains(e.target)) {
+                closeMenu();
+            }
+        });
+
+        // ── Helpers ─────────────────────────────────────────────────────────────
         let toastTimer;
         function showToast(msg, success = true) {
             clearTimeout(toastTimer);
@@ -228,6 +330,7 @@
             }
         }
 
+        // ── Data Loading & Saving ───────────────────────────────────────────────
         async function loadProfile() {
             try {
                 const res = await fetch(`${API}/profile`);
@@ -342,19 +445,17 @@
             window.location.href = '/login';
         }
 
+        // ── Event Listeners ─────────────────────────────────────────────────────
         document.addEventListener('DOMContentLoaded', async () => {
-            // Load initial data
             await loadProfile();
             await loadProjects();
 
-            // Modal logic
             const modal = document.getElementById('edit-profile-modal');
             document.getElementById('open-edit-modal-btn').addEventListener('click', () => modal.classList.remove('hidden'));
             document.getElementById('close-modal-btn').addEventListener('click', () => modal.classList.add('hidden'));
             document.getElementById('cancel-edit-btn').addEventListener('click', () => modal.classList.add('hidden'));
             modal.addEventListener('click', e => { if (e.target === modal) modal.classList.add('hidden'); });
 
-            // Form submits
             document.getElementById('edit-profile-form').addEventListener('submit', e => {
                 e.preventDefault();
                 const name = document.getElementById('edit-name').value.trim();
@@ -364,14 +465,12 @@
                 saveProfile(name, faculty, bio, skills);
             });
 
-            // Avatar logic
             document.getElementById('avatar-wrapper').addEventListener('click', () => document.getElementById('avatar-input').click());
             document.getElementById('avatar-input').addEventListener('change', e => {
                 const file = e.target.files[0];
                 if (file) uploadAvatar(file);
             });
 
-            // Logout
             document.getElementById('logout-btn').addEventListener('click', logout);
             document.getElementById('logout-btn-mobile').addEventListener('click', logout);
         });

@@ -3,9 +3,15 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 import uuid
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify, session
+
+# 导入所有模型，包括新的 Suggestion
 from .models import db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion
 
 views = Blueprint('views', __name__)
+
+# ==========================================
+# 辅助函数 (Helper Functions)
+# ==========================================
 
 ALLOWED_EXT = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 def allowed_file(filename):
@@ -17,13 +23,28 @@ def require_login():
     return None
 
 def get_current_user():
+    """获取当前登录的用户，如果没登录，默认返回演示账户防止程序崩溃"""
     email = session.get('user_email', 'student@mmu.edu.my')
     user = User.query.filter_by(email=email).first()
     return user
 
+
+# ==========================================
+# HTML 页面路由 (HTML Page Routes)
+# ==========================================
+
 @views.route('/')
+@views.route('/home')
 def home():
     return render_template("Navigation.html")
+
+@views.route('/login')
+def login():
+    return render_template("login.html")
+
+@views.route('/register')
+def register():
+    return render_template("register.html")
 
 @views.route('/search')
 def search():
@@ -37,8 +58,7 @@ def my_projects():
 
 @views.route('/profile')
 def profile():
-    projects = Project.query.order_by(Project.created_at.desc()).all()
-    return render_template("Profile.html", projects=projects)
+    return render_template("Profile.html")
 
 @views.route('/project/<int:project_id>')
 def project_page(project_id):
@@ -89,7 +109,6 @@ def list_project():
                 db.session.add(new_image)
 
         db.session.commit()
-        print(f"project {name} saved into database")
         return redirect(url_for('views.upload_success'))
     
     return render_template("List_Your_Project.html")
@@ -164,7 +183,6 @@ def api_register():
     except Exception:
         db.session.rollback()
         return jsonify({'error': 'Email already registered'}), 409
-
     return jsonify({'success': True, 'message': 'Account created!'})
 
 
@@ -182,10 +200,12 @@ def api_login():
     session['user_name']  = user.name
     return jsonify({'success': True, 'email': user.email, 'name': user.name})
 
+
 @views.route('/api/logout', methods=['POST'])
 def api_logout():
     session.clear()
     return jsonify({'success': True})
+
 
 @views.route('/api/me', methods=['GET'])
 def api_me():
@@ -196,6 +216,7 @@ def api_me():
         'email': session['user_email'],
         'name': session['user_name'],
     })
+
 
 @views.route('/api/profile', methods=['GET'])
 def get_profile():
@@ -213,25 +234,141 @@ def get_profile():
         'karma': user.karma, 'skills': [s.skill for s in skills], 'badges': [b.badge for b in badges],
     })
 
+
+@views.route('/api/profile', methods=['PUT'])
+def update_profile():
+    err = require_login()
+    if err: return err
+
+    data = request.get_json(silent=True) or {}
+    user = get_current_user()
+
+    if data.get('name'):
+        user.name = data.get('name')
+        session['user_name'] = data.get('name')
+    if data.get('faculty'):
+        user.faculty = data.get('faculty')
+    user.bio = data.get('bio', '')
+
+    skills = data.get('skills')
+    if skills is not None:
+        Skill.query.filter_by(user_id=user.id).delete()
+        for skill in skills:
+            if skill.strip():
+                skill_obj = Skill(user_id=user.id, skill=skill.strip())
+                db.session.add(skill_obj)
+    
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'Profile updated'})
+
+
+@views.route('/api/profile/avatar', methods=['POST'])
+def upload_avatar():
+    err = require_login()
+    if err: return err
+
+    if 'avatar' not in request.files:
+        return jsonify({'error': 'No file provided'}), 400
+    file = request.files['avatar']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+
+    ext = file.filename.rsplit('.', 1)[1].lower()
+    filename = f"{uuid.uuid4().hex}.{ext}"
+    file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], filename))
+
+    user = get_current_user()
+    user.avatar_path = filename
+    db.session.commit()
+
+    return jsonify({'success': True, 'avatar_url': f'/static/uploads/{filename}'})
+
+
+@views.route('/api/comments', methods=['GET', 'POST'])
+def handle_comments():
+    if request.method == 'GET':
+        comments = db.session.query(Comment, User.name).join(User).order_by(Comment.created_at.desc()).limit(50).all()
+        return jsonify([{
+            'id': c.id, 'user_id': c.user_id, 'user_name': uname,
+            'comment': c.comment, 'created_at': c.created_at.isoformat()
+        } for c, uname in comments])
+    
+    if request.method == 'POST':
+        err = require_login()
+        if err: return err
+        
+        data = request.get_json(silent=True) or {}
+        comment_text = data.get('comment', '').strip()
+        if not comment_text:
+            return jsonify({'error': 'Comment cannot be empty'}), 400
+        
+        user = get_current_user()
+        comment = Comment(user_id=user.id, comment=comment_text)
+        db.session.add(comment)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Comment posted'})
+
+
+@views.route('/api/projects', methods=['GET'])
+def api_projects():
+    err = require_login()
+    if err: return err
+    user = get_current_user()
+    
+    projects = Project.query.filter_by(user_id=user.id).order_by(Project.created_at.desc()).all()
+    return jsonify([{
+        'id': p.id, 'name': p.project_name, 'description': p.description,
+        'status': p.status, 'contributors': p.contributors, 'created_at': p.created_at.isoformat()
+    } for p in projects])
+
+
 @views.route('/api/suggestions', methods=['GET'])
 def get_suggestions():
     err = require_login()
     if err: return err
     user = get_current_user()
     
-    suggestions = Project.query.filter(Project.user_id != user.id).limit(5).all()
+    already_suggested = db.session.query(Suggestion.project_id).filter_by(user_id=user.id).all()
+    already_suggested_ids = [s[0] for s in already_suggested]
+    
+    suggestions = db.session.query(
+        Project, User.name, db.func.count(Skill.id).label('skill_matches')
+    ).join(User, Project.user_id == User.id).outerjoin(
+        Skill, Skill.user_id == User.id
+    ).filter(
+        Project.user_id != user.id,
+        ~Project.id.in_(already_suggested_ids)
+    ).group_by(Project.id).order_by(
+        db.desc('skill_matches'), db.desc(Project.created_at)
+    ).limit(5).all()
+    
     result = []
-    for project in suggestions:
+    for project, owner_name, skill_matches in suggestions:
         result.append({
-            'id': project.id, 'name': project.project_name, 
-            'description': project.description, 'match_score': 95
+            'id': project.id, 'project_id': project.id, 'owner_name': owner_name,
+            'name': project.project_name, 'description': project.description,
+            'status': project.status, 'contributors': project.contributors,
+            'match_score': min(100, 50 + (skill_matches or 0) * 10),
         })
     return jsonify(result)
 
-@views.route('/login')
-def login():
-    return render_template("login.html")
 
-@views.route('/register')
-def register():
-    return render_template("register.html")
+@views.route('/api/suggestions/<int:project_id>', methods=['POST'])
+def accept_suggestion(project_id):
+    err = require_login()
+    if err: return err
+    user = get_current_user()
+    
+    project = Project.query.get(project_id)
+    if not project:
+        return jsonify({'error': 'Project not found'}), 404
+    
+    try:
+        suggestion = Suggestion(user_id=user.id, project_id=project_id, match_score=100)
+        db.session.add(suggestion)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({'error': 'Already suggested'}), 409
+    
+    return jsonify({'success': True, 'message': 'Project suggested to you!'})
