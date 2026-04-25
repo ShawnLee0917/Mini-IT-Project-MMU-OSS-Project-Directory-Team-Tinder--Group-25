@@ -49,6 +49,10 @@ class User(db.Model):
     comments = db.relationship('Comment', backref='user', lazy=True, cascade='all, delete-orphan')
     projects = db.relationship('Project', backref='user', lazy=True, cascade='all, delete-orphan')
     suggestions = db.relationship('Suggestion', backref='user', lazy=True, cascade='all, delete-orphan')
+    questions = db.relationship('Question', backref='author', lazy=True, cascade='all, delete-orphan')
+    question_likes = db.relationship('QuestionLike', backref='user', lazy=True, cascade='all, delete-orphan')
+    question_favorites = db.relationship('QuestionFavorite', backref='user', lazy=True, cascade='all, delete-orphan')
+    question_comments = db.relationship('QuestionComment', backref='user', lazy=True, cascade='all, delete-orphan')
 
 
 class Skill(db.Model):
@@ -103,10 +107,72 @@ class Suggestion(db.Model):
     __table_args__ = (db.UniqueConstraint('user_id', 'project_id', name='unique_user_project'),)
 
 
+# ---------------------------------------------------------------------------
+# Q&A Models
+# ---------------------------------------------------------------------------
+
+class Question(db.Model):
+    __tablename__ = 'questions'
+
+    id         = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id    = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    title      = db.Column(db.String(300), nullable=False)
+    body       = db.Column(db.Text, nullable=False)
+    image_path = db.Column(db.String(255), default='')
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    likes     = db.relationship('QuestionLike',    backref='question', lazy=True, cascade='all, delete-orphan')
+    favorites = db.relationship('QuestionFavorite', backref='question', lazy=True, cascade='all, delete-orphan')
+    q_comments = db.relationship('QuestionComment', backref='question', lazy=True, cascade='all, delete-orphan')
+
+
+class QuestionLike(db.Model):
+    __tablename__ = 'question_likes'
+
+    id          = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id     = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    question_id = db.Column(db.Integer, db.ForeignKey('questions.id', ondelete='CASCADE'), nullable=False)
+
+    __table_args__ = (db.UniqueConstraint('user_id', 'question_id', name='unique_user_question_like'),)
+
+
+class QuestionFavorite(db.Model):
+    __tablename__ = 'question_favorites'
+
+    id          = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id     = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    question_id = db.Column(db.Integer, db.ForeignKey('questions.id', ondelete='CASCADE'), nullable=False)
+
+    __table_args__ = (db.UniqueConstraint('user_id', 'question_id', name='unique_user_question_fav'),)
+
+
+class QuestionComment(db.Model):
+    __tablename__ = 'question_comments'
+
+    id          = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id     = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    question_id = db.Column(db.Integer, db.ForeignKey('questions.id', ondelete='CASCADE'), nullable=False)
+    parent_id   = db.Column(db.Integer, db.ForeignKey('question_comments.id', ondelete='CASCADE'), nullable=True)
+    body        = db.Column(db.Text, nullable=False)
+    created_at  = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+
 def init_db():
     """Initialize database with tables and seed data"""
     with app.app_context():
         db.create_all()
+
+        # Migrate: add new columns for existing databases
+        with db.engine.connect() as conn:
+            for sql in [
+                "ALTER TABLE questions ADD COLUMN image_path VARCHAR(255) DEFAULT ''",
+                "ALTER TABLE question_comments ADD COLUMN parent_id INTEGER REFERENCES question_comments(id)",
+            ]:
+                try:
+                    conn.execute(db.text(sql))
+                    conn.commit()
+                except Exception:
+                    pass  # Column already exists
         
         # Seed demo user
         demo_user = User.query.filter_by(email='student@mmu.edu.my').first()
@@ -216,6 +282,10 @@ def profile_page():
 @app.route('/home')
 def home_page():
     return app.send_static_file('Navigation.html')
+
+@app.route('/qna')
+def qna_page():
+    return app.send_static_file('QnA.html')
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
@@ -574,6 +644,288 @@ def accept_suggestion(project_id):
         return jsonify({'error': 'Already suggested'}), 409
     
     return jsonify({'success': True, 'message': 'Project suggested to you!'})
+
+
+# ---------------------------------------------------------------------------
+# Q&A API
+# ---------------------------------------------------------------------------
+
+@app.route('/api/questions', methods=['GET'])
+def get_questions():
+    """Return all questions, newest first, with like/fav/comment counts and current user's status."""
+    # We allow unauthenticated reads; current user detected if logged in
+    current_user_id = None
+    if 'user_email' in session:
+        u = User.query.filter_by(email=session['user_email']).first()
+        if u:
+            current_user_id = u.id
+
+    questions = db.session.query(Question, User.name).join(
+        User, Question.user_id == User.id
+    ).order_by(Question.created_at.desc()).limit(100).all()
+
+    result = []
+    for q, author_name in questions:
+        like_count = QuestionLike.query.filter_by(question_id=q.id).count()
+        fav_count  = QuestionFavorite.query.filter_by(question_id=q.id).count()
+        cmt_count  = QuestionComment.query.filter_by(question_id=q.id).count()
+
+        user_liked = False
+        user_faved = False
+        if current_user_id:
+            user_liked = QuestionLike.query.filter_by(
+                user_id=current_user_id, question_id=q.id).first() is not None
+            user_faved = QuestionFavorite.query.filter_by(
+                user_id=current_user_id, question_id=q.id).first() is not None
+
+        result.append({
+            'id':           q.id,
+            'user_id':      q.user_id,
+            'author_name':  author_name,
+            'title':        q.title,
+            'body':         q.body,
+            'image_url':    f'/uploads/{q.image_path}' if q.image_path else '',
+            'created_at':   q.created_at.isoformat(),
+            'like_count':   like_count,
+            'fav_count':    fav_count,
+            'comment_count': cmt_count,
+            'user_liked':   user_liked,
+            'user_faved':   user_faved,
+            'is_owner':     (current_user_id == q.user_id),
+        })
+
+    return jsonify(result)
+
+
+@app.route('/api/questions', methods=['POST'])
+def post_question():
+    err = require_login()
+    if err:
+        return err
+
+    # Support multipart (with image) and plain JSON
+    if request.content_type and 'multipart' in request.content_type:
+        title = request.form.get('title', '').strip()
+        body  = request.form.get('body', '').strip()
+    else:
+        data  = request.get_json(silent=True) or {}
+        title = data.get('title', '').strip()
+        body  = data.get('body', '').strip()
+
+    if not title:
+        return jsonify({'error': 'Title is required'}), 400
+    if not body:
+        return jsonify({'error': 'Question body is required'}), 400
+    if len(title) > 300:
+        return jsonify({'error': 'Title too long (max 300 chars)'}), 400
+    if len(body) > 5000:
+        return jsonify({'error': 'Body too long (max 5000 chars)'}), 400
+
+    user = User.query.filter_by(email=session['user_email']).first()
+    q = Question(user_id=user.id, title=title, body=body)
+
+    # Handle optional image
+    if 'image' in request.files:
+        file = request.files['image']
+        if file and file.filename and allowed_file(file.filename):
+            ext = file.filename.rsplit('.', 1)[1].lower()
+            filename = f"q_{uuid.uuid4().hex}.{ext}"
+            file.save(os.path.join(UPLOAD_FOLDER, filename))
+            q.image_path = filename
+
+    db.session.add(q)
+    db.session.commit()
+    return jsonify({'success': True, 'id': q.id})
+
+
+@app.route('/api/questions/<int:question_id>', methods=['DELETE'])
+def delete_question(question_id):
+    err = require_login()
+    if err:
+        return err
+
+    user = User.query.filter_by(email=session['user_email']).first()
+    q = Question.query.get(question_id)
+
+    if not q:
+        return jsonify({'error': 'Question not found'}), 404
+    if q.user_id != user.id:
+        return jsonify({'error': 'Not authorised'}), 403
+
+    db.session.delete(q)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/questions/<int:question_id>/like', methods=['POST'])
+def toggle_like(question_id):
+    err = require_login()
+    if err:
+        return err
+
+    user = User.query.filter_by(email=session['user_email']).first()
+    existing = QuestionLike.query.filter_by(
+        user_id=user.id, question_id=question_id).first()
+
+    if existing:
+        db.session.delete(existing)
+        liked = False
+    else:
+        db.session.add(QuestionLike(user_id=user.id, question_id=question_id))
+        liked = True
+
+    db.session.commit()
+    count = QuestionLike.query.filter_by(question_id=question_id).count()
+    return jsonify({'liked': liked, 'like_count': count})
+
+
+@app.route('/api/questions/<int:question_id>/favorite', methods=['POST'])
+def toggle_favorite(question_id):
+    err = require_login()
+    if err:
+        return err
+
+    user = User.query.filter_by(email=session['user_email']).first()
+    existing = QuestionFavorite.query.filter_by(
+        user_id=user.id, question_id=question_id).first()
+
+    if existing:
+        db.session.delete(existing)
+        faved = False
+    else:
+        db.session.add(QuestionFavorite(user_id=user.id, question_id=question_id))
+        faved = True
+
+    db.session.commit()
+    count = QuestionFavorite.query.filter_by(question_id=question_id).count()
+    return jsonify({'faved': faved, 'fav_count': count})
+
+
+@app.route('/api/questions/<int:question_id>/comments', methods=['GET'])
+def get_question_comments(question_id):
+    rows = db.session.query(QuestionComment, User.name).join(
+        User, QuestionComment.user_id == User.id
+    ).filter(QuestionComment.question_id == question_id
+    ).order_by(QuestionComment.created_at.asc()).all()
+
+    current_user_id = None
+    if 'user_email' in session:
+        u = User.query.filter_by(email=session['user_email']).first()
+        if u:
+            current_user_id = u.id
+
+    result = [{
+        'id':          c.id,
+        'author_name': name,
+        'body':        c.body,
+        'parent_id':   c.parent_id,
+        'created_at':  c.created_at.isoformat(),
+        'is_owner':    (current_user_id == c.user_id),
+    } for c, name in rows]
+
+    return jsonify(result)
+
+
+@app.route('/api/questions/<int:question_id>/comments', methods=['POST'])
+def post_question_comment(question_id):
+    err = require_login()
+    if err:
+        return err
+
+    data = request.get_json(silent=True) or {}
+    body = data.get('body', '').strip()
+
+    if not body:
+        return jsonify({'error': 'Comment cannot be empty'}), 400
+    if len(body) > 1000:
+        return jsonify({'error': 'Comment too long (max 1000 chars)'}), 400
+
+    q = Question.query.get(question_id)
+    if not q:
+        return jsonify({'error': 'Question not found'}), 404
+
+    parent_id = data.get('parent_id', None)
+    if parent_id:
+        parent = QuestionComment.query.get(parent_id)
+        if not parent or parent.question_id != question_id:
+            parent_id = None
+
+    user = User.query.filter_by(email=session['user_email']).first()
+    c = QuestionComment(user_id=user.id, question_id=question_id, body=body, parent_id=parent_id)
+    db.session.add(c)
+    db.session.commit()
+    return jsonify({'success': True, 'id': c.id})
+
+
+# ---------------------------------------------------------------------------
+# Delete comment
+# ---------------------------------------------------------------------------
+
+@app.route('/api/questions/<int:question_id>/comments/<int:comment_id>', methods=['DELETE'])
+def delete_question_comment(question_id, comment_id):
+    err = require_login()
+    if err:
+        return err
+
+    user = User.query.filter_by(email=session['user_email']).first()
+    c = QuestionComment.query.get(comment_id)
+    if not c or c.question_id != question_id:
+        return jsonify({'error': 'Comment not found'}), 404
+    if c.user_id != user.id:
+        return jsonify({'error': 'Not authorised'}), 403
+
+    db.session.delete(c)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+# ---------------------------------------------------------------------------
+# Liked / Favorited question lists
+# ---------------------------------------------------------------------------
+
+def _build_question_result(q, author_name, current_user_id):
+    like_count = QuestionLike.query.filter_by(question_id=q.id).count()
+    fav_count  = QuestionFavorite.query.filter_by(question_id=q.id).count()
+    cmt_count  = QuestionComment.query.filter_by(question_id=q.id).count()
+    user_liked = QuestionLike.query.filter_by(user_id=current_user_id, question_id=q.id).first() is not None
+    user_faved = QuestionFavorite.query.filter_by(user_id=current_user_id, question_id=q.id).first() is not None
+    return {
+        'id': q.id, 'user_id': q.user_id, 'author_name': author_name,
+        'title': q.title, 'body': q.body,
+        'image_url': f'/uploads/{q.image_path}' if q.image_path else '',
+        'created_at': q.created_at.isoformat(),
+        'like_count': like_count, 'fav_count': fav_count, 'comment_count': cmt_count,
+        'user_liked': user_liked, 'user_faved': user_faved,
+        'is_owner': (current_user_id == q.user_id),
+    }
+
+
+@app.route('/api/questions/liked', methods=['GET'])
+def get_liked_questions():
+    err = require_login()
+    if err:
+        return err
+    user = User.query.filter_by(email=session['user_email']).first()
+    rows = db.session.query(Question, User.name).join(
+        User, Question.user_id == User.id
+    ).join(QuestionLike, QuestionLike.question_id == Question.id
+    ).filter(QuestionLike.user_id == user.id
+    ).order_by(Question.created_at.desc()).all()
+    return jsonify([_build_question_result(q, n, user.id) for q, n in rows])
+
+
+@app.route('/api/questions/favorited', methods=['GET'])
+def get_favorited_questions():
+    err = require_login()
+    if err:
+        return err
+    user = User.query.filter_by(email=session['user_email']).first()
+    rows = db.session.query(Question, User.name).join(
+        User, Question.user_id == User.id
+    ).join(QuestionFavorite, QuestionFavorite.question_id == Question.id
+    ).filter(QuestionFavorite.user_id == user.id
+    ).order_by(Question.created_at.desc()).all()
+    return jsonify([_build_question_result(q, n, user.id) for q, n in rows])
 
 
 # ---------------------------------------------------------------------------
