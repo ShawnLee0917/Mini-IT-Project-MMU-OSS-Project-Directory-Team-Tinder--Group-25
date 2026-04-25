@@ -583,6 +583,6 @@ def accept_suggestion(project_id):
 if __name__ == '__main__':
     init_db()
     print("Database initialised:", DB_PATH)
-    print("Demo login → student@mmu.edu.my / mmu1234")
-    print("Server → http://127.0.0.1:5000")
+    print("Demo login -> student@mmu.edu.my / mmu1234")
+    print("Server -> http://127.0.0.1:5000")
     app.run(debug=True)
