@@ -38,25 +38,113 @@
         .fade-in {
             animation: fadeIn 0.35s ease both;
         }
+                /* ── Animated Hamburger Button ─────────────────────────── */
+        .hamburger {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            border-radius: 8px;
+            padding: 6px;
+            gap: 5px;
+            transition: background 0.2s ease;
+            position: relative;
+        }
+        .hamburger:hover {
+            background: rgba(255,255,255,0.15);
+        }
+        .hamburger:focus-visible {
+            outline: 2px solid rgba(255,255,255,0.6);
+            outline-offset: 2px;
+        }
+        .hamburger .bar {
+            display: block;
+            width: 22px;
+            height: 2.5px;
+            border-radius: 99px;
+            background: #fff;
+            transition: transform 0.35s cubic-bezier(0.23, 1, 0.32, 1),
+                        opacity   0.25s ease,
+                        width     0.3s ease;
+            transform-origin: center;
+        }
+        /* Open state — morph into X */
+        .hamburger.is-open .bar:nth-child(1) {
+            transform: translateY(7.5px) rotate(45deg);
+        }
+        .hamburger.is-open .bar:nth-child(2) {
+            opacity: 0;
+            width: 0;
+        }
+        .hamburger.is-open .bar:nth-child(3) {
+            transform: translateY(-7.5px) rotate(-45deg);
+        }
+
+        /* ── Mobile menu slide-down animation ──────────────────── */
+        #mobile-menu {
+            max-height: 0;
+            overflow: hidden;
+            opacity: 0;
+            transition:
+                max-height 0.38s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity    0.28s ease;
+        }
+        #mobile-menu.menu-open {
+            max-height: 500px;   /* tall enough for all links */
+            opacity: 1;
+        }
+        /* Stagger each link sliding in */
+        #mobile-menu a,
+        #mobile-menu button,
+        #mobile-menu div {
+            transform: translateY(-6px);
+            opacity: 0;
+            transition:
+                transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity   0.3s ease;
+        }
+        #mobile-menu.menu-open a,
+        #mobile-menu.menu-open button,
+        #mobile-menu.menu-open div {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        /* Delay each item slightly for a cascade effect */
+        #mobile-menu a:nth-child(1)  { transition-delay: 0.05s; }
+        #mobile-menu a:nth-child(2)  { transition-delay: 0.09s; }
+        #mobile-menu a:nth-child(3)  { transition-delay: 0.13s; }
+        #mobile-menu a:nth-child(4)  { transition-delay: 0.17s; }
+        #mobile-menu a:nth-child(5)  { transition-delay: 0.21s; }
+        #mobile-menu button          { transition-delay: 0.25s; }
+        #mobile-menu #nav-email-mobile { transition-delay: 0.29s; }
     </style>
 </head>
 
 <body class="bg-gray-50 text-gray-900">
 
     <!-- ── Navbar ──────────────────────────────────────────────────────────── -->
-    <nav class="bg-red-700 text-white shadow-md sticky top-0 z-50">
-        <div class="container mx-auto px-6 py-3 flex items-center justify-between">
-            <div class="flex items-center gap-4">
-                <button id="menu-btn" class="text-white focus:outline-none p-1 hover:bg-red-800 rounded transition">
-                    <i class="fas fa-bars text-xl"></i>
-                </button>
+<nav class="bg-red-700 text-white shadow-md sticky top-0 z-50">
+    <div class="container mx-auto px-6 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-4">
+
+            <button id="menu-btn" class="hamburger" aria-label="Toggle menu" aria-expanded="false">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </button>
+                
                 <a href="Navigation.html" class="hover:opacity-80 transition flex items-center gap-4">
                     <i class="fas fa-arrow-left text-xl"></i>
-                    <h1 class="text-2xl font-extrabold tracking-tighter">
-                        MMU <span class="font-light text-red-200">OSSD</span>
-                    </h1>
+            <h1 class="text-2xl font-extrabold tracking-tighter">
+                MMU <span class="font-light text-red-200">OSSD</span>
+            </h1>
                 </a>
-            </div>
+        </div>
             <div class="flex space-x-6 items-center font-medium">
                 <a href="Navigation.html" class="hover:text-red-200 transition text-sm hidden md:block">Home</a>
                 <a href="Search.html" class="hover:text-red-200 transition text-sm hidden md:block">Search</a>
@@ -65,13 +153,27 @@
                     <span id="nav-email" class="text-sm hidden md:inline">…</span>
                     <i class="fas fa-user-circle text-lg text-red-200"></i>
                 </div>
-                <button id="logout-btn"
-                    class="bg-white text-red-700 hover:bg-red-50 text-xs font-bold px-3 py-2 rounded-xl transition">
-                    <i class="fas fa-sign-out-alt mr-1"></i>Logout
-                </button>
-            </div>
+            <button id="logout-btn"
+                class="bg-white text-red-700 hover:bg-red-50 text-xs font-bold px-3 py-2 rounded-xl transition">
+                <i class="fas fa-sign-out-alt mr-1"></i>Logout
+            </button>
         </div>
-    </nav>
+    </div>
+
+    <div id="mobile-menu" class="bg-red-800 border-t border-red-600 shadow-inner">
+        <div class="px-6 py-4 flex flex-col space-y-4 font-semibold">
+            <a href="/home" class="hover:text-red-200 transition">Home</a>
+            <a href="Search.html" class="hover:text-red-200 transition">Search</a>
+            <a href="/profile" class="hover:text-red-200 transition">My Profile</a>
+            <a href="My_Projects.html" class="hover:text-red-200 transition">My Projects</a>
+            <a href="List_Your_Project.html" class="hover:text-red-200 transition">List Your Project</a>
+            <button id="logout-btn-mobile" class="text-left text-red-200 hover:text-white transition text-sm">
+                <i class="fas fa-sign-out-alt mr-1"></i> Logout
+            </button>
+            <div class="pt-2 border-t border-red-700 text-xs font-light opacity-80" id="nav-email-mobile">…</div>
+        </div>
+    </div>
+</nav>
 
     <!-- ── Main ────────────────────────────────────────────────────────────── -->
     <main class="container mx-auto px-6 py-12 fade-in">
@@ -266,6 +368,38 @@
             document.querySelectorAll('a[href="/login"]').forEach(a => a.setAttribute('href', 'login.html'));
         }
 
+            // ── Mobile menu smooth toggle ─────────────────────────────────────────────
+    const menuBtn    = document.getElementById('menu-btn');
+    const mobileMenu = document.getElementById('mobile-menu');
+
+    function openMenu() {
+        mobileMenu.classList.add('menu-open');
+        menuBtn.classList.add('is-open');
+        menuBtn.setAttribute('aria-expanded', 'true');
+    }
+
+    function closeMenu() {
+        mobileMenu.classList.remove('menu-open');
+        menuBtn.classList.remove('is-open');
+        menuBtn.setAttribute('aria-expanded', 'false');
+    }
+
+    menuBtn.addEventListener('click', () => {
+        mobileMenu.classList.contains('menu-open') ? closeMenu() : openMenu();
+    });
+
+    // Auto-close when a link or button inside the menu is clicked
+    mobileMenu.querySelectorAll('a, button').forEach(el => {
+        el.addEventListener('click', closeMenu);
+    });
+
+    // Close on outside click
+    document.addEventListener('click', (e) => {
+        if (!menuBtn.contains(e.target) && !mobileMenu.contains(e.target)) {
+            closeMenu();
+        }
+    });
+
         // ── Helpers ─────────────────────────────────────────────────────────────────
         let toastTimer;
         function showToast(msg, success = true) {
@@ -327,6 +461,7 @@
         async function checkAuth() {
             if (IS_FILE) {
                 document.getElementById('nav-email').textContent = '(offline)';
+                document.getElementById('nav-email-mobile').textContent = '(offline)';
                 return true;
             }
             try {
@@ -335,6 +470,7 @@
                 const data = await res.json();
                 if (!data.loggedIn) { window.location.href = '/login'; return false; }
                 document.getElementById('nav-email').textContent = data.email;
+                document.getElementById('nav-email-mobile').textContent = data.email;
                 return true;
             } catch {
                 window.location.href = '/login';
