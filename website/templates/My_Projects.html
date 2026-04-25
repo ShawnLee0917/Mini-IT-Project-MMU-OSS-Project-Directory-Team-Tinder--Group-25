@@ -28,6 +28,7 @@
         </div>
         <div class="hidden md:flex space-x-8 items-center font-medium">
             <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
+            <a href="{{ url_for('views.qna_page') }}" class="hover:text-red-200 transition">Q&A</a>
             <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition border-b-2 border-red-200">My Projects</a>
             <a href="{{ url_for('views.profile') }}" class="bg-red-800 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-500/50 cursor-pointer hover:bg-red-900 transition">
                 <span id="nav-email" class="text-sm">{{ session.get('user_email', 'Guest') }}</span>
@@ -43,6 +44,7 @@
         <div class="px-6 py-4 flex flex-col space-y-4 font-semibold">
             <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
             <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
+            <a href="{{ url_for('views.qna_page') }}" class="hover:text-red-200 transition">Q&A</a>
             <a href="{{ url_for('views.profile') }}" class="hover:text-red-200 transition">My Profile</a>
             <a href="{{ url_for('views.list_project') }}" class="hover:text-red-200 transition">List Your Project</a>
             <button id="logout-btn-mobile" class="text-left text-red-200 hover:text-white transition text-sm">

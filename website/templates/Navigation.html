@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -108,27 +107,17 @@
                 <span class="bar"></span>
             </button>
 
-            <a href="{{ url_for('views.home') }}" class="hover:opacity-80 transition flex items-center gap-4">
-                <h1 class="text-2xl font-extrabold tracking-tighter">
-                    MMU <span class="font-light text-red-200">OSSD</span>
-                </h1>
-            </a>
+            <h1 class="text-2xl font-extrabold tracking-tighter">
+                MMU <span class="font-light text-red-200">OSSD</span>
+            </h1>
         </div>
 
         <div class="hidden md:flex space-x-8 items-center font-medium">
-<<<<<<< HEAD:Navigation.html
-            <a href="Search.html" class="hover:text-red-200 transition">Search</a>
-            <a href="/qna" class="hover:text-red-200 transition">Q&amp;A</a>
-            <a href="My_Projects.html" class="hover:text-red-200 transition">My Projects</a>
-            <a href="/profile" class="bg-red-800 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-500/50 cursor-pointer hover:bg-red-900 transition">
-                <span id="nav-email" class="text-sm">…</span>
-=======
             <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
-            <a href="/qna" class="hover:text-red-200 transition">Q&A</a>
+            <a href="{{ url_for('views.qna_page') }}" class="hover:text-red-200 transition">Q&A</a>
             <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
             <a href="{{ url_for('views.profile') }}" class="bg-red-800 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-500/50 cursor-pointer hover:bg-red-900 transition">
-                <span id="nav-email" class="text-sm">{{ session.get('user_email', 'Guest') }}</span>
->>>>>>> a7d66ac92707d66cf839aab4f2f49ef7208ebca4:website/templates/Navigation.html
+                <span id="nav-email" class="text-sm">…</span>
                 <i class="fas fa-user-circle text-lg"></i>
             </a>
             <button id="logout-btn"
@@ -140,27 +129,16 @@
 
     <div id="mobile-menu" class="bg-red-800 border-t border-red-600 shadow-inner">
         <div class="px-6 py-4 flex flex-col space-y-4 font-semibold">
-<<<<<<< HEAD:Navigation.html
-            <a href="/home" class="hover:text-red-200 transition">Home</a>
-            <a href="Search.html" class="hover:text-red-200 transition">Search</a>
-            <a href="/qna" class="hover:text-red-200 transition">Q&amp;A</a>
-            <a href="/profile" class="hover:text-red-200 transition">My Profile</a>
-            <a href="My_Projects.html" class="hover:text-red-200 transition">My Projects</a>
-            <a href="List_Your_Project.html" class="hover:text-red-200 transition">List Your Project</a>
-=======
             <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
             <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
-            <a href="/qna" class="hover:text-red-200 transition">Q&A</a>
+            <a href="{{ url_for('views.qna_page') }}" class="hover:text-red-200 transition">Q&A</a>
             <a href="{{ url_for('views.profile') }}" class="hover:text-red-200 transition">My Profile</a>
             <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
             <a href="{{ url_for('views.list_project') }}" class="hover:text-red-200 transition">List Your Project</a>
->>>>>>> a7d66ac92707d66cf839aab4f2f49ef7208ebca4:website/templates/Navigation.html
             <button id="logout-btn-mobile" class="text-left text-red-200 hover:text-white transition text-sm">
                 <i class="fas fa-sign-out-alt mr-1"></i> Logout
             </button>
-            <div class="pt-2 border-t border-red-700 text-xs font-light opacity-80" id="nav-email-mobile">
-                {{ session.get('user_email', 'Guest') }}
-            </div>
+            <div class="pt-2 border-t border-red-700 text-xs font-light opacity-80" id="nav-email-mobile">…</div>
         </div>
     </div>
 </nav>
@@ -172,10 +150,10 @@
             Don't let your code die at graduation. Hand over the torch to the next batch of innovators.
         </p>
         <div class="mt-8 flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 justify-center md:justify-start">
-            <a href="{{ url_for('views.list_project') }}" class="bg-red-600 text-white px-8 py-4 rounded-xl font-bold hover:bg-red-700 transform hover:-translate-y-1 transition shadow-lg shadow-red-200 inline-flex items-center justify-center">
+            <a href="List_Your_Project.html" class="bg-red-600 text-white px-8 py-4 rounded-xl font-bold hover:bg-red-700 transform hover:-translate-y-1 transition shadow-lg shadow-red-200 inline-flex items-center justify-center">
                 <i class="fas fa-plus mr-2"></i> List Your Project
             </a>
-            <a href="{{ url_for('views.search') }}" class="bg-white border-2 border-gray-200 text-gray-700 px-8 py-4 rounded-xl font-bold hover:bg-gray-50 transition">
+            <a href="Search.html" class="bg-white border-2 border-gray-200 text-gray-700 px-8 py-4 rounded-xl font-bold hover:bg-gray-50 transition">
                 Find a Team
             </a>
         </div>
@@ -185,6 +163,7 @@
 <main class="container mx-auto px-6 py-10 grid grid-cols-1 lg:grid-cols-3 gap-10">
     
     <div class="lg:col-span-2 space-y-8">
+        
         <div class="flex items-center">
             <h3 class="text-xs font-bold text-gray-400 uppercase tracking-[0.2em] whitespace-nowrap">
                 Active Projects for Takeover
@@ -229,6 +208,7 @@
             </button>
         </div>
 
+        <!-- Project Suggestions -->
         <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
             <h3 class="font-black text-gray-800 text-lg mb-6 flex items-center">
                 <i class="fas fa-lightbulb mr-3 text-yellow-500"></i> Suggested Projects
@@ -238,11 +218,13 @@
             </div>
         </div>
 
+        <!-- Activity Feed -->
         <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
             <h3 class="font-black text-gray-800 text-lg mb-6 flex items-center">
                 <i class="fas fa-comments mr-3 text-red-600"></i> Recent Activity
             </h3>
             
+            <!-- Add Comment Form -->
             <div class="mb-6 pb-6 border-b border-gray-100">
                 <textarea id="comment-input" placeholder="Share an update or comment..." rows="2"
                     class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-red-500 text-sm bg-gray-50 resize-none"></textarea>
@@ -252,8 +234,9 @@
                 </button>
             </div>
 
+            <!-- Comments List -->
             <div id="comments-list" class="space-y-4">
-                <div class="text-gray-400 text-sm italic">Loading activities...</div>
+                <div class="text-gray-400 text-sm italic">No activities yet. Be the first to post!</div>
             </div>
         </div>
 
@@ -268,6 +251,7 @@
 </main>
 
 <script>
+    const IS_FILE = window.location.protocol === 'file:';
     const API = '/api';
 
     // ── Mobile menu smooth toggle ─────────────────────────────────────────────
@@ -290,26 +274,33 @@
         mobileMenu.classList.contains('menu-open') ? closeMenu() : openMenu();
     });
 
+    // Auto-close when a link or button inside the menu is clicked
     mobileMenu.querySelectorAll('a, button').forEach(el => {
         el.addEventListener('click', closeMenu);
     });
 
+    // Close on outside click
     document.addEventListener('click', (e) => {
         if (!menuBtn.contains(e.target) && !mobileMenu.contains(e.target)) {
             closeMenu();
         }
     });
 
-    // ── Notifs and Logic ────────────────────────────────────────────────────────
+    // ── Toast notification ────────────────────────────────────────────────────
     function showNotif(msg, success = true) {
         const toast = document.createElement('div');
-        toast.className = `fixed bottom-6 right-6 px-6 py-3 rounded-2xl text-white text-sm font-semibold shadow-lg z-50 ${success ? 'bg-green-600' : 'bg-red-600'}`;
+        toast.className = `fixed bottom-6 right-6 px-6 py-3 rounded-2xl text-white text-sm font-semibold shadow-lg ${success ? 'bg-green-600' : 'bg-red-600'}`;
         toast.textContent = msg;
         document.body.appendChild(toast);
         setTimeout(() => toast.remove(), 3500);
     }
 
+    // ── Load and render comments ──────────────────────────────────────────────
     async function loadComments() {
+        if (IS_FILE) {
+            document.getElementById('comments-list').innerHTML = '<div class="text-gray-400 text-sm italic">(Comments disabled in offline mode)</div>';
+            return;
+        }
         try {
             const res = await fetch(`${API}/comments`);
             if (!res.ok) throw new Error();
@@ -328,7 +319,7 @@
         }
         list.innerHTML = comments.map(c => `
             <div class="flex gap-3 p-4 bg-gray-50 rounded-xl">
-                <div class="w-8 h-8 bg-red-100 text-red-600 rounded-full flex items-center justify-center font-bold text-xs shrink-0">
+                <div class="w-8 h-8 bg-red-100 text-red-600 rounded-full flex items-center justify-center font-bold text-xs">
                     ${(c.user_name || 'U')[0].toUpperCase()}
                 </div>
                 <div class="flex-1 min-w-0">
@@ -336,13 +327,18 @@
                         <span class="font-semibold text-sm text-gray-800">${c.user_name || 'Anonymous'}</span>
                         <span class="text-xs text-gray-400">${formatTime(c.created_at)}</span>
                     </div>
-                    <p class="text-sm text-gray-600 break-words mt-1">${escapeHtml(c.comment)}</p>
+                    <p class="text-sm text-gray-600 break-words">${escapeHtml(c.comment)}</p>
                 </div>
             </div>
         `).join('');
     }
 
+    // ── Load suggestions ─────────────────────────────────────────────────────
     async function loadSuggestions() {
+        if (IS_FILE) {
+            document.getElementById('suggestions-list').innerHTML = '<div class="text-gray-400 text-sm italic">(Suggestions disabled in offline mode)</div>';
+            return;
+        }
         try {
             const res = await fetch(`${API}/suggestions`);
             if (!res.ok) throw new Error();
@@ -356,7 +352,7 @@
     function renderSuggestions(suggestions) {
         const list = document.getElementById('suggestions-list');
         if (!suggestions.length) {
-            list.innerHTML = '<div class="text-gray-400 text-sm italic text-center py-4">No new suggestions right now.</div>';
+            list.innerHTML = '<div class="text-gray-400 text-sm italic text-center py-4">No new suggestions yet.</div>';
             return;
         }
         list.innerHTML = suggestions.map(s => `
@@ -364,16 +360,32 @@
                 <div class="flex justify-between items-start mb-2">
                     <div class="flex-1">
                         <h4 class="font-bold text-gray-800 text-sm">${escapeHtml(s.name)}</h4>
-                        <p class="text-xs text-gray-500">by ${escapeHtml(s.owner_name || 'A Student')}</p>
+                        <p class="text-xs text-gray-500">by ${escapeHtml(s.owner_name)}</p>
                     </div>
-                    <span class="bg-yellow-200 text-yellow-800 text-xs font-bold px-2 py-1 rounded shrink-0 ml-2">${s.match_score}% match</span>
+                    <span class="bg-yellow-200 text-yellow-800 text-xs font-bold px-2 py-1 rounded">${s.match_score}% match</span>
                 </div>
-                <p class="text-xs text-gray-600 mb-3 line-clamp-2">${escapeHtml(s.description || 'No description')}</p>
-                <a href="/project/${s.id}" class="block w-full text-center bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-bold py-2 rounded-lg transition">
-                    <i class="fas fa-eye mr-1"></i>View Project
-                </a>
+                <p class="text-xs text-gray-600 mb-3">${escapeHtml(s.description || 'No description')}</p>
+                <button onclick="acceptSuggestion(${s.project_id})"
+                    class="w-full bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-bold py-2 rounded-lg transition">
+                    <i class="fas fa-check mr-1"></i>View Project
+                </button>
             </div>
         `).join('');
+    }
+
+    async function acceptSuggestion(projectId) {
+        if (IS_FILE) return;
+        try {
+            const res = await fetch(`${API}/suggestions/${projectId}`, { method: 'POST' });
+            if (res.ok) {
+                showNotif('✓ Added to your suggestions!');
+                await loadSuggestions();
+            } else {
+                showNotif('Already added', false);
+            }
+        } catch (err) {
+            console.error('Accept suggestion error:', err);
+        }
     }
 
     function formatTime(dateStr) {
@@ -392,6 +404,7 @@
         return div.innerHTML;
     }
 
+    // ── Post comment ──────────────────────────────────────────────────────────
     async function postComment() {
         const input = document.getElementById('comment-input');
         const text = input.value.trim();
@@ -422,31 +435,53 @@
         }
     }
 
+    // ── Fetch full profile from Flask ──────────────────────────────────────────
     async function initNav() {
+        if (IS_FILE) {
+            if (document.getElementById('nav-email')) document.getElementById('nav-email').textContent = '(offline)';
+            if (document.getElementById('nav-email-mobile')) document.getElementById('nav-email-mobile').textContent = '(offline)';
+            return;
+        }
         try {
+            // Check authentication
+            const meRes = await fetch(`${API}/me`);
+            if (!meRes.ok) { window.location.href = '/login'; return; }
+            const meData = await meRes.json();
+            if (!meData.loggedIn) { window.location.href = '/login'; return; }
+            
+            // Load full profile
             const profileRes = await fetch(`${API}/profile`);
-            if (profileRes.ok) {
-                const profile = await profileRes.json();
-                document.getElementById('nav-email').textContent = profile.email;
-                document.getElementById('nav-email-mobile').textContent = profile.email;
-                
-                if(document.getElementById('stat-rank')) document.getElementById('stat-rank').textContent = profile.rank;
-                if(document.getElementById('stat-karma')) document.getElementById('stat-karma').textContent = profile.karma;
-            }
+            if (!profileRes.ok) throw new Error('Failed to load profile');
+            const profile = await profileRes.json();
             
-            await loadComments();
-            await loadSuggestions();
+            if (document.getElementById('nav-email')) document.getElementById('nav-email').textContent = profile.email;
+            if (document.getElementById('nav-email-mobile')) document.getElementById('nav-email-mobile').textContent = profile.email;
             
+            console.log('✓ Connected to Flask - User loaded:', profile.name);
         } catch (err) {
-            console.error('Initialization error:', err);
+            console.error('Auth error:', err);
+            window.location.href = '/login';
         }
     }
 
     async function logout() {
-        try {
-            await fetch(`${API}/logout`, { method: 'POST' });
-        } catch (err) {
-            console.error('Logout error:', err);
+        if (!IS_FILE) {
+            try {
+                await fetch(`${API}/logout`, { method: 'POST' });
+            } catch (err) {
+                console.error('Logout error:', err);
+            }
+        }
+        window.location.href = '/login';
+    }
+
+    async function logout() {
+        if (!IS_FILE) {
+            try {
+                await fetch(`${API}/logout`, { method: 'POST' });
+            } catch (err) {
+                console.error('Logout error:', err);
+            }
         }
         window.location.href = '/login';
     }
@@ -455,10 +490,7 @@
     document.getElementById('logout-btn-mobile').addEventListener('click', logout);
     document.getElementById('submit-comment-btn').addEventListener('click', postComment);
     document.getElementById('comment-input').addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            postComment();
-        }
+        if (e.key === 'Enter' && e.ctrlKey) postComment();
     });
 
     initNav();
