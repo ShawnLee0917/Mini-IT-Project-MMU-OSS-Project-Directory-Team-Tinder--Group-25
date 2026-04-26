@@ -4,14 +4,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import uuid
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify, session
 
-# 导入所有模型，包括新的 Suggestion
 from .models import db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion
 
 views = Blueprint('views', __name__)
-
-# ==========================================
-# 辅助函数 (Helper Functions)
-# ==========================================
 
 ALLOWED_EXT = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 def allowed_file(filename):
@@ -23,15 +18,9 @@ def require_login():
     return None
 
 def get_current_user():
-    """获取当前登录的用户，如果没登录，默认返回演示账户防止程序崩溃"""
     email = session.get('user_email', 'student@mmu.edu.my')
     user = User.query.filter_by(email=email).first()
     return user
-
-
-# ==========================================
-# HTML 页面路由 (HTML Page Routes)
-# ==========================================
 
 @views.route('/')
 @views.route('/home')
