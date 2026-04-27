@@ -120,6 +120,7 @@
         </div>
         <div class="hidden md:flex space-x-8 items-center font-medium">
             <a href="{{ url_for('views.search') }}" class="text-red-200 border-b-2 border-red-200">Search</a>
+            <a href="{{ url_for('views.qna_page') }}" class="hover:text-red-200 transition">Q&A</a>
             <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
             <a href="{{ url_for('views.profile') }}" class="bg-red-800 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-500/50 cursor-pointer hover:bg-red-900 transition">
                 <span id="nav-email" class="text-sm">{{ session.get('user_email', 'Guest') }}</span>
@@ -135,6 +136,7 @@
         <div class="px-6 py-4 flex flex-col space-y-4 font-semibold">
             <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
             <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
+            <a href="{{ url_for('views.qna_page') }}" class="hover:text-red-200 transition">Q&A</a>
             <a href="{{ url_for('views.profile') }}" class="hover:text-red-200 transition">My Profile</a>
             <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
             <a href="{{ url_for('views.list_project') }}" class="hover:text-red-200 transition">List Your Project</a>
@@ -327,54 +329,6 @@
         &copy; 2026 Multimedia University Open Source Software Directory
     </div>
 </footer>
-
-<script>
-    const API = '/api';
-
-    const menuBtn    = document.getElementById('menu-btn');
-    const mobileMenu = document.getElementById('mobile-menu');
-
-    function openMenu() {
-        mobileMenu.classList.add('menu-open');
-        menuBtn.classList.add('is-open');
-        menuBtn.setAttribute('aria-expanded', 'true');
-    }
-
-    function closeMenu() {
-        mobileMenu.classList.remove('menu-open');
-        menuBtn.classList.remove('is-open');
-        menuBtn.setAttribute('aria-expanded', 'false');
-    }
-
-    menuBtn.addEventListener('click', () => {
-        mobileMenu.classList.contains('menu-open') ? closeMenu() : openMenu();
-    });
-
-    mobileMenu.querySelectorAll('a, button').forEach(el => {
-        el.addEventListener('click', closeMenu);
-    });
-
-    document.addEventListener('click', (e) => {
-        if (!menuBtn.contains(e.target) && !mobileMenu.contains(e.target)) {
-            closeMenu();
-        }
-    });
-
-    async function logout() {
-        try {
-            await fetch(`${API}/logout`, { method: 'POST' });
-        } catch (err) {
-            console.error('Logout error:', err);
-        }
-        window.location.href = '/login';
-    }
-
-    document.getElementById('logout-btn').addEventListener('click', logout);
-    document.getElementById('logout-btn-mobile').addEventListener('click', logout);
-</script>
-
-</body>
-</html>
 
 <script>
     const IS_FILE = window.location.protocol === 'file:';

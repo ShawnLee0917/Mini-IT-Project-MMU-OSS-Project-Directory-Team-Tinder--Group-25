@@ -21,6 +21,11 @@ class User(db.Model):
     comments = db.relationship('Comment', backref='user', lazy=True, cascade='all, delete-orphan')
     projects = db.relationship('Project', backref='user', lazy=True, cascade='all, delete-orphan')
     suggestions = db.relationship('Suggestion', backref='user', lazy=True, cascade='all, delete-orphan')
+    questions = db.relationship('Question', backref='author', lazy=True, cascade='all, delete-orphan')
+    question_likes = db.relationship('QuestionLike', backref='user', lazy=True, cascade='all, delete-orphan')
+    question_favorites = db.relationship('QuestionFavorite', backref='user', lazy=True, cascade='all, delete-orphan')
+    question_comments = db.relationship('QuestionComment', backref='user', lazy=True, cascade='all, delete-orphan')
+
 
 class Skill(db.Model):
     __tablename__ = 'skills'
@@ -29,12 +34,14 @@ class Skill(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     skill = db.Column(db.String(255), nullable=False)
 
+
 class Badge(db.Model):
     __tablename__ = 'badges'
     
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     badge = db.Column(db.String(255), nullable=False)
+
 
 class Comment(db.Model):
     __tablename__ = 'comments'
@@ -44,17 +51,18 @@ class Comment(db.Model):
     comment = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
+
 class Project(db.Model):
     __tablename__ = 'projects'
     
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     project_name = db.Column(db.String(255), nullable=False)
-    repo_url = db.Column(db.String(255))
-    languages = db.Column(db.String(255))
-    roles_needed = db.Column(db.String(255))
     description = db.Column(db.Text, default='')
     status = db.Column(db.String(50), nullable=False, default='Active')
+    repo_url = db.Column(db.String(255), default='')
+    languages = db.Column(db.String(255), default='')
+    roles_needed = db.Column(db.String(255), default='')
     contributors = db.Column(db.String(50), default='1')
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     
@@ -78,3 +86,53 @@ class Suggestion(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     
     __table_args__ = (db.UniqueConstraint('user_id', 'project_id', name='unique_user_project'),)
+
+
+# ---------------------------------------------------------------------------
+# Q&A Models
+# ---------------------------------------------------------------------------
+
+class Question(db.Model):
+    __tablename__ = 'questions'
+
+    id         = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id    = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    title      = db.Column(db.String(300), nullable=False)
+    body       = db.Column(db.Text, nullable=False)
+    image_path = db.Column(db.String(255), default='')
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    likes     = db.relationship('QuestionLike',    backref='question', lazy=True, cascade='all, delete-orphan')
+    favorites = db.relationship('QuestionFavorite', backref='question', lazy=True, cascade='all, delete-orphan')
+    q_comments = db.relationship('QuestionComment', backref='question', lazy=True, cascade='all, delete-orphan')
+
+
+class QuestionLike(db.Model):
+    __tablename__ = 'question_likes'
+
+    id          = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id     = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    question_id = db.Column(db.Integer, db.ForeignKey('questions.id', ondelete='CASCADE'), nullable=False)
+
+    __table_args__ = (db.UniqueConstraint('user_id', 'question_id', name='unique_user_question_like'),)
+
+
+class QuestionFavorite(db.Model):
+    __tablename__ = 'question_favorites'
+
+    id          = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id     = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    question_id = db.Column(db.Integer, db.ForeignKey('questions.id', ondelete='CASCADE'), nullable=False)
+
+    __table_args__ = (db.UniqueConstraint('user_id', 'question_id', name='unique_user_question_fav'),)
+
+
+class QuestionComment(db.Model):
+    __tablename__ = 'question_comments'
+
+    id          = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id     = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    question_id = db.Column(db.Integer, db.ForeignKey('questions.id', ondelete='CASCADE'), nullable=False)
+    parent_id   = db.Column(db.Integer, db.ForeignKey('question_comments.id', ondelete='CASCADE'), nullable=True)
+    body        = db.Column(db.Text, nullable=False)
+    created_at  = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
