@@ -9,9 +9,6 @@ from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, d
 
 views = Blueprint('views', __name__)
 
-# ==========================================
-# 辅助函数 (Helper Functions)
-# ==========================================
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'static', 'uploads')
 ALLOWED_EXT = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
@@ -24,15 +21,9 @@ def require_login():
     return None
 
 def get_current_user():
-    """获取当前登录的用户，如果没登录，默认返回演示账户防止程序崩溃"""
     email = session.get('user_email', 'student@mmu.edu.my')
     user = User.query.filter_by(email=email).first()
     return user
-
-
-# ==========================================
-# HTML 页面路由 (HTML Page Routes)
-# ==========================================
 
 @views.route('/')
 @views.route('/home')
@@ -60,6 +51,20 @@ def my_projects():
 @views.route('/profile')
 def profile():
     return render_template("Profile.html")
+
+@views.route('/qna/delete/<int:question_id>')
+def qna_delete_page(question_id):
+    """Display delete confirmation page for a question"""
+    q = Question.query.get_or_404(question_id)
+    user = get_current_user()
+    
+    # Check if user is the owner
+    if not user or q.user_id != user.id:
+        flash("You don't have permission to delete this question.", "error")
+        return redirect(url_for('views.qna_page'))
+    
+    return render_template("QnA_Delete.html", question=q)
+
 
 @views.route('/qna')
 def qna_page():
@@ -389,7 +394,7 @@ def get_projects():
     
     return jsonify([{
         'id': p.id,
-        'name': p.name,
+        'project_name': p.project_name,
         'description': p.description,
         'status': p.status,
         'contributors': p.contributors,
@@ -439,7 +444,7 @@ def get_suggestions():
             'id': project.id,
             'project_id': project.id,
             'owner_name': owner_name,
-            'name': project.name,
+            'project_name': project.project_name,
             'description': project.description,
             'status': project.status,
             'contributors': project.contributors,
@@ -706,6 +711,37 @@ def delete_question_comment(question_id, comment_id):
     db.session.delete(c)
     db.session.commit()
     return jsonify({'success': True})
+
+@views.route('/delete-question/<int:id>')
+def delete_confirm(id):
+    question = Question.query.get_or_404(id) # Or your database logic
+    return render_template("delete_question.html", question=question)
+
+
+@views.route('/api/questions/<int:question_id>/comments/<int:comment_id>', methods=['PUT'])
+def edit_question_comment(question_id, comment_id):
+    err = require_login()
+    if err:
+        return err
+
+    user = User.query.filter_by(email=session['user_email']).first()
+    c = QuestionComment.query.get(comment_id)
+    if not c or c.question_id != question_id:
+        return jsonify({'error': 'Comment not found'}), 404
+    if c.user_id != user.id:
+        return jsonify({'error': 'Not authorised'}), 403
+
+    data = request.get_json(silent=True) or {}
+    body = data.get('body', '').strip()
+
+    if not body:
+        return jsonify({'error': 'Comment cannot be empty'}), 400
+    if len(body) > 1000:
+        return jsonify({'error': 'Comment too long (max 1000 chars)'}), 400
+
+    c.body = body
+    db.session.commit()
+    return jsonify({'success': True, 'body': c.body})
 
 
 # ---------------------------------------------------------------------------
