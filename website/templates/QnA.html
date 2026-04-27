@@ -286,12 +286,12 @@ async function loadQuestions(){
 function renderCard(q){
   const ini=(q.author_name||'?')[0].toUpperCase();
   const imgHtml=q.image_url?`<img src="${q.image_url}" class="w-full rounded-xl mt-3 max-h-64 object-cover" loading="lazy">`:'';
-  const delBtn=q.is_owner?`<button class="btn-del text-gray-300 hover:text-red-500 transition text-sm ml-2" title="Delete question"><i class="fas fa-trash"></i></button>`:'';
+  const delBtn=q.is_owner?`<a href="/qna/delete/${q.id}" class="text-gray-300 hover:text-red-500 transition text-sm ml-2 font-semibold" title="Delete question"><i class="fas fa-trash"></i> Delete</a>`:'';
   return `<div class="card bg-white rounded-2xl border border-gray-100 shadow-sm p-6" data-qid="${q.id}">
   <div class="flex items-start gap-3 mb-2">
     <div class="w-9 h-9 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-black text-sm flex-shrink-0">${ini}</div>
     <div class="flex-1 min-w-0">
-      <div class="flex items-center gap-2 flex-wrap"><span class="font-bold text-gray-800 text-sm">${esc(q.author_name)}</span><span class="text-xs text-gray-400">${ago(q.created_at)}</span>${delBtn}</div>
+      <div class="flex items-center gap-2 flex-wrap">${delBtn?'<span class="font-bold text-gray-800 text-sm">'+esc(q.author_name)+'</span><span class="text-xs text-gray-400">'+ago(q.created_at)+'</span>'+delBtn:'<span class="font-bold text-gray-800 text-sm">'+esc(q.author_name)+'</span><span class="text-xs text-gray-400">'+ago(q.created_at)+'</span>'}</div>
       <h3 class="font-black text-gray-900 mt-1 leading-snug text-base">${esc(q.title)}</h3>
     </div>
   </div>
@@ -325,11 +325,6 @@ function attachCardEvents(card){
   });
   card.querySelector('.btn-send').addEventListener('click',()=>submitComment(card,qid,null,null));
   card.querySelector('.cmt-input').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.ctrlKey)submitComment(card,qid,null,null);});
-  const delQ=card.querySelector('.btn-del');
-  if(delQ)delQ.addEventListener('click',async()=>{
-    if(!confirm('Delete this question? This cannot be undone.'))return;
-    try{const r=await fetch(`${API}/questions/${qid}`,{method:'DELETE'});if(r.ok){card.remove();toast('Question deleted');loadQuestions();}else toast('Error',false);}catch(e){toast('Error',false);}
-  });
 }
 async function loadComments(card,qid){
   const list=card.querySelector('.cmt-list');
@@ -346,26 +341,28 @@ function renderComments(list,comments,qid,card){
   if(!top.length){list.innerHTML='<div class="text-gray-400 text-xs italic py-2">No answers yet. Be the first!</div>';return;}
   list.innerHTML=top.map(c=>{
     const reps=replies.filter(r=>r.parent_id===c.id);
-    const cDel=c.is_owner?`<button class="btn-del-cmt text-gray-300 hover:text-red-500 transition text-xs ml-auto" data-cid="${c.id}" title="Delete comment"><i class="fas fa-trash"></i></button>`:'';
+    const cDel=c.is_owner?`<button class="btn-del-cmt text-gray-300 hover:text-red-500 transition text-xs ml-2" data-cid="${c.id}" title="Delete comment"><i class="fas fa-trash"></i></button>`:'';
+    const cEdit=c.is_owner?`<button class="btn-edit-cmt text-gray-300 hover:text-blue-500 transition text-xs ml-1" data-cid="${c.id}" title="Edit comment"><i class="fas fa-edit"></i></button>`:'';
     const repsHtml=reps.map(r=>{
-      const rDel=r.is_owner?`<button class="btn-del-cmt text-gray-300 hover:text-red-500 transition text-xs ml-auto" data-cid="${r.id}" title="Delete reply"><i class="fas fa-trash"></i></button>`:'';
-      return `<div class="flex gap-2 bg-blue-50 rounded-xl p-3 ml-6 mt-2">
+      const rDel=r.is_owner?`<button class="btn-del-cmt text-gray-300 hover:text-red-500 transition text-xs ml-2" data-cid="${r.id}" title="Delete reply"><i class="fas fa-trash"></i></button>`:'';
+      const rEdit=r.is_owner?`<button class="btn-edit-cmt text-gray-300 hover:text-blue-500 transition text-xs ml-1" data-cid="${r.id}" title="Edit reply"><i class="fas fa-edit"></i></button>`:'';
+      return `<div class="flex gap-2 bg-blue-50 rounded-xl p-3 ml-6 mt-2" data-cmt-card="${r.id}">
         <div class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-black flex-shrink-0 mt-0.5">${(r.author_name||'?')[0].toUpperCase()}</div>
         <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2 justify-between">${rDel?'':'<div></div>'}<div class="flex items-center gap-2"><span class="text-xs font-bold text-gray-700">${esc(r.author_name)}</span><span class="text-xs text-gray-400">${ago(r.created_at)}</span></div>${rDel}</div>
-          <p class="text-xs text-gray-700 mt-1.5 break-words">${esc(r.body)}</p>
+          <div class="flex items-center gap-2 justify-between"><div></div><div class="flex items-center gap-2"><span class="text-xs font-bold text-gray-700">${esc(r.author_name)}</span><span class="text-xs text-gray-400">${ago(r.created_at)}</span></div><div class="flex gap-1">${rEdit}${rDel}</div></div>
+          <p class="text-xs text-gray-700 mt-1.5 break-words cmt-body">${esc(r.body)}</p>
         </div>
       </div>`;
     }).join('');
     return `<div class="comment-item space-y-2">
-      <div class="flex gap-3 bg-gray-50 rounded-xl p-3">
+      <div class="flex gap-3 bg-gray-50 rounded-xl p-3" data-cmt-card="${c.id}">
         <div class="w-7 h-7 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-xs font-black flex-shrink-0 mt-0.5">${(c.author_name||'?')[0].toUpperCase()}</div>
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 justify-between">
             <div class="flex items-center gap-2"><span class="text-xs font-bold text-gray-700">${esc(c.author_name)}</span><span class="text-xs text-gray-400">${ago(c.created_at)}</span></div>
-            <div class="flex items-center gap-2">${cDel}<button class="btn-reply text-xs text-blue-500 hover:text-blue-700 font-semibold" data-pid="${c.id}">Reply</button></div>
+            <div class="flex items-center gap-1">${cEdit}<button class="btn-reply text-xs text-blue-500 hover:text-blue-700 font-semibold" data-pid="${c.id}">Reply</button>${cDel}</div>
           </div>
-          <p class="text-sm text-gray-700 mt-1.5 break-words">${esc(c.body)}</p>
+          <p class="text-sm text-gray-700 mt-1.5 break-words cmt-body">${esc(c.body)}</p>
         </div>
       </div>
       ${repsHtml}
@@ -384,6 +381,36 @@ function renderComments(list,comments,qid,card){
         if(r.ok){toast('Comment deleted');await loadComments(card,qid);}
         else toast('Could not delete',false);
       }catch(e){toast('Error',false);}
+    });
+  });
+  list.querySelectorAll('.btn-edit-cmt').forEach(btn=>{
+    btn.addEventListener('click',async()=>{
+      const cid=parseInt(btn.dataset.cid);
+      const card=list.querySelector(`[data-cmt-card="${cid}"]`);
+      if(!card)return;
+      const body=card.querySelector('.cmt-body');
+      const editForm=card.querySelector('.edit-form');
+      if(editForm){editForm.remove();return;}
+      const form=document.createElement('div');
+      form.className='edit-form mt-3 flex gap-2';
+      form.innerHTML=`<textarea class="edit-input flex-1 text-xs px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-400 bg-gray-50" maxlength="1000" style="resize:none;height:60px">${esc(body.textContent)}</textarea><div class="flex gap-1"><button class="save-edit bg-green-500 hover:bg-green-600 text-white px-2 py-1.5 rounded-xl text-xs font-bold transition" data-cid="${cid}">Save</button><button class="cancel-edit bg-gray-400 hover:bg-gray-500 text-white px-2 py-1.5 rounded-xl text-xs font-bold transition">Cancel</button></div>`;
+      body.after(form);
+      body.style.display='none';
+      form.querySelector('.save-edit').addEventListener('click',async()=>{
+        const newBody=form.querySelector('.edit-input').value.trim();
+        if(!newBody){toast('Cannot be empty',false);return;}
+        const saveBtn=form.querySelector('.save-edit');
+        saveBtn.disabled=true;
+        try{
+          const r=await fetch(`${API}/questions/${qid}/comments/${cid}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({body:newBody})});
+          if(r.ok){const d=await r.json();body.textContent=d.body;body.style.display='block';form.remove();toast('Comment updated');}
+          else {const d=await r.json();toast(d.error||'Failed',false);}
+        }catch(e){toast('Error',false);}
+        finally{saveBtn.disabled=false;}
+      });
+      form.querySelector('.cancel-edit').addEventListener('click',()=>{
+        body.style.display='block';form.remove();
+      });
     });
   });
   list.querySelectorAll('.btn-reply').forEach(btn=>{
