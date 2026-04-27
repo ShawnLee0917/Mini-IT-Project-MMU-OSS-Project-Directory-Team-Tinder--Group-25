@@ -28,6 +28,8 @@ def get_current_user():
 @views.route('/')
 @views.route('/home')
 def home():
+    if 'user_email' not in session:
+        return redirect(url_for('views.login'))
     return render_template("Navigation.html")
 
 @views.route('/login')
