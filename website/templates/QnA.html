@@ -132,7 +132,12 @@
   <div class="container mx-auto px-6 py-3 flex items-center justify-between">
     <div class="flex items-center gap-4">
       <button id="menu-btn" class="hamburger"><span class="bar"></span><span class="bar"></span><span class="bar"></span></button>
-      <a href="/home" class="text-2xl font-extrabold tracking-tighter">MMU <span class="font-light text-red-200">OSSD</span></a>
+            <a href="{{ url_for('views.home') }}" class="hover:opacity-80 transition flex items-center gap-4">
+                <i class="fas fa-arrow-left text-xl"></i>
+                <h1 class="text-2xl font-extrabold tracking-tighter">
+                    MMU <span class="font-light text-red-200">OSSD</span>
+                </h1>
+            </a>
     </div>
     <div class="hidden md:flex space-x-8 items-center font-medium">
       <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
@@ -149,9 +154,10 @@
     <div class="px-6 py-4 flex flex-col space-y-4 font-semibold">
       <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
       <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
-      <a href="{{ url_for('views.qna_page') }}" class="text-red-200">Q&A</a>
+      <a href="{{ url_for('views.qna_page') }}" class="hover:text-red-200 transition">Q&A</a>
       <a href="{{ url_for('views.profile') }}" class="hover:text-red-200 transition">My Profile</a>
       <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
+      <a href="{{ url_for('views.list_project') }}" class="hover:text-red-200 transition">List Your Project</a>
       <button id="logout-btn-mobile" class="text-left text-red-200 hover:text-white text-sm"><i class="fas fa-sign-out-alt mr-1"></i>Logout</button>
       <div class="pt-2 border-t border-red-700 text-xs opacity-80" id="nav-email-mobile">...</div>
     </div>
