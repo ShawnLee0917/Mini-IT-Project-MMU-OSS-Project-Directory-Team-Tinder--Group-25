@@ -74,7 +74,7 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             
-            {% for project in projects %}
+            {% for project in own_projects %}
             <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition flex flex-col">
                 <div class="flex justify-between items-start mb-4">
                     <div>
@@ -107,30 +107,50 @@
         </div>
     </section>
 
-    <section>
-        <div class="flex items-center mb-8">
-            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-[0.2em] whitespace-nowrap">
+    <section class="mt-12">
+        <div class="flex items-center mb-6">
+            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-[0.2em]">
                 Contributing To
             </h3>
             <div class="h-px bg-gray-200 flex-grow ml-4"></div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                <h4 class="text-lg font-bold text-gray-800 mb-1">MMU Bus Tracker</h4>
-                <p class="text-xs text-gray-400 mb-4">Led by: <span class="font-bold">@ahmad_dev</span></p>
-                <div class="flex items-center gap-2 mb-4">
-                    <span class="text-[10px] font-bold bg-blue-50 text-blue-600 px-2 py-1 rounded uppercase">Frontend</span>
-                    <span class="text-[10px] font-bold bg-orange-50 text-orange-600 px-2 py-1 rounded uppercase">React</span>
-                </div>
-                <button class="w-full bg-gray-100 text-gray-600 py-2 rounded-lg text-xs font-bold hover:bg-red-50 hover:text-red-600 transition">
-                    VIEW PROJECT LOGS
-                </button>
-            </div>
             
-            <div class="bg-gray-50 rounded-2xl border border-gray-100 p-6 flex items-center justify-center italic text-gray-400 text-sm">
-                You haven't joined any other teams yet.
-            </div>
+            {% if joined_projects and joined_projects|length > 0 %}
+                {% for project in joined_projects %}
+                <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition flex flex-col justify-between h-full">
+                    <div>
+                        <h4 class="text-lg font-bold text-gray-900 mb-1">{{ project.project_name }}</h4>
+                        <p class="text-xs text-gray-500 mb-4">Led by: @{{ project.user.name }}</p>
+                        
+                        <div class="flex flex-wrap gap-2 mb-6">
+                            {% if project.languages %}
+                                {% for lang in project.languages.split(',') %}
+                                <span class="text-[10px] font-bold bg-blue-50 text-blue-600 px-2 py-1 rounded uppercase">
+                                    {{ lang.strip() }}
+                                </span>
+                                {% endfor %}
+                            {% else %}
+                                <span class="text-[10px] font-bold bg-gray-50 text-gray-500 px-2 py-1 rounded uppercase">
+                                    N/A
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <a href="{{ url_for('views.project_page', project_id=project.id) }}" class="block w-full text-center bg-gray-50 text-gray-700 hover:bg-gray-100 py-3 rounded-xl text-xs font-bold transition mt-auto">
+                        VIEW PROJECT
+                    </a>
+                </div>
+                {% endfor %}
+                
+            {% else %}
+                <div class="col-span-full py-16 text-center text-gray-400 text-sm font-medium border-2 border-dashed border-gray-100 rounded-2xl bg-gray-50/50">
+                    You haven't joined any other teams yet.
+                </div>
+            {% endif %}
+            
         </div>
     </section>
 </main>

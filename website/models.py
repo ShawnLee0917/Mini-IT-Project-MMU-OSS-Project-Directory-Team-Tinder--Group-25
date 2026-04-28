@@ -1,6 +1,11 @@
 from . import db
 from datetime import datetime
 
+project_members = db.Table('project_members',
+    db.Column('user_id', db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), primary_key=True),
+    db.Column('project_id', db.Integer, db.ForeignKey('projects.id', ondelete='CASCADE'), primary_key=True)
+)
+
 class User(db.Model):
     __tablename__ = 'users'
     
@@ -21,7 +26,7 @@ class User(db.Model):
     comments = db.relationship('Comment', backref='user', lazy=True, cascade='all, delete-orphan')
     projects = db.relationship('Project', backref='user', lazy=True, cascade='all, delete-orphan')
     suggestions = db.relationship('Suggestion', backref='user', lazy=True, cascade='all, delete-orphan')
-
+    
 class Skill(db.Model):
     __tablename__ = 'skills'
     
@@ -61,6 +66,9 @@ class Project(db.Model):
     # Relationships
     images = db.relationship('ProjectImage', backref='project', lazy=True, cascade='all, delete-orphan')
     suggestions = db.relationship('Suggestion', backref='project', lazy=True, cascade='all, delete-orphan')
+    
+    members = db.relationship('User', secondary=project_members, lazy='subquery',
+        backref=db.backref('joined_projects', lazy=True))
 
 class ProjectImage(db.Model):
     __tablename__ = 'project_images'

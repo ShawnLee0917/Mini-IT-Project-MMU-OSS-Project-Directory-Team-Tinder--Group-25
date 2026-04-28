@@ -3,10 +3,10 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 import uuid
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify, session
-
 from .models import db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion
 
 views = Blueprint('views', __name__)
+
 
 ALLOWED_EXT = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 def allowed_file(filename):
@@ -42,8 +42,17 @@ def search():
 
 @views.route('/my_projects')
 def my_projects():
-    all_projects = Project.query.order_by(Project.created_at.desc()).all()
-    return render_template("My_Projects.html", projects=all_projects)
+    current_user = get_current_user()
+    
+    if not current_user or 'user_email' not in session:
+        flash("Please login to view your projects.", "error")
+        return redirect(url_for('views.login'))
+
+    own_projects = Project.query.filter_by(user_id=current_user.id).order_by(Project.created_at.desc()).all()
+    
+    joined_projects = current_user.joined_projects
+
+    return render_template("My_Projects.html", own_projects=own_projects, joined_projects=joined_projects)
 
 @views.route('/profile')
 def profile():
@@ -52,7 +61,7 @@ def profile():
 @views.route('/project/<int:project_id>')
 def project_page(project_id):
     project = Project.query.get_or_404(project_id)
-    return render_template("Project_Page.html", project=project)
+    return render_template("Project_Page.html", project=project, current_user=get_current_user())
 
 @views.route('/upload-success')
 def upload_success():
@@ -104,11 +113,25 @@ def list_project():
 
 @views.route('/edit_project/<int:project_id>', methods=['GET', 'POST'])
 def edit_project(project_id):
+    current_user = get_current_user()
+    if not current_user:
+        flash("Please login to edit projects.", "error")
+        return redirect(url_for('views.login'))
+
     project = Project.query.get_or_404(project_id)
 
+    is_owner = (project.user_id == current_user.id)
+    is_member = (current_user in project.members)
+
+    if not (is_owner or is_member):
+        flash("Permission Denied: Only project owners and members can edit this project.", "error")
+        return redirect(url_for('views.project_page', project_id=project.id))
+
     if request.method == 'POST':
-        project.project_name = request.form.get('project_name')
-        project.repo_url = request.form.get('repo_url')
+        if is_owner:
+            project.project_name = request.form.get('project_name')
+            project.repo_url = request.form.get('repo_url')
+
         project.languages = request.form.get('languages')
         project.roles_needed = request.form.get('roles_needed')
         project.description = request.form.get('description')
@@ -137,7 +160,7 @@ def edit_project(project_id):
         db.session.commit()
         return redirect(url_for('views.project_page', project_id=project.id))
 
-    return render_template("Edit_Project.html", project=project)
+    return render_template("Edit_Project.html", project=project, current_user=current_user)
 
 @views.route('/delete-project/<int:project_id>', methods=['POST'])
 def delete_project(project_id):
@@ -361,3 +384,36 @@ def accept_suggestion(project_id):
         return jsonify({'error': 'Already suggested'}), 409
     
     return jsonify({'success': True, 'message': 'Project suggested to you!'})
+
+
+@views.route('/api/project/<int:project_id>/add_member', methods=['POST'])
+def add_member(project_id):
+    err = require_login()
+    if err: return err
+    
+    current_user = get_current_user()
+    project = Project.query.get_or_404(project_id)
+
+    # Security check: Only the project lead (creator) can add members
+    if project.user_id != current_user.id:
+        return jsonify({"error": "Unauthorized. Only the Project Lead can add members."}), 403
+
+    data = request.get_json(silent=True) or {}
+    email_to_add = data.get('email', '').strip().lower()
+
+    if not email_to_add:
+        return jsonify({"error": "Email is required"}), 400
+
+    user_to_add = User.query.filter_by(email=email_to_add).first()
+
+    if not user_to_add:
+        return jsonify({"error": "User with this email not found"}), 404
+
+    if user_to_add in project.members:
+        return jsonify({"error": "User is already a member of this project"}), 400
+
+    # Add the user to the project's members list
+    project.members.append(user_to_add)
+    db.session.commit()
+
+    return jsonify({"success": "Member added successfully!", "user_name": user_to_add.name})

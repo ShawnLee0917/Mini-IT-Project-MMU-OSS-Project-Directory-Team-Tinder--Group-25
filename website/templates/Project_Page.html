@@ -55,18 +55,17 @@
 
 <header class="bg-white border-b py-12">
     <div class="container mx-auto px-6">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div>
-                <div class="flex items-center gap-3 mb-2">
-                    <span class="text-xs font-bold bg-green-100 text-green-700 px-3 py-1 rounded-full tracking-wider uppercase">{{ project.status }}</span>
-                    <span class="text-xs font-bold bg-gray-100 text-gray-600 px-3 py-1 rounded-full tracking-wider uppercase">
-                        Listed: {{ project.created_at.strftime('%Y-%m-%d') }}
-                    </span>
-                </div>
-                <h2 class="text-4xl font-black text-gray-900 leading-tight">{{ project.project_name }}</h2>
+        <div>
+            <div class="flex items-center gap-3 mb-2">
+                <span class="text-xs font-bold bg-green-100 text-green-700 px-3 py-1 rounded-full tracking-wider uppercase">{{ project.status }}</span>
+                <span class="text-xs font-bold bg-gray-100 text-gray-600 px-3 py-1 rounded-full tracking-wider uppercase">
+                    Listed: {{ project.created_at.strftime('%Y-%m-%d') }}
+                </span>
             </div>
             
-            <div class="flex gap-3">
+            <h2 class="text-4xl font-black text-gray-900 leading-tight">{{ project.project_name }}</h2>
+            
+            <div class="flex gap-3 mt-6">
                 <a href="{{ url_for('views.edit_project', project_id=project.id) }}" class="bg-yellow-100 text-yellow-700 px-6 py-3 rounded-xl font-bold hover:bg-yellow-200 transition flex items-center gap-2 border border-yellow-300">
                     <i class="fas fa-edit text-xl"></i> Edit
                 </a>
@@ -128,7 +127,9 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {% if project.images %}
                         {% for image in project.images %}
-                        <div class="rounded-2xl border border-gray-100 overflow-hidden shadow-sm group">
+                        <div class="rounded-2xl border border-gray-100 overflow-hidden shadow-sm group cursor-pointer" 
+                            onclick="openModal(`{{ url_for('static', filename='uploads/' + image.filename) }}`)">
+                            
                             <img src="{{ url_for('static', filename='uploads/' + image.filename) }}" 
                                 class="w-full h-48 object-cover group-hover:scale-105 transition duration-500">
                         </div>
@@ -163,17 +164,68 @@
                     <i class="far fa-envelope mr-2"></i> Contact Lead
                 </a>
             </div>
+            <div class="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm mt-8">
+                <h4 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Team Members</h4>
+            
+            <div class="space-y-3 mb-6" id="members-list">
+                {% for member in project.members %}
+                <div class="flex items-center gap-3 text-sm font-medium text-gray-700">
+                    <i class="fas fa-user text-gray-400"></i>
+                    {{ member.name }}
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="border-t border-gray-100 pt-4 mt-4">
+                <label class="text-xs font-bold text-gray-500 mb-2 block">Invite Member by Email</label>
+                <div class="flex gap-2">
+                    <input type="email" id="new-member-email" placeholder="example@mmu.edu.my" 
+                        class="bg-gray-50 border border-gray-200 text-sm rounded-xl px-3 py-2 w-full focus:outline-none focus:border-red-400">
+                    <button onclick="addMember('{{ project.id }}')" 
+                            class="bg-red-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-red-700 transition">
+                        Add
+                    </button>
+                </div>
+                <p id="add-member-msg" class="text-xs mt-2 hidden"></p>
+            </div>
+            </div>
         </div>
     </div>
 </main>
 
+<div id="imageModal" class="hidden fixed inset-0 z-[100] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity duration-300" onclick="closeModal()">
+    
+    <button class="absolute top-6 right-6 text-gray-300 hover:text-white focus:outline-none transition transform hover:scale-110">
+        <i class="fas fa-times text-4xl"></i>
+    </button>
+    
+    <img id="modalImage" src="" class="max-w-full max-h-[90vh] rounded-xl shadow-2xl object-contain" onclick="event.stopPropagation()">
+</div>
+
 <script>
     const API = '/api';
 
+    // Image Modal Functions
+    function openModal(imageSrc) {
+        const modal = document.getElementById('imageModal');
+        const modalImg = document.getElementById('modalImage');
+        modalImg.src = imageSrc;
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal() {
+        const modal = document.getElementById('imageModal');
+        modal.classList.add('hidden');
+        document.body.style.overflow = 'auto';
+    }
+
+    // Navigation Menu
     document.getElementById('menu-btn').addEventListener('click', () => {
         document.getElementById('mobile-menu').classList.toggle('hidden');
     });
 
+    // Logout Logic
     async function logout() {
         try {
             await fetch(`${API}/logout`, { method: 'POST' });
@@ -185,7 +237,41 @@
 
     document.getElementById('logout-btn').addEventListener('click', logout);
     document.getElementById('logout-btn-mobile').addEventListener('click', logout);
-</script>
 
+    async function addMember(projectId) {
+    const emailInput = document.getElementById('new-member-email');
+    const msgElement = document.getElementById('add-member-msg');
+    const email = emailInput.value;
+
+    if (!email) return;
+
+    try {
+        const response = await fetch(`/api/project/${projectId}/add_member`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email: email })
+        });
+
+        const data = await response.json();
+        
+        msgElement.classList.remove('hidden');
+        
+        if (response.ok) {
+            msgElement.className = "text-xs mt-2 text-green-600 font-bold";
+            msgElement.innerText = "✓ " + data.success;
+            emailInput.value = '';
+            
+            setTimeout(() => window.location.reload(), 1000); 
+        } else {
+            msgElement.className = "text-xs mt-2 text-red-600 font-bold";
+            msgElement.innerText = "✗ " + data.error;
+        }
+    } catch (err) {
+        console.error('Error:', err);
+    }
+}
+</script>
 </body>
 </html>
