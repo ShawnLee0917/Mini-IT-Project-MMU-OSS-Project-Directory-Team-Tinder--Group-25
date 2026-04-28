@@ -5,19 +5,107 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ project.project_name }} | MMU OSSD</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" rel="stylesheet">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
         body { font-family: 'Inter', sans-serif; }
+
+        /* ── Animated Hamburger Button ─────────────────────────── */
+        .hamburger {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            border-radius: 8px;
+            padding: 6px;
+            gap: 5px;
+            transition: background 0.2s ease;
+            position: relative;
+        }
+        .hamburger:hover {
+            background: rgba(255,255,255,0.15);
+        }
+        .hamburger:focus-visible {
+            outline: 2px solid rgba(255,255,255,0.6);
+            outline-offset: 2px;
+        }
+        .hamburger .bar {
+            display: block;
+            width: 22px;
+            height: 2.5px;
+            border-radius: 99px;
+            background: #fff;
+            transition: transform 0.35s cubic-bezier(0.23, 1, 0.32, 1),
+                        opacity   0.25s ease,
+                        width     0.3s ease;
+            transform-origin: center;
+        }
+        /* Open state — morph into X */
+        .hamburger.is-open .bar:nth-child(1) {
+            transform: translateY(7.5px) rotate(45deg);
+        }
+        .hamburger.is-open .bar:nth-child(2) {
+            opacity: 0;
+            width: 0;
+        }
+        .hamburger.is-open .bar:nth-child(3) {
+            transform: translateY(-7.5px) rotate(-45deg);
+        }
+
+        /* ── Mobile menu slide-down animation ──────────────────── */
+        #mobile-menu {
+            max-height: 0;
+            overflow: hidden;
+            opacity: 0;
+            transition:
+                max-height 0.38s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity    0.28s ease;
+        }
+        #mobile-menu.menu-open {
+            max-height: 500px;   /* tall enough for all links */
+            opacity: 1;
+        }
+        /* Stagger each link sliding in */
+        #mobile-menu a,
+        #mobile-menu button,
+        #mobile-menu div {
+            transform: translateY(-6px);
+            opacity: 0;
+            transition:
+                transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity   0.3s ease;
+        }
+        #mobile-menu.menu-open a,
+        #mobile-menu.menu-open button,
+        #mobile-menu.menu-open div {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        /* Delay each item slightly for a cascade effect */
+        #mobile-menu a:nth-child(1)  { transition-delay: 0.05s; }
+        #mobile-menu a:nth-child(2)  { transition-delay: 0.09s; }
+        #mobile-menu a:nth-child(3)  { transition-delay: 0.13s; }
+        #mobile-menu a:nth-child(4)  { transition-delay: 0.17s; }
+        #mobile-menu a:nth-child(5)  { transition-delay: 0.21s; }
+        #mobile-menu button          { transition-delay: 0.25s; }
+        #mobile-menu #nav-email-mobile { transition-delay: 0.29s; }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-900">
 
 <nav class="bg-red-700 text-white shadow-md sticky top-0 z-50">
     <div class="container mx-auto px-6 py-3 flex items-center justify-between">
+        
         <div class="flex items-center gap-4">
-            <button id="menu-btn" class="text-white focus:outline-none p-1 hover:bg-red-800 rounded transition">
-                <i class="fas fa-bars text-xl"></i>
+            <button id="menu-btn" class="hamburger" aria-label="Toggle menu" aria-expanded="false">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
             </button>
             <a href="{{ url_for('views.home') }}" class="hover:opacity-80 transition flex items-center gap-4">
                 <i class="fas fa-arrow-left text-xl"></i>
@@ -26,29 +114,35 @@
                 </h1>
             </a>
         </div>
+
         <div class="hidden md:flex space-x-8 items-center font-medium">
+            <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
             <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
+            <a href="{{ url_for('views.qna_page') }}" class="hover:text-red-200 transition">Q&A</a>
             <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
             <a href="{{ url_for('views.profile') }}" class="bg-red-800 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-500/50 cursor-pointer hover:bg-red-900 transition">
                 <span id="nav-email" class="text-sm">{{ session.get('user_email', 'Guest') }}</span>
                 <i class="fas fa-user-circle text-lg"></i>
             </a>
-            <button id="logout-btn" class="bg-white text-red-700 hover:bg-red-50 text-xs font-bold px-3 py-2 rounded-xl transition">
+            <button id="logout-btn"
+                class="bg-white text-red-700 hover:bg-red-50 text-xs font-bold px-3 py-2 rounded-xl transition">
                 <i class="fas fa-sign-out-alt mr-1"></i>Logout
             </button>
         </div>
     </div>
 
-    <div id="mobile-menu" class="hidden bg-red-800 border-t border-red-600 shadow-inner">
+    <div id="mobile-menu" class="bg-red-800 border-t border-red-600 shadow-inner">
         <div class="px-6 py-4 flex flex-col space-y-4 font-semibold">
             <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
             <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
+            <a href="{{ url_for('views.qna_page') }}" class="hover:text-red-200 transition">Q&A</a>
             <a href="{{ url_for('views.profile') }}" class="hover:text-red-200 transition">My Profile</a>
             <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
             <a href="{{ url_for('views.list_project') }}" class="hover:text-red-200 transition">List Your Project</a>
             <button id="logout-btn-mobile" class="text-left text-red-200 hover:text-white transition text-sm">
                 <i class="fas fa-sign-out-alt mr-1"></i> Logout
             </button>
+            <div class="pt-2 border-t border-red-700 text-xs font-light opacity-80" id="nav-email-mobile">{{ session.get('user_email', 'Guest') }}</div>
         </div>
     </div>
 </nav>
@@ -127,8 +221,8 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {% if project.images %}
                         {% for image in project.images %}
-                        <div class="rounded-2xl border border-gray-100 overflow-hidden shadow-sm group cursor-pointer" 
-                            onclick="openModal(`{{ url_for('static', filename='uploads/' + image.filename) }}`)">
+                        <div class="rounded-2xl border border-gray-100 overflow-hidden shadow-sm group cursor-pointer gallery-img"
+                            data-src="{{ url_for('static', filename='uploads/' + image.filename) }}">
                             
                             <img src="{{ url_for('static', filename='uploads/' + image.filename) }}" 
                                 class="w-full h-48 object-cover group-hover:scale-105 transition duration-500">
@@ -142,6 +236,72 @@
                             </span>
                         </div>
                     {% endif %}
+                </div>
+            </section>
+
+            <!-- Comments Section -->
+            <section>
+                <div class="flex items-center mb-6">
+                    <h3 class="text-xs font-bold text-red-600 uppercase tracking-[0.2em] whitespace-nowrap">
+                        Comments & Discussion
+                    </h3>
+                    <div class="h-px bg-gray-200 flex-grow ml-4"></div>
+                </div>
+
+                <!-- Comment Tabs -->
+                <div class="flex gap-2 mb-6 border-b border-gray-200">
+                    <button class="comment-tab px-4 py-2 font-semibold text-sm border-b-2 border-transparent hover:border-red-400 transition" data-type="all">
+                        <i class="fas fa-comments mr-2"></i>All
+                    </button>
+                    <button class="comment-tab px-4 py-2 font-semibold text-sm border-b-2 border-transparent hover:border-red-400 transition" data-type="normal">
+                        <i class="fas fa-comment mr-2"></i>Discussion
+                    </button>
+                    <button class="comment-tab px-4 py-2 font-semibold text-sm border-b-2 border-transparent hover:border-red-400 transition" data-type="issue">
+                        <i class="fas fa-exclamation-circle mr-2"></i>Issues
+                    </button>
+                    <button class="comment-tab px-4 py-2 font-semibold text-sm border-b-2 border-transparent hover:border-red-400 transition" data-type="suggestion">
+                        <i class="fas fa-lightbulb mr-2"></i>Suggestions
+                    </button>
+                </div>
+
+                <!-- Add Comment Form -->
+                <div class="bg-white p-6 rounded-2xl border border-gray-100 mb-6">
+                    <div class="mb-4">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Add Comment</label>
+                        <textarea id="comment-input" placeholder="Share your thoughts..." 
+                            class="w-full p-4 border border-gray-200 rounded-xl focus:outline-none focus:border-red-400 resize-none" rows="3"></textarea>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Type</label>
+                        <select id="comment-type" class="w-full p-2 border border-gray-200 rounded-xl focus:outline-none focus:border-red-400 text-sm">
+                            <option value="normal">Discussion</option>
+                            <option value="issue">Issue</option>
+                            <option value="suggestion">Suggestion</option>
+                        </select>
+                        <p class="text-xs text-gray-500 mt-1">
+                            <i class="fas fa-info-circle mr-1"></i>Labels will be assigned by the project owner
+                        </p>
+                    </div>
+
+                    <div id="label-container" class="mb-4 hidden">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Label <span class="text-gray-400 font-normal">(optional)</span></label>
+                        <select id="comment-label" class="w-full p-2 border border-gray-200 rounded-xl focus:outline-none focus:border-red-400 text-sm">
+                            <option value="">No label</option>
+                        </select>
+                    </div>
+
+                    <button onclick="submitComment(projectId)" class="w-full bg-red-600 text-white font-bold py-2 rounded-xl hover:bg-red-700 transition">
+                        <i class="fas fa-paper-plane mr-2"></i>Post Comment
+                    </button>
+                </div>
+
+                <!-- Comments List -->
+                <div id="comments-list" class="space-y-4">
+                    <div class="text-center text-gray-400 py-8">
+                        <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                        <p>Loading comments...</p>
+                    </div>
                 </div>
             </section>
 
@@ -181,7 +341,7 @@
                 <div class="flex gap-2">
                     <input type="email" id="new-member-email" placeholder="example@mmu.edu.my" 
                         class="bg-gray-50 border border-gray-200 text-sm rounded-xl px-3 py-2 w-full focus:outline-none focus:border-red-400">
-                    <button onclick="addMember('{{ project.id }}')" 
+                    <button onclick="addMember(projectId)"
                             class="bg-red-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-red-700 transition">
                         Add
                     </button>
@@ -202,8 +362,19 @@
     <img id="modalImage" src="" class="max-w-full max-h-[90vh] rounded-xl shadow-2xl object-contain" onclick="event.stopPropagation()">
 </div>
 
+<!-- Server-side data passed safely to JavaScript -->
+<script id="page-data" type="application/json">
+{
+    "projectId":     {{ project.id | tojson }},
+    "currentUserId": {{ (current_user.id if current_user else none) | tojson }},
+    "projectOwnerId":{{ (project.user.id if project.user else none) | tojson }}
+}
+</script>
+
 <script>
+    const IS_FILE = window.location.protocol === 'file:';
     const API = '/api';
+
 
     // Image Modal Functions
     function openModal(imageSrc) {
@@ -214,18 +385,20 @@
         document.body.style.overflow = 'hidden';
     }
 
+    // Gallery image click — uses data-src to avoid Jinja2 inside onclick
+    document.addEventListener('click', (e) => {
+        const card = e.target.closest('.gallery-img');
+        if (card) openModal(card.dataset.src);
+    });
+
     function closeModal() {
         const modal = document.getElementById('imageModal');
         modal.classList.add('hidden');
         document.body.style.overflow = 'auto';
     }
 
-    // Navigation Menu
-    document.getElementById('menu-btn').addEventListener('click', () => {
-        document.getElementById('mobile-menu').classList.toggle('hidden');
-    });
-
-    // Logout Logic
+    // ── Mobile menu smooth toggle ─────────────────────────────────────────────
+    // Logout Logic (defined early so it can be referenced by event listeners)
     async function logout() {
         try {
             await fetch(`${API}/logout`, { method: 'POST' });
@@ -235,8 +408,41 @@
         window.location.href = '/login';
     }
 
-    document.getElementById('logout-btn').addEventListener('click', logout);
-    document.getElementById('logout-btn-mobile').addEventListener('click', logout);
+    document.addEventListener('DOMContentLoaded', () => {
+        const menuBtn    = document.getElementById('menu-btn');
+        const mobileMenu = document.getElementById('mobile-menu');
+
+        function openMenu() {
+            mobileMenu.classList.add('menu-open');
+            menuBtn.classList.add('is-open');
+            menuBtn.setAttribute('aria-expanded', 'true');
+        }
+
+        function closeMenu() {
+            mobileMenu.classList.remove('menu-open');
+            menuBtn.classList.remove('is-open');
+            menuBtn.setAttribute('aria-expanded', 'false');
+        }
+
+        menuBtn.addEventListener('click', () => {
+            mobileMenu.classList.contains('menu-open') ? closeMenu() : openMenu();
+        });
+
+        // Auto-close when a link or button inside the menu is clicked
+        mobileMenu.querySelectorAll('a, button').forEach(el => {
+            el.addEventListener('click', closeMenu);
+        });
+
+        // Close on outside click
+        document.addEventListener('click', (e) => {
+            if (!menuBtn.contains(e.target) && !mobileMenu.contains(e.target)) {
+                closeMenu();
+            }
+        });
+
+        document.getElementById('logout-btn').addEventListener('click', logout);
+        document.getElementById('logout-btn-mobile').addEventListener('click', logout);
+    });
 
     async function addMember(projectId) {
     const emailInput = document.getElementById('new-member-email');
@@ -272,6 +478,268 @@
         console.error('Error:', err);
     }
 }
+
+// ────────────────────────────────────────────────────────────────────
+// Comment System Functions
+// ────────────────────────────────────────────────────────────────────
+
+let allComments = [];
+let currentCommentFilter = 'all';
+let commentLabels = [];
+const _data        = JSON.parse(document.getElementById('page-data').textContent);
+const projectId    = _data.projectId;
+const currentUserId   = _data.currentUserId;
+const projectOwnerId  = _data.projectOwnerId;
+
+// Load comment labels
+async function loadCommentLabels() {
+    try {
+        const res = await fetch(`${API}/comment-labels`);
+        if (!res.ok) throw new Error('Failed to load labels');
+        commentLabels = await res.json();
+        
+        const labelSelect = document.getElementById('comment-label');
+        commentLabels.forEach(label => {
+            const option = document.createElement('option');
+            option.value = label.name;
+            option.textContent = label.name.charAt(0).toUpperCase() + label.name.slice(1);
+            labelSelect.appendChild(option);
+        });
+    } catch (err) {
+        console.error('Error loading labels:', err);
+    }
+}
+
+// Load comments
+async function loadComments() {
+    try {
+        const res = await fetch(`${API}/project/${projectId}/comments`);
+        if (!res.ok) throw new Error('Failed to load comments');
+        allComments = await res.json();
+        renderComments();
+    } catch (err) {
+        console.error('Error loading comments:', err);
+    }
+}
+
+// Render comments based on filter
+function renderComments() {
+    const container = document.getElementById('comments-list');
+    
+    let filtered = currentCommentFilter === 'all' 
+        ? allComments 
+        : allComments.filter(c => c.comment_type === currentCommentFilter);
+    
+    if (filtered.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-gray-400 py-8">
+                <i class="fas fa-comments text-3xl mb-2"></i>
+                <p>No comments yet. Be the first to share!</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = filtered.map(comment => createCommentHTML(comment)).join('');
+}
+
+function createCommentHTML(comment) {
+    const isOwner = currentUserId === projectOwnerId;
+    const isAuthor = currentUserId === comment.author_id;
+    const isIssueOrSuggestion = comment.comment_type !== 'normal';
+    
+    let typeIcon = '<i class="fas fa-comment text-gray-400"></i>';
+    let typeLabel = 'Discussion';
+    if (comment.comment_type === 'issue') {
+        typeIcon = '<i class="fas fa-exclamation-circle text-orange-500"></i>';
+        typeLabel = 'Issue';
+    } else if (comment.comment_type === 'suggestion') {
+        typeIcon = '<i class="fas fa-lightbulb text-yellow-500"></i>';
+        typeLabel = 'Suggestion';
+    }
+    
+    let roleClass = 'text-gray-500';
+    let roleIcon = '<i class="fas fa-user-circle"></i>';
+    if (comment.user_role === 'owner') {
+        roleClass = 'text-red-600';
+        roleIcon = '<i class="fas fa-crown"></i>';
+    } else if (comment.user_role === 'team-member') {
+        roleClass = 'text-blue-600';
+        roleIcon = '<i class="fas fa-users"></i>';
+    }
+    
+    const labelBadge = comment.label ? `
+        <span class="inline-block px-2 py-1 bg-gray-200 text-gray-700 text-xs font-semibold rounded-lg ml-2">
+            ${comment.label}
+        </span>
+    ` : '';
+    
+    const ownerActions = isOwner ? `
+        <div class="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition">
+            <select class="text-xs bg-gray-100 border border-gray-300 rounded px-2 py-1" onchange="moveCommentType(${comment.id}, this.value)">
+                <option value="">Move to...</option>
+                <option value="normal">Discussion</option>
+                <option value="issue">Issue</option>
+                <option value="suggestion">Suggestion</option>
+            </select>
+            ${isIssueOrSuggestion ? `
+                <select class="text-xs bg-gray-100 border border-gray-300 rounded px-2 py-1" onchange="updateCommentLabel(${comment.id}, this.value)">
+                    <option value="">Change label...</option>
+                    ${commentLabels.map(l => `<option value="${l.name}" ${comment.label === l.name ? 'selected' : ''}>${l.name}</option>`).join('')}
+                </select>
+            ` : ''}
+            <button onclick="deleteComment(${comment.id})" class="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-semibold hover:bg-red-200 transition">
+                <i class="fas fa-trash"></i> Delete
+            </button>
+        </div>
+    ` : '';
+    
+    return `
+        <div class="bg-white p-6 rounded-2xl border border-gray-100 group relative hover:shadow-md transition">
+            ${ownerActions}
+            
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-bold flex-shrink-0">
+                    ${comment.author_name[0].toUpperCase()}
+                </div>
+                
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="font-semibold text-gray-900">${comment.author_name}</span>
+                        <span class="${roleClass} text-xs font-semibold">${roleIcon} ${comment.user_role}</span>
+                        <span class="text-gray-400 text-xs">${new Date(comment.created_at).toLocaleDateString()}</span>
+                    </div>
+                    
+                    <div class="flex items-center gap-2 mt-2 mb-3">
+                        ${typeIcon}
+                        <span class="text-xs font-semibold text-gray-600">${typeLabel}</span>
+                        ${labelBadge}
+                    </div>
+                    
+                    <p class="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap">${comment.content}</p>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Submit new comment
+async function submitComment(projectId) {
+    const content = document.getElementById('comment-input').value.trim();
+    const commentType = document.getElementById('comment-type').value;
+    const label = document.getElementById('comment-label').value || null;
+    
+    if (!content) {
+        alert('Please enter a comment');
+        return;
+    }
+    
+    try {
+        const res = await fetch(`${API}/project/${projectId}/comments`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                content,
+                comment_type: commentType,
+                label
+            })
+        });
+        
+        if (!res.ok) throw new Error('Failed to post comment');
+        
+        document.getElementById('comment-input').value = '';
+        document.getElementById('comment-type').value = 'normal';
+        document.getElementById('comment-label').value = '';
+        
+        await loadComments();
+    } catch (err) {
+        console.error('Error submitting comment:', err);
+        alert('Failed to post comment');
+    }
+}
+
+// Delete comment (owner only)
+async function deleteComment(commentId) {
+    if (!confirm('Delete this comment?')) return;
+    
+    try {
+        const res = await fetch(`${API}/project/${projectId}/comments/${commentId}`, {
+            method: 'DELETE'
+        });
+        
+        if (!res.ok) throw new Error('Failed to delete comment');
+        await loadComments();
+    } catch (err) {
+        console.error('Error deleting comment:', err);
+        alert('Failed to delete comment');
+    }
+}
+
+// Update comment label (owner only)
+async function updateCommentLabel(commentId, newLabel) {
+    if (!newLabel) return;
+    
+    try {
+        const res = await fetch(`${API}/project/${projectId}/comments/${commentId}/label`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ label: newLabel })
+        });
+        
+        if (!res.ok) throw new Error('Failed to update label');
+        await loadComments();
+    } catch (err) {
+        console.error('Error updating label:', err);
+        alert('Failed to update label');
+    }
+}
+
+// Move comment to different type (owner only)
+async function moveCommentType(commentId, newType) {
+    if (!newType) return;
+    
+    try {
+        const res = await fetch(`${API}/project/${projectId}/comments/${commentId}/move`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ comment_type: newType })
+        });
+        
+        if (!res.ok) throw new Error('Failed to move comment');
+        await loadComments();
+    } catch (err) {
+        console.error('Error moving comment:', err);
+        alert('Failed to move comment');
+    }
+}
+
+// Comment tab filtering
+document.querySelectorAll('.comment-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.comment-tab').forEach(t => t.classList.remove('border-red-600', 'text-red-600'));
+        tab.classList.add('border-red-600', 'text-red-600');
+        currentCommentFilter = tab.dataset.type;
+        renderComments();
+    });
+});
+
+// Show/hide label selector based on comment type
+document.getElementById('comment-type').addEventListener('change', (e) => {
+    const labelContainer = document.getElementById('label-container');
+    if (e.target.value !== 'normal') {
+        labelContainer.classList.remove('hidden');
+    } else {
+        labelContainer.classList.add('hidden');
+    }
+});
+
+// Initialize comments on page load
+document.addEventListener('DOMContentLoaded', () => {
+    loadCommentLabels();
+    loadComments();
+    // Set first tab as active
+    document.querySelector('.comment-tab[data-type="all"]').classList.add('border-red-600', 'text-red-600');
+});
 </script>
 </body>
 </html>
