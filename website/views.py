@@ -5,7 +5,7 @@ import uuid
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify, session
 
 # 导入所有模型，包括新的 Suggestion
-from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion
+from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel
 
 views = Blueprint('views', __name__)
 
@@ -423,6 +423,22 @@ def get_projects():
         'description': p.description,
         'status': p.status,
         'contributors': p.contributors,
+        'created_at': p.created_at.isoformat(),
+    } for p in projects])
+
+
+@views.route('/api/all-projects', methods=['GET'])
+def get_all_projects():
+    """Get all projects for search page"""
+    projects = Project.query.order_by(Project.created_at.desc()).all()
+    
+    return jsonify([{
+        'id': p.id,
+        'project_name': p.project_name,
+        'description': p.description,
+        'status': p.status,
+        'contributors': p.contributors,
+        'languages': p.languages,
         'created_at': p.created_at.isoformat(),
     } for p in projects])
 
@@ -850,3 +866,223 @@ def add_member(project_id):
     db.session.commit()
 
     return jsonify({"success": "Member added successfully!", "user_name": user_to_add.name})
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Project Comments API
+# ─────────────────────────────────────────────────────────────────────────
+
+@views.route('/api/project/<int:project_id>/comments', methods=['GET'])
+def get_project_comments(project_id):
+    """Get all comments for a project, organized by type"""
+    err = require_login()
+    if err:
+        return err
+    
+    project = Project.query.get_or_404(project_id)
+    comments = ProjectComment.query.filter_by(project_id=project_id).order_by(ProjectComment.created_at.desc()).all()
+    
+    return jsonify([{
+        'id': c.id,
+        'author_id': c.user_id,
+        'author_name': c.author.name,
+        'author_email': c.author.email,
+        'content': c.content,
+        'comment_type': c.comment_type,
+        'label': c.label,
+        'user_role': c.user_role,
+        'created_at': c.created_at.isoformat(),
+        'updated_at': c.updated_at.isoformat(),
+    } for c in comments])
+
+
+@views.route('/api/project/<int:project_id>/comments', methods=['POST'])
+def create_project_comment(project_id):
+    """Create a new comment on a project"""
+    err = require_login()
+    if err:
+        return err
+    
+    project = Project.query.get_or_404(project_id)
+    current_user = get_current_user()
+    
+    data = request.get_json(silent=True) or {}
+    content = data.get('content', '').strip()
+    comment_type = data.get('comment_type', 'normal')  # 'normal', 'issue', 'suggestion'
+    label = data.get('label', None)
+    
+    if not content:
+        return jsonify({'error': 'Comment content is required'}), 400
+    
+    if comment_type not in ['normal', 'issue', 'suggestion']:
+        return jsonify({'error': 'Invalid comment type'}), 400
+    
+    # Determine user role
+    user_role = 'user'
+    if current_user.id == project.user_id:
+        user_role = 'owner'
+    elif current_user in project.members:
+        user_role = 'team-member'
+    
+    comment = ProjectComment(
+        project_id=project_id,
+        user_id=current_user.id,
+        content=content,
+        comment_type=comment_type,
+        label=label if user_role == 'owner' else None,  # Only owner can set labels
+        user_role=user_role
+    )
+    
+    db.session.add(comment)
+    db.session.commit()
+    
+    return jsonify({
+        'id': comment.id,
+        'author_id': comment.user_id,
+        'author_name': comment.author.name,
+        'author_email': comment.author.email,
+        'content': comment.content,
+        'comment_type': comment.comment_type,
+        'label': comment.label,
+        'user_role': comment.user_role,
+        'created_at': comment.created_at.isoformat(),
+    }), 201
+
+
+@views.route('/api/project/<int:project_id>/comments/<int:comment_id>', methods=['DELETE'])
+def delete_project_comment(project_id, comment_id):
+    """Delete a comment (owner only)"""
+    err = require_login()
+    if err:
+        return err
+    
+    project = Project.query.get_or_404(project_id)
+    comment = ProjectComment.query.get_or_404(comment_id)
+    current_user = get_current_user()
+    
+    # Only owner can delete comments
+    if current_user.id != project.user_id:
+        return jsonify({'error': 'Only project owner can delete comments'}), 403
+    
+    if comment.project_id != project_id:
+        return jsonify({'error': 'Comment not found in this project'}), 404
+    
+    db.session.delete(comment)
+    db.session.commit()
+    
+    return jsonify({'success': 'Comment deleted'})
+
+
+@views.route('/api/project/<int:project_id>/comments/<int:comment_id>/label', methods=['PUT'])
+def update_comment_label(project_id, comment_id):
+    """Update comment label and type (owner only)"""
+    err = require_login()
+    if err:
+        return err
+    
+    project = Project.query.get_or_404(project_id)
+    comment = ProjectComment.query.get_or_404(comment_id)
+    current_user = get_current_user()
+    
+    # Only owner can update labels
+    if current_user.id != project.user_id:
+        return jsonify({'error': 'Only project owner can update labels'}), 403
+    
+    if comment.project_id != project_id:
+        return jsonify({'error': 'Comment not found in this project'}), 404
+    
+    data = request.get_json(silent=True) or {}
+    label = data.get('label')
+    
+    if label:
+        comment.label = label
+    
+    db.session.commit()
+    
+    return jsonify({
+        'id': comment.id,
+        'label': comment.label,
+        'comment_type': comment.comment_type,
+    })
+
+
+@views.route('/api/project/<int:project_id>/comments/<int:comment_id>/move', methods=['PUT'])
+def move_comment_type(project_id, comment_id):
+    """Move comment to different type (owner only)"""
+    err = require_login()
+    if err:
+        return err
+    
+    project = Project.query.get_or_404(project_id)
+    comment = ProjectComment.query.get_or_404(comment_id)
+    current_user = get_current_user()
+    
+    # Only owner can move comments
+    if current_user.id != project.user_id:
+        return jsonify({'error': 'Only project owner can move comments'}), 403
+    
+    if comment.project_id != project_id:
+        return jsonify({'error': 'Comment not found in this project'}), 404
+    
+    data = request.get_json(silent=True) or {}
+    new_type = data.get('comment_type', 'normal')
+    
+    if new_type not in ['normal', 'issue', 'suggestion']:
+        return jsonify({'error': 'Invalid comment type'}), 400
+    
+    comment.comment_type = new_type
+    # Reset label when moving to normal
+    if new_type == 'normal':
+        comment.label = None
+    
+    db.session.commit()
+    
+    return jsonify({
+        'id': comment.id,
+        'comment_type': comment.comment_type,
+        'label': comment.label,
+    })
+
+
+@views.route('/api/comment-labels', methods=['GET'])
+def get_comment_labels():
+    """Get all available comment labels"""
+    labels = CommentLabel.query.all()
+    
+    return jsonify([{
+        'id': l.id,
+        'name': l.name,
+        'color': l.color,
+        'description': l.description,
+    } for l in labels])
+
+
+@views.route('/api/comment-labels', methods=['POST'])
+def create_comment_label():
+    """Create a new comment label (admin/owner only)"""
+    err = require_login()
+    if err:
+        return err
+    
+    data = request.get_json(silent=True) or {}
+    name = data.get('name', '').strip()
+    color = data.get('color', 'gray')
+    description = data.get('description', '')
+    
+    if not name:
+        return jsonify({'error': 'Label name is required'}), 400
+    
+    existing = CommentLabel.query.filter_by(name=name).first()
+    if existing:
+        return jsonify({'error': 'Label already exists'}), 400
+    
+    label = CommentLabel(name=name, color=color, description=description)
+    db.session.add(label)
+    db.session.commit()
+    
+    return jsonify({
+        'id': label.id,
+        'name': label.name,
+        'color': label.color,
+        'description': label.description,
+    }), 201
