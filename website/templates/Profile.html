@@ -116,6 +116,7 @@
                 </a>
             </div>
             <div class="hidden md:flex space-x-8 items-center font-medium">
+                <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
                 <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
                 <a href="{{ url_for('views.qna_page') }}" class="hover:text-red-200 transition">Q&A</a>
                 <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
@@ -134,6 +135,7 @@
                 <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
                 <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
                 <a href="{{ url_for('views.qna_page') }}" class="hover:text-red-200 transition">Q&A</a>
+                <a href="{{ url_for('views.profile') }}" class="hover:text-red-200 transition">My Profile</a>
                 <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
                 <a href="{{ url_for('views.list_project') }}" class="hover:text-red-200 transition">List Your Project</a>
                 <button id="logout-btn-mobile" class="text-left text-red-200 hover:text-white transition text-sm">
@@ -164,6 +166,10 @@
 
                     <h2 id="display-name" class="text-2xl font-black">Loading…</h2>
                     <p id="display-faculty" class="text-gray-400 text-sm">…</p>
+                    <p id="display-email" class="text-gray-500 text-xs mt-2 flex items-center justify-center gap-2">
+                        <i class="fas fa-envelope text-gray-400"></i>
+                        <span id="email-text">…</span>
+                    </p>
                     <p id="display-bio" class="text-gray-500 text-sm mt-3 italic hidden"></p>
 
                     <div class="mt-6 pt-6 border-t border-gray-50 grid grid-cols-2 gap-4">
@@ -342,6 +348,7 @@
                 
                 document.getElementById('display-name').textContent = d.name;
                 document.getElementById('display-faculty').textContent = d.faculty;
+                document.getElementById('email-text').textContent = d.email;
                 document.getElementById('display-rank').textContent = d.rank;
                 document.getElementById('display-karma').textContent = d.karma;
                 setBio(d.bio);
