@@ -117,6 +117,7 @@
             </div>
             <div class="hidden md:flex space-x-8 items-center font-medium">
                 <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
+                <a href="{{ url_for('views.qna_page') }}" class="hover:text-red-200 transition">Q&A</a>
                 <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
                 <div class="bg-red-900 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-400">
                     <span id="nav-email" class="text-sm">{{ session.get('user_email', 'Guest') }}</span>
@@ -132,6 +133,7 @@
             <div class="px-6 py-4 flex flex-col space-y-4 font-semibold">
                 <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
                 <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
+                <a href="{{ url_for('views.qna_page') }}" class="hover:text-red-200 transition">Q&A</a>
                 <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
                 <a href="{{ url_for('views.list_project') }}" class="hover:text-red-200 transition">List Your Project</a>
                 <button id="logout-btn-mobile" class="text-left text-red-200 hover:text-white transition text-sm">
@@ -425,7 +427,7 @@
                 <a href="/project/${p.id}" class="block">
                     <div class="flex items-center justify-between p-4 border border-gray-100 rounded-2xl hover:bg-red-50 hover:border-red-200 transition cursor-pointer">
                         <div>
-                            <h4 class="font-bold text-gray-800">${escapeHtml(p.name)}</h4>
+                            <h4 class="font-bold text-gray-800">${escapeHtml(p.project_name)}</h4>
                             <p class="text-xs text-gray-400 mt-1">${p.status} • ${p.contributors} Contributors</p>
                         </div>
                         <i class="fas fa-chevron-right text-gray-300"></i>
