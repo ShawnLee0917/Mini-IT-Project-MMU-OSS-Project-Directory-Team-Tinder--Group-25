@@ -119,6 +119,7 @@
             </a>
         </div>
         <div class="hidden md:flex space-x-8 items-center font-medium">
+            <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
             <a href="{{ url_for('views.search') }}" class="text-red-200 border-b-2 border-red-200">Search</a>
             <a href="{{ url_for('views.qna_page') }}" class="hover:text-red-200 transition">Q&A</a>
             <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
@@ -160,10 +161,10 @@
         <div class="mt-8 flex flex-col md:flex-row gap-4">
             <div class="relative flex-grow">
                 <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                <input type="text" placeholder="Search by tech stack (React, Python, Flutter...)" 
+                <input id="search-input" type="text" placeholder="Search by tech stack (React, Python, Flutter...)" 
                        class="w-full pl-12 pr-4 py-4 rounded-xl border-2 border-gray-100 focus:border-red-500 focus:outline-none transition">
             </div>
-            <select class="bg-white border-2 border-gray-100 px-6 py-4 rounded-xl font-semibold text-gray-600 focus:outline-none focus:border-red-500">
+            <select id="faculty-filter" class="bg-white border-2 border-gray-100 px-6 py-4 rounded-xl font-semibold text-gray-600 focus:outline-none focus:border-red-500">
                 <option>All Faculties</option>
                 <option>FCI</option>
                 <option>FAIE</option>
@@ -172,7 +173,7 @@
                 <option>FAC</option>
                 <option>FCA</option>
             </select>
-                <button class="bg-red-600 text-white px-8 py-4 rounded-xl font-bold hover:bg-red-700 transition shadow-lg shadow-red-100">
+                <button id="search-btn" class="bg-red-600 text-white px-8 py-4 rounded-xl font-bold hover:bg-red-700 transition shadow-lg shadow-red-100">
                     Search
                 </button>
             </div>
@@ -196,15 +197,15 @@
                 <h4 class="text-sm font-black text-gray-800 uppercase mb-4">Project Status</h4>
                 <div class="space-y-2">
                     <label class="flex items-center space-x-3 text-gray-600 cursor-pointer">
-                        <input type="checkbox" class="w-4 h-4 rounded text-red-600 focus:ring-red-500">
+                        <input type="checkbox" class="status-filter w-4 h-4 rounded text-red-600 focus:ring-red-500" value="Seeking Maintainer">
                         <span class="text-sm">Seeking Maintainer</span>
                     </label>
                     <label class="flex items-center space-x-3 text-gray-600 cursor-pointer">
-                        <input type="checkbox" class="w-4 h-4 rounded text-red-600 focus:ring-red-500">
+                        <input type="checkbox" class="status-filter w-4 h-4 rounded text-red-600 focus:ring-red-500" value="Finished">
                         <span class="text-sm">Finished</span>
                     </label>
                     <label class="flex items-center space-x-3 text-gray-600 cursor-pointer">
-                        <input type="checkbox" class="w-4 h-4 rounded text-red-600 focus:ring-red-500">
+                        <input type="checkbox" class="status-filter w-4 h-4 rounded text-red-600 focus:ring-red-500" value="Active">
                         <span class="text-sm">Active</span>
                     </label>
                 </div>
@@ -213,58 +214,58 @@
             <div>
                 <h4 class="text-sm font-black text-gray-800 uppercase mb-4">Stack</h4>
                 <div class="flex flex-wrap gap-2">
-                    <input type="checkbox" id="python" class="hidden filter-chip">
+                    <input type="checkbox" id="python" class="hidden filter-chip tech-filter" value="Python">
                     <label for="python" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Python</label>
                     
-                    <input type="checkbox" id="js" class="hidden filter-chip">
+                    <input type="checkbox" id="js" class="hidden filter-chip tech-filter" value="JavaScript">
                     <label for="js" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">JavaScript</label>
                     
-                    <input type="checkbox" id="HTML" class="hidden filter-chip">
+                    <input type="checkbox" id="HTML" class="hidden filter-chip tech-filter" value="HTML">
                     <label for="HTML" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">HTML</label>
 
-                    <input type="checkbox" id="CSS" class="hidden filter-chip">
+                    <input type="checkbox" id="CSS" class="hidden filter-chip tech-filter" value="CSS">
                     <label for="CSS" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">CSS</label>
 
-                    <input type="checkbox" id="dart" class="hidden filter-chip">
+                    <input type="checkbox" id="dart" class="hidden filter-chip tech-filter" value="Dart">
                     <label for="dart" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Dart</label>
 
-                    <input type="checkbox" id="SQL" class="hidden filter-chip">
+                    <input type="checkbox" id="SQL" class="hidden filter-chip tech-filter" value="SQL">
                     <label for="SQL" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">SQL</label>
 
-                    <input type="checkbox" id="PHP" class="hidden filter-chip">
+                    <input type="checkbox" id="PHP" class="hidden filter-chip tech-filter" value="PHP">
                     <label for="PHP" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">PHP</label>
 
-                    <input type="checkbox" id="C++" class="hidden filter-chip">
-                    <label for="C++" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">C++</label>
+                    <input type="checkbox" id="cplusplus" class="hidden filter-chip tech-filter" value="C++">
+                    <label for="cplusplus" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">C++</label>
 
-                    <input type="checkbox" id="Pandas" class="hidden filter-chip">
+                    <input type="checkbox" id="Pandas" class="hidden filter-chip tech-filter" value="Pandas">
                     <label for="Pandas" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Pandas</label>
                     
-                    <input type="checkbox" id="NODEJS" class="hidden filter-chip">
+                    <input type="checkbox" id="NODEJS" class="hidden filter-chip tech-filter" value="Node.js">
                     <label for="NODEJS" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">NODEJS</label>
                     
-                    <input type="checkbox" id="Swift" class="hidden filter-chip">
+                    <input type="checkbox" id="Swift" class="hidden filter-chip tech-filter" value="Swift">
                     <label for="Swift" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Swift</label>
 
-                    <input type="checkbox" id="Kotlin" class="hidden filter-chip">
+                    <input type="checkbox" id="Kotlin" class="hidden filter-chip tech-filter" value="Kotlin">
                     <label for="Kotlin" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Kotlin</label>
 
-                    <input type="checkbox" id="Go" class="hidden filter-chip">
+                    <input type="checkbox" id="Go" class="hidden filter-chip tech-filter" value="Go">
                     <label for="Go" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Go</label>
 
-                    <input type="checkbox" id="R" class="hidden filter-chip">
+                    <input type="checkbox" id="R" class="hidden filter-chip tech-filter" value="R">
                     <label for="R" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">R</label>
 
-                    <input type="checkbox" id="Angular" class="hidden filter-chip">
+                    <input type="checkbox" id="Angular" class="hidden filter-chip tech-filter" value="Angular">
                     <label for="Angular" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Angular</label>
 
-                    <input type="checkbox" id="TypeScript" class="hidden filter-chip">
+                    <input type="checkbox" id="TypeScript" class="hidden filter-chip tech-filter" value="TypeScript">
                     <label for="TypeScript" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">TypeScript</label>
 
-                    <input type="checkbox" id="Rust" class="hidden filter-chip">
+                    <input type="checkbox" id="Rust" class="hidden filter-chip tech-filter" value="Rust">
                     <label for="Rust" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Rust</label>
 
-                    <input type="checkbox" id="Others" class="hidden filter-chip">
+                    <input type="checkbox" id="Others" class="hidden filter-chip tech-filter" value="Others">
                     <label for="Others" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Others</label>
                 </div>
             </div>
@@ -278,51 +279,50 @@
 
         <div class="flex-grow">
             <div class="flex justify-between items-center mb-6">
-                <span class="text-sm text-gray-500 font-medium">Showing <span class="text-gray-900 font-bold">{{ projects|length }}</span> projects</span>
-                <select class="bg-transparent text-sm font-bold text-gray-700 focus:outline-none cursor-pointer">
+                <span class="text-sm text-gray-500 font-medium">Showing <span id="result-count" class="text-gray-900 font-bold">{{ projects|length }}</span> projects</span>
+                <select id="sort-select" class="bg-transparent text-sm font-bold text-gray-700 focus:outline-none cursor-pointer">
                     <option>Newest First</option>
                     <option>Most Matched</option>
                 </select>
             </div>
 
-            <div class="space-y-6">
-                {% if projects %}
-                    {% for project in projects %}
-                    <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition">
-                        <div class="flex justify-between items-start mb-2">
-                            <h3 class="text-xl font-bold text-gray-900">{{ project.project_name }}</h3>
-                            <span class="text-xs font-bold bg-green-100 text-green-700 px-3 py-1 rounded-full uppercase tracking-wider">{{ project.status }}</span>
-                        </div>
-                        <p class="text-sm text-gray-500 mb-4 line-clamp-2">{{ project.description }}</p>
-                        
-                        <div class="flex items-center justify-between border-t border-gray-50 pt-4">
-                            <div class="flex flex-wrap gap-2">
-                                {% if project.languages %}
-                                    {% for lang in project.languages.split(',') %}
-                                        <span class="px-2 py-1 bg-gray-100 rounded-lg text-xs font-semibold text-gray-600">{{ lang.strip() }}</span>
-                                    {% endfor %}
-                                {% else %}
-                                    <span class="px-2 py-1 bg-gray-100 rounded-lg text-xs font-semibold text-gray-600">Not specified</span>
-                                {% endif %}
-                            </div>
-                            <a href="{{ url_for('views.project_page', project_id=project.id) }}" class="text-red-600 text-sm font-bold hover:text-red-700 transition whitespace-nowrap ml-4">
-                                View Project →
-                            </a>
-                        </div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="py-20 text-center bg-white rounded-3xl border border-gray-100">
-                        <i class="fas fa-folder-open text-5xl text-gray-200 mb-4"></i>
-                        <h3 class="text-xl font-bold text-gray-400">No projects match your search</h3>
-                        <p class="text-gray-500 mt-2">Try adjusting your filters or search keywords.</p>
-                    </div>
-                {% endif %}
+            <div class="space-y-6" id="projects-container">
+                <div class="py-20 text-center bg-white rounded-3xl border border-gray-100">
+                    <i class="fas fa-spinner fa-spin text-3xl text-gray-300 mb-4"></i>
+                    <h3 class="text-xl font-bold text-gray-400">Loading projects…</h3>
+                </div>
             </div>
 
         </div>
     </div>
 </main>
+
+<!-- Hidden template for projects -->
+<template id="project-template">
+    <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition">
+        <div class="flex justify-between items-start mb-2">
+            <h3 class="text-xl font-bold text-gray-900 project-name"></h3>
+            <span class="text-xs font-bold bg-green-100 text-green-700 px-3 py-1 rounded-full uppercase tracking-wider project-status"></span>
+        </div>
+        <p class="text-sm text-gray-500 mb-4 line-clamp-2 project-description"></p>
+        
+        <div class="flex items-center justify-between border-t border-gray-50 pt-4">
+            <div class="flex flex-wrap gap-2 project-languages">
+            </div>
+            <a class="text-red-600 text-sm font-bold hover:text-red-700 transition whitespace-nowrap ml-4 project-link">
+                View Project →
+            </a>
+        </div>
+    </div>
+</template>
+
+<template id="empty-template">
+    <div class="py-20 text-center bg-white rounded-3xl border border-gray-100">
+        <i class="fas fa-folder-open text-5xl text-gray-200 mb-4"></i>
+        <h3 class="text-xl font-bold text-gray-400">No projects match your search</h3>
+        <p class="text-gray-500 mt-2">Try adjusting your filters or search keywords.</p>
+    </div>
+</template>
 
 <footer class="bg-gray-100 border-t mt-20 py-10">
     <div class="container mx-auto px-6 text-center text-gray-400 text-sm">
@@ -412,6 +412,123 @@
     if (document.getElementById('logout-btn-mobile')) {
         document.getElementById('logout-btn-mobile').addEventListener('click', logout);
     }
+
+    // ── Search and Filter Functionality ─────────────────────────────────────────
+    let allProjects = [];
+
+    function escapeHtml(text) {
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return text.replace(/[&<>"']/g, m => map[m]);
+    }
+
+    function renderProjects(projects) {
+        const container = document.getElementById('projects-container');
+        const projectTemplate = document.getElementById('project-template');
+        const emptyTemplate = document.getElementById('empty-template');
+        
+        container.innerHTML = '';
+        
+        if (!projects || projects.length === 0) {
+            const emptyClone = emptyTemplate.content.cloneNode(true);
+            container.appendChild(emptyClone);
+            document.getElementById('result-count').textContent = '0';
+            return;
+        }
+
+        projects.forEach(project => {
+            const clone = projectTemplate.content.cloneNode(true);
+            clone.querySelector('.project-name').textContent = escapeHtml(project.project_name);
+            clone.querySelector('.project-status').textContent = project.status;
+            clone.querySelector('.project-description').textContent = escapeHtml(project.description);
+            
+            const languagesDiv = clone.querySelector('.project-languages');
+            if (project.languages && project.languages.trim()) {
+                const langs = project.languages.split(',').map(l => l.trim());
+                langs.forEach(lang => {
+                    const span = document.createElement('span');
+                    span.className = 'px-2 py-1 bg-gray-100 rounded-lg text-xs font-semibold text-gray-600';
+                    span.textContent = lang;
+                    languagesDiv.appendChild(span);
+                });
+            } else {
+                const span = document.createElement('span');
+                span.className = 'px-2 py-1 bg-gray-100 rounded-lg text-xs font-semibold text-gray-600';
+                span.textContent = 'Not specified';
+                languagesDiv.appendChild(span);
+            }
+            
+            clone.querySelector('.project-link').href = `/project/${project.id}`;
+            container.appendChild(clone);
+        });
+
+        document.getElementById('result-count').textContent = projects.length;
+    }
+
+    function filterProjects() {
+        const searchQuery = document.getElementById('search-input').value.toLowerCase();
+        const selectedStatuses = Array.from(document.querySelectorAll('.status-filter:checked'))
+            .map(cb => cb.value);
+        const selectedTechs = Array.from(document.querySelectorAll('.tech-filter:checked'))
+            .map(cb => cb.value);
+        const facultyFilter = document.getElementById('faculty-filter').value;
+
+        let filtered = allProjects.filter(project => {
+            // Check search query (searches project name, description, and languages)
+            const matchesSearch = !searchQuery || 
+                project.project_name.toLowerCase().includes(searchQuery) ||
+                project.description.toLowerCase().includes(searchQuery) ||
+                project.languages.toLowerCase().includes(searchQuery);
+
+            // Check status filter
+            const matchesStatus = selectedStatuses.length === 0 || 
+                selectedStatuses.includes(project.status);
+
+            // Check tech stack filter
+            const projectLangs = project.languages.split(',').map(l => l.trim().toLowerCase());
+            const matchesTech = selectedTechs.length === 0 || 
+                selectedTechs.some(tech => projectLangs.some(lang => lang.includes(tech.toLowerCase())));
+
+            return matchesSearch && matchesStatus && matchesTech;
+        });
+
+        renderProjects(filtered);
+    }
+
+    // Event listeners for search and filters
+    document.getElementById('search-btn').addEventListener('click', filterProjects);
+    document.getElementById('search-input').addEventListener('keyup', filterProjects);
+    
+    document.querySelectorAll('.status-filter').forEach(el => {
+        el.addEventListener('change', filterProjects);
+    });
+    
+    document.querySelectorAll('.tech-filter').forEach(el => {
+        el.addEventListener('change', filterProjects);
+    });
+
+    // Load projects from backend API
+    async function loadProjects() {
+        try {
+            const res = await fetch(`${API}/all-projects`);
+            if (!res.ok) throw new Error('Failed to load projects');
+            allProjects = await res.json();
+            renderProjects(allProjects);
+        } catch (err) {
+            console.error('Error loading projects:', err);
+            renderProjects([]);
+        }
+    }
+
+    // Initialize page
+    document.addEventListener('DOMContentLoaded', () => {
+        loadProjects();
+    });
 
     initNav();
 </script>
