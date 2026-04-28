@@ -9,15 +9,103 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
         body { font-family: 'Inter', sans-serif; }
+
+        /* ── Animated Hamburger Button ─────────────────────────── */
+        .hamburger {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            border-radius: 8px;
+            padding: 6px;
+            gap: 5px;
+            transition: background 0.2s ease;
+            position: relative;
+        }
+        .hamburger:hover {
+            background: rgba(255,255,255,0.15);
+        }
+        .hamburger:focus-visible {
+            outline: 2px solid rgba(255,255,255,0.6);
+            outline-offset: 2px;
+        }
+        .hamburger .bar {
+            display: block;
+            width: 22px;
+            height: 2.5px;
+            border-radius: 99px;
+            background: #fff;
+            transition: transform 0.35s cubic-bezier(0.23, 1, 0.32, 1),
+                        opacity   0.25s ease,
+                        width     0.3s ease;
+            transform-origin: center;
+        }
+        /* Open state — morph into X */
+        .hamburger.is-open .bar:nth-child(1) {
+            transform: translateY(7.5px) rotate(45deg);
+        }
+        .hamburger.is-open .bar:nth-child(2) {
+            opacity: 0;
+            width: 0;
+        }
+        .hamburger.is-open .bar:nth-child(3) {
+            transform: translateY(-7.5px) rotate(-45deg);
+        }
+
+        /* ── Mobile menu slide-down animation ──────────────────── */
+        #mobile-menu {
+            max-height: 0;
+            overflow: hidden;
+            opacity: 0;
+            transition:
+                max-height 0.38s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity    0.28s ease;
+        }
+        #mobile-menu.menu-open {
+            max-height: 500px;   /* tall enough for all links */
+            opacity: 1;
+        }
+        /* Stagger each link sliding in */
+        #mobile-menu a,
+        #mobile-menu button,
+        #mobile-menu div {
+            transform: translateY(-6px);
+            opacity: 0;
+            transition:
+                transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity   0.3s ease;
+        }
+        #mobile-menu.menu-open a,
+        #mobile-menu.menu-open button,
+        #mobile-menu.menu-open div {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        /* Delay each item slightly for a cascade effect */
+        #mobile-menu a:nth-child(1)  { transition-delay: 0.05s; }
+        #mobile-menu a:nth-child(2)  { transition-delay: 0.09s; }
+        #mobile-menu a:nth-child(3)  { transition-delay: 0.13s; }
+        #mobile-menu a:nth-child(4)  { transition-delay: 0.17s; }
+        #mobile-menu a:nth-child(5)  { transition-delay: 0.21s; }
+        #mobile-menu button          { transition-delay: 0.25s; }
+        #mobile-menu #nav-email-mobile { transition-delay: 0.29s; }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-900">
 
 <nav class="bg-red-700 text-white shadow-md sticky top-0 z-50">
     <div class="container mx-auto px-6 py-3 flex items-center justify-between">
+        
         <div class="flex items-center gap-4">
-            <button id="menu-btn" class="text-white focus:outline-none p-1 hover:bg-red-800 rounded transition">
-                <i class="fas fa-bars text-xl"></i>
+            <button id="menu-btn" class="hamburger" aria-label="Toggle menu" aria-expanded="false">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
             </button>
             <a href="{{ url_for('views.home') }}" class="hover:opacity-80 transition flex items-center gap-4">
                 <i class="fas fa-arrow-left text-xl"></i>
@@ -26,33 +114,35 @@
                 </h1>
             </a>
         </div>
+
         <div class="hidden md:flex space-x-8 items-center font-medium">
+            <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
             <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
             <a href="{{ url_for('views.qna_page') }}" class="hover:text-red-200 transition">Q&A</a>
-            <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition border-b-2 border-red-200">My Projects</a>
+            <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
             <a href="{{ url_for('views.profile') }}" class="bg-red-800 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-500/50 cursor-pointer hover:bg-red-900 transition">
                 <span id="nav-email" class="text-sm">{{ session.get('user_email', 'Guest') }}</span>
                 <i class="fas fa-user-circle text-lg"></i>
             </a>
-            <button id="logout-btn" class="bg-white text-red-700 hover:bg-red-50 text-xs font-bold px-3 py-2 rounded-xl transition">
+            <button id="logout-btn"
+                class="bg-white text-red-700 hover:bg-red-50 text-xs font-bold px-3 py-2 rounded-xl transition">
                 <i class="fas fa-sign-out-alt mr-1"></i>Logout
             </button>
         </div>
     </div>
 
-    <div id="mobile-menu" class="hidden bg-red-800 border-t border-red-600 shadow-inner">
+    <div id="mobile-menu" class="bg-red-800 border-t border-red-600 shadow-inner">
         <div class="px-6 py-4 flex flex-col space-y-4 font-semibold">
             <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
             <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
             <a href="{{ url_for('views.qna_page') }}" class="hover:text-red-200 transition">Q&A</a>
             <a href="{{ url_for('views.profile') }}" class="hover:text-red-200 transition">My Profile</a>
+            <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
             <a href="{{ url_for('views.list_project') }}" class="hover:text-red-200 transition">List Your Project</a>
             <button id="logout-btn-mobile" class="text-left text-red-200 hover:text-white transition text-sm">
                 <i class="fas fa-sign-out-alt mr-1"></i> Logout
             </button>
-            <div class="pt-2 border-t border-red-700 text-xs font-light opacity-80" id="nav-email-mobile">
-                {{ session.get('user_email', 'Guest') }}
-            </div>
+            <div class="pt-2 border-t border-red-700 text-xs font-light opacity-80" id="nav-email-mobile">{{ session.get('user_email', 'Guest') }}</div>
         </div>
     </div>
 </nav>
@@ -158,10 +248,39 @@
 </main>
 
 <script>
+    const IS_FILE = window.location.protocol === 'file:';
     const API = '/api';
 
-    document.getElementById('menu-btn').addEventListener('click', () => {
-        document.getElementById('mobile-menu').classList.toggle('hidden');
+    // ── Mobile menu smooth toggle ─────────────────────────────────────────────
+    const menuBtn    = document.getElementById('menu-btn');
+    const mobileMenu = document.getElementById('mobile-menu');
+
+    function openMenu() {
+        mobileMenu.classList.add('menu-open');
+        menuBtn.classList.add('is-open');
+        menuBtn.setAttribute('aria-expanded', 'true');
+    }
+
+    function closeMenu() {
+        mobileMenu.classList.remove('menu-open');
+        menuBtn.classList.remove('is-open');
+        menuBtn.setAttribute('aria-expanded', 'false');
+    }
+
+    menuBtn.addEventListener('click', () => {
+        mobileMenu.classList.contains('menu-open') ? closeMenu() : openMenu();
+    });
+
+    // Auto-close when a link or button inside the menu is clicked
+    mobileMenu.querySelectorAll('a, button').forEach(el => {
+        el.addEventListener('click', closeMenu);
+    });
+
+    // Close on outside click
+    document.addEventListener('click', (e) => {
+        if (!menuBtn.contains(e.target) && !mobileMenu.contains(e.target)) {
+            closeMenu();
+        }
     });
 
     async function logout() {
