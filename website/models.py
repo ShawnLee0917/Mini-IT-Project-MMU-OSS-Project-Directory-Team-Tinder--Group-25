@@ -97,6 +97,49 @@ class Suggestion(db.Model):
 
 
 # ---------------------------------------------------------------------------
+# Project Comment Models
+# ---------------------------------------------------------------------------
+
+class CommentLabel(db.Model):
+    """Predefined labels for issue and suggestion comments"""
+    __tablename__ = 'comment_labels'
+    
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column(db.String(50), nullable=False, unique=True)
+    color = db.Column(db.String(20), default='gray')  # Color code like 'red', 'green', 'blue', etc.
+    description = db.Column(db.String(255), default='')
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+
+class ProjectComment(db.Model):
+    """Comments on projects with different types and labels"""
+    __tablename__ = 'project_comments'
+    
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    
+    # Comment type: 'normal', 'issue', 'suggestion'
+    comment_type = db.Column(db.String(50), nullable=False, default='normal')
+    
+    # Label for issue/suggestion comments
+    label = db.Column(db.String(50), nullable=True)  # e.g., 'reject', 'todo', 'complete', 'in-progress', 'approved'
+    
+    # Role-based: 'user', 'team-member', 'owner'
+    user_role = db.Column(db.String(20), nullable=False, default='user')
+    
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    author = db.relationship('User', backref='project_comments')
+    project = db.relationship('Project', backref='project_comments')
+    
+    __table_args__ = (db.Index('idx_project_comments', 'project_id', 'created_at'),)
+
+
+# ---------------------------------------------------------------------------
 # Q&A Models
 # ---------------------------------------------------------------------------
 
