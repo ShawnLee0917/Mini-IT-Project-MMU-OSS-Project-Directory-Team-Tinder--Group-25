@@ -150,10 +150,10 @@
             Don't let your code die at graduation. Hand over the torch to the next batch of innovators.
         </p>
         <div class="mt-8 flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 justify-center md:justify-start">
-            <a href="List_Your_Project.html" class="bg-red-600 text-white px-8 py-4 rounded-xl font-bold hover:bg-red-700 transform hover:-translate-y-1 transition shadow-lg shadow-red-200 inline-flex items-center justify-center">
+            <a href="{{ url_for('views.list_project') }}" class="bg-red-600 text-white px-8 py-4 rounded-xl font-bold hover:bg-red-700 transform hover:-translate-y-1 transition shadow-lg shadow-red-200 inline-flex items-center justify-center">
                 <i class="fas fa-plus mr-2"></i> List Your Project
             </a>
-            <a href="Search.html" class="bg-white border-2 border-gray-200 text-gray-700 px-8 py-4 rounded-xl font-bold hover:bg-gray-50 transition">
+            <a href="{{ url_for('views.search') }}" class="bg-white border-2 border-gray-200 text-gray-700 px-8 py-4 rounded-xl font-bold hover:bg-gray-50 transition">
                 Find a Team
             </a>
         </div>
