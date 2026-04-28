@@ -19,11 +19,42 @@ def create_app():
     db.init_app(app)
 
     from .views import views
-    from .models import User, Skill, Badge, Comment, Project, ProjectImage, Suggestion
+    from .models import User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel
 
     app.register_blueprint(views, url_prefix='/')
 
     with app.app_context():
         db.create_all()
+        _initialize_default_labels()
 
     return app
+
+
+def _initialize_default_labels():
+    """Initialize default comment labels if they don't exist"""
+    from .models import CommentLabel
+    
+    default_labels = [
+        {'name': 'reject', 'color': 'red', 'description': 'Rejected suggestion or issue'},
+        {'name': 'todo', 'color': 'yellow', 'description': 'Task to be done'},
+        {'name': 'complete', 'color': 'green', 'description': 'Completed task'},
+        {'name': 'in-progress', 'color': 'blue', 'description': 'Currently being worked on'},
+        {'name': 'approved', 'color': 'emerald', 'description': 'Approved suggestion'},
+        {'name': 'critical', 'color': 'rose', 'description': 'Critical issue'},
+        {'name': 'bug', 'color': 'orange', 'description': 'Bug report'},
+        {'name': 'feature-request', 'color': 'indigo', 'description': 'Feature request'},
+        {'name': 'documentation', 'color': 'slate', 'description': 'Documentation task'},
+        {'name': 'review-needed', 'color': 'purple', 'description': 'Needs review'},
+    ]
+    
+    for label_data in default_labels:
+        existing = CommentLabel.query.filter_by(name=label_data['name']).first()
+        if not existing:
+            label = CommentLabel(
+                name=label_data['name'],
+                color=label_data['color'],
+                description=label_data['description']
+            )
+            db.session.add(label)
+    
+    db.session.commit()
