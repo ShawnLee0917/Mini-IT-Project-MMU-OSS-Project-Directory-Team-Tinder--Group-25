@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Project Suggestions | MMU OSSD</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .match-badge { animation: slideIn 0.3s ease-out; }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .score-bar {
+            background: linear-gradient(90deg, #ef4444 0%, #f97316 50%, #22c55e 100%);
+            border-radius: 9999px;
+        }
+        .project-card {
+            transition: all 0.3s ease;
+        }
+        .project-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-gray-50 to-red-50">
+    <!-- Navigation -->
+    <div id="nav-container"></div>
+
+    <div class="max-w-6xl mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h1 class="text-4xl font-bold text-gray-900 flex items-center gap-3">
+                        <i class="fas fa-brain text-red-600"></i>
+                        AI Project Suggestions
+                    </h1>
+                    <p class="text-gray-500 mt-2">Projects recommended based on your interests</p>
+                </div>
+                <button id="update-interests-btn" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition flex items-center gap-2">
+                    <i class="fas fa-edit"></i>
+                    Update Interests
+                </button>
+            </div>
+
+            <!-- Your Interests -->
+            <div id="interests-container" class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                <p class="text-sm font-semibold text-gray-600 mb-2">Your Interests:</p>
+                <div id="interests-display" class="flex flex-wrap gap-2">
+                    <span class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">Loading...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Suggestions Grid -->
+        <div id="suggestions-container" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="col-span-full text-center py-12">
+                <i class="fas fa-spinner fa-spin text-red-600 text-4xl mb-4"></i>
+                <p class="text-gray-500">Loading AI suggestions...</p>
+            </div>
+        </div>
+
+        <!-- No Suggestions Message -->
+        <div id="no-suggestions" class="hidden text-center py-16">
+            <i class="fas fa-star text-gray-300 text-6xl mb-4"></i>
+            <h3 class="text-xl font-semibold text-gray-600 mb-2">No Projects Available</h3>
+            <p class="text-gray-500 mb-4">All available projects match your current selections or have already been suggested.</p>
+            <a href="{{ url_for('views.search') }}" class="inline-block bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg transition">
+                <i class="fas fa-search mr-2"></i>Explore All Projects
+            </a>
+        </div>
+    </div>
+
+    <!-- Update Interests Modal -->
+    <div id="interests-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <h3 class="text-xl font-bold text-gray-900 mb-4">Update Your Interests</h3>
+            <div id="modal-interests" class="space-y-3 mb-6">
+                <!-- Checkboxes will be inserted here -->
+            </div>
+            <div class="flex gap-3">
+                <button id="save-interests-btn" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 rounded-lg transition">
+                    Save Interests
+                </button>
+                <button id="close-modal-btn" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 rounded-lg transition">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const INTEREST_OPTIONS = [
+            'Web Development', 'Mobile Development', 'AI/ML', 'Data Science',
+            'DevOps', 'Cloud', 'Blockchain', 'IoT', 'html', 'python', 'java', 'c++', 'c#'
+        ];
+
+        // Load navigation
+        fetch('/static/nav.html')
+            .then(r => r.text())
+            .then(html => document.getElementById('nav-container').innerHTML = html)
+            .catch(() => {});
+
+        let currentSuggestions = [];
+
+        async function loadSuggestions() {
+            try {
+                const res = await fetch('/api/ai-suggestions');
+                if (!res.ok) {
+                    if (res.status === 401) {
+                        window.location.href = '/login';
+                        return;
+                    }
+                    throw new Error('Failed to load suggestions');
+                }
+                const data = await res.json();
+                displaySuggestions(data);
+            } catch (error) {
+                console.error('Error loading suggestions:', error);
+                document.getElementById('suggestions-container').innerHTML = `
+                    <div class="col-span-full text-center py-12">
+                        <i class="fas fa-exclamation-circle text-red-600 text-4xl mb-4"></i>
+                        <p class="text-gray-500">${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function displaySuggestions(data) {
+            // Update interests display
+            if (data.user_interests && data.user_interests.length > 0) {
+                document.getElementById('interests-display').innerHTML = data.user_interests
+                    .map(interest => `<span class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-medium">${interest}</span>`)
+                    .join('');
+            }
+
+            const container = document.getElementById('suggestions-container');
+            currentSuggestions = data.suggestions || [];
+
+            if (!currentSuggestions || currentSuggestions.length === 0) {
+                container.innerHTML = '';
+                document.getElementById('no-suggestions').classList.remove('hidden');
+                return;
+            }
+
+            document.getElementById('no-suggestions').classList.add('hidden');
+            container.innerHTML = currentSuggestions.map((project, index) => `
+                <div class="project-card bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden hover:border-red-200">
+                    <!-- Card Header -->
+                    <div class="bg-gradient-to-r from-red-500 to-red-600 p-4 text-white">
+                        <div class="flex items-start justify-between mb-2">
+                            <h3 class="text-lg font-bold line-clamp-2">${project.project_name}</h3>
+                            <span class="match-badge bg-white text-red-600 font-bold px-3 py-1 rounded-full text-sm">
+                                ${project.match_score}% Match
+                            </span>
+                        </div>
+                        <!-- Match Score Bar -->
+                        <div class="h-2 bg-white/30 rounded-full overflow-hidden">
+                            <div class="score-bar h-full" style="width: ${project.match_score}%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Card Body -->
+                    <div class="p-4">
+                        <!-- Owner Info -->
+                        <div class="flex items-center gap-2 mb-3 pb-3 border-b border-gray-100">
+                            <i class="fas fa-user-circle text-gray-400"></i>
+                            <span class="text-sm text-gray-600"><strong>${project.owner_name}</strong></span>
+                        </div>
+
+                        <!-- Description -->
+                        <p class="text-sm text-gray-600 line-clamp-2 mb-3">${project.description || 'No description provided'}</p>
+
+                        <!-- Metadata -->
+                        <div class="space-y-2 mb-4 text-sm">
+                            <div class="flex items-center gap-2 text-gray-500">
+                                <i class="fas fa-code w-4"></i>
+                                <span>${project.languages || 'Not specified'}</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-gray-500">
+                                <i class="fas fa-users w-4"></i>
+                                <span>${project.contributors} contributor(s)</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-gray-500">
+                                <i class="fas fa-briefcase w-4"></i>
+                                <span>${project.roles_needed || 'Any role'}</span>
+                            </div>
+                        </div>
+
+                        <!-- Match Reason -->
+                        <div class="bg-red-50 border border-red-100 rounded-lg p-2 mb-4">
+                            <p class="text-xs text-red-700"><i class="fas fa-lightbulb mr-1"></i>${project.match_reason}</p>
+                        </div>
+
+                        <!-- Status Badge -->
+                        <div class="flex items-center gap-2 mb-4">
+                            <span class="inline-block px-2 py-1 rounded-full text-xs font-semibold" style="background-color: ${project.status === 'Active' ? '#dcfce7' : '#f3f4f6'}; color: ${project.status === 'Active' ? '#166534' : '#374151'}">
+                                ${project.status}
+                            </span>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="flex gap-2">
+                            <a href="/project/${project.id}" class="flex-1 bg-red-600 hover:bg-red-700 text-white text-center font-semibold py-2 rounded-lg transition">
+                                <i class="fas fa-arrow-right mr-1"></i>View
+                            </a>
+                            <button onclick="saveProject(${project.id})" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 rounded-lg transition">
+                                <i class="fas fa-bookmark"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function saveProject(projectId) {
+            try {
+                const res = await fetch(`/api/suggestions/${projectId}`, { method: 'POST' });
+                if (res.ok) {
+                    alert('Project saved! It will no longer appear in suggestions.');
+                    loadSuggestions(); // Reload suggestions
+                } else {
+                    alert('Failed to save project');
+                }
+            } catch (error) {
+                console.error('Error saving project:', error);
+            }
+        }
+
+        // Update interests functionality
+        function populateInterestOptions() {
+            const container = document.getElementById('modal-interests');
+            container.innerHTML = INTEREST_OPTIONS.map(interest => `
+                <label class="flex items-center gap-3 cursor-pointer hover:bg-red-50 p-2 rounded-lg transition">
+                    <input type="checkbox" value="${interest}" class="w-4 h-4 text-red-600 rounded">
+                    <span class="text-gray-700">${interest}</span>
+                </label>
+            `).join('');
+        }
+
+        document.getElementById('update-interests-btn').addEventListener('click', () => {
+            populateInterestOptions();
+            const checkboxes = document.querySelectorAll('#modal-interests input[type="checkbox"]');
+            const currentInterests = document.getElementById('interests-display').textContent.split('\n').filter(t => t.trim());
+            checkboxes.forEach(cb => {
+                cb.checked = currentInterests.some(i => i.includes(cb.value));
+            });
+            document.getElementById('interests-modal').classList.remove('hidden');
+        });
+
+        document.getElementById('close-modal-btn').addEventListener('click', () => {
+            document.getElementById('interests-modal').classList.add('hidden');
+        });
+
+        document.getElementById('save-interests-btn').addEventListener('click', async () => {
+            const selected = Array.from(document.querySelectorAll('#modal-interests input[type="checkbox"]:checked'))
+                .map(cb => cb.value);
+            
+            if (selected.length === 0) {
+                alert('Please select at least one interest');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/save-interest', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ interests: selected })
+                });
+
+                if (res.ok) {
+                    document.getElementById('interests-modal').classList.add('hidden');
+                    loadSuggestions();
+                } else {
+                    alert('Failed to update interests');
+                }
+            } catch (error) {
+                console.error('Error updating interests:', error);
+            }
+        });
+
+        // Load suggestions on page load
+        loadSuggestions();
+
+        // Auto-refresh suggestions every 2 minutes
+        setInterval(loadSuggestions, 120000);
+    </script>
+</body>
+</html>
