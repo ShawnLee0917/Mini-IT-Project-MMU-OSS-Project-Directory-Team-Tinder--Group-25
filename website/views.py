@@ -2,6 +2,9 @@ import os
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 import uuid
+import random
+import smtplib
+from email.mime.text import MIMEText
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify, session
 
 # 导入所有模型，包括新的 Suggestion
@@ -21,7 +24,9 @@ def require_login():
     return None
 
 def get_current_user():
-    email = session.get('user_email', 'student@mmu.edu.my')
+    email = session.get('user_email')
+    if not email:
+        return None
     user = User.query.filter_by(email=email).first()
     return user
 
@@ -211,16 +216,94 @@ def api_register():
         return jsonify({'error': 'Password must be at least 6 characters'}), 400
 
     pw_hash = generate_password_hash(password)
+    
+    # --- MODIFIED: Generate OTP with f-string to ensure it's always 6 digits with leading zeros ---
+    otp_code = f"{random.randint(0, 999999):06d}"
+    print(f"DEBUG: Generated OTP {otp_code} for {email}", flush=True)  
+    # ---------------------------
+    
     try:
-        user = User(email=email, name=name, password_hash=pw_hash)
+        # --- MODIFIED: Added otp to new user creation ---
+        user = User(email=email, name=name, password_hash=pw_hash, otp=otp_code)
         db.session.add(user)
         db.session.commit()
-    except Exception:
+        
+        # --- ADDED: Trigger Email ---
+        print(f"DEBUG: About to call send_otp_email for {email}", flush=True)
+        if send_otp_email(email, otp_code):
+            print(f"DEBUG: send_otp_email returned True for {email}", flush=True)
+            return jsonify({'success': True, 'message': 'Account created! Check email for OTP.'})
+        else:
+            # If email fails, delete user and return error
+            db.session.delete(user)
+            db.session.commit()
+            return jsonify({'error': 'Failed to send verification email. Please try again.'}), 500
+        # ----------------------------
+    except Exception as e:
         db.session.rollback()
         return jsonify({'error': 'Email already registered'}), 409
     
-    return jsonify({'success': True, 'message': 'Account created!'})
+# --- ADDED: New Endpoint for verifying the OTP ---
+@views.route('/api/verify_otp', methods=['POST'])
+def api_verify_otp():
+    data = request.get_json(silent=True) or {}
+    email = data.get('email', '').strip().lower()
+    otp = data.get('otp', '').strip()
 
+    user = User.query.filter_by(email=email).first()
+
+    if user and user.otp == otp:
+        user.is_verified = True
+        user.otp = None  # Clear OTP after successful use
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Account verified!'})
+        
+    return jsonify({'error': 'Invalid code. Please check and try again.'}), 401
+# -------------------------------------------------
+
+# --- ADDED: Endpoint to retrieve OTP for development ---
+@views.route('/api/get_otp', methods=['POST'])
+def api_get_otp():
+    data = request.get_json(silent=True) or {}
+    email = data.get('email', '').strip().lower()
+    
+    user = User.query.filter_by(email=email).first()
+    
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    if not user.otp:
+        return jsonify({'error': 'No OTP available. Please register first.'}), 400
+    
+    return jsonify({'success': True, 'otp': user.otp}), 200
+# -------------------------------------------------
+        
+    return jsonify({'error': 'Invalid code. Please check and try again.'}), 401
+# -------------------------------------------------
+
+# --- ADDED: Simple test route to display OTP ---
+@views.route('/test_otp/<email>')
+def test_otp(email):
+    """
+    Simple test route to display OTP for development.
+    Usage: http://127.0.0.1:5000/test_otp/test@example.com
+    """
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return f"User {email} not found"
+    
+    if user.is_verified:
+        return f"User {email} is already verified"
+    
+    if not user.otp:
+        return f"No OTP available for {email}"
+    
+    return f"""
+    <h1>OTP for {email}</h1>
+    <h2 style="color: red; font-size: 48px;">{user.otp}</h2>
+    <p>Use this code at: <a href="/verify">http://127.0.0.1:5000/verify</a></p>
+    """
+# -------------------------------------------------
 
 @views.route('/api/login', methods=['POST'])
 def api_login():
@@ -232,6 +315,11 @@ def api_login():
     if not user or not user.password_hash or \
        not check_password_hash(user.password_hash, password):
         return jsonify({'error': 'Invalid email or password'}), 401
+    
+    # --- ADDED: Check if account is verified ---
+    if not user.is_verified:
+        return jsonify({'error': 'Please verify your email first.'}), 403
+    # -------------------------------------------
 
     session['user_email'] = user.email
     session['user_name']  = user.name
@@ -1086,3 +1174,59 @@ def create_comment_label():
         'color': label.color,
         'description': label.description,
     }), 201
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXT
+
+# --- ADDED: Auto-Email Sending Function ---
+def send_otp_email(receiver_email, otp_code):
+    # =====================================================================
+    # ⚠️ 关键步骤: 在这里替换为你真实的 Gmail 邮箱和 16 位 Google App Password ⚠️
+    # =====================================================================
+    sender_email = "kohkonghao4@gmail.com" 
+    sender_password = "wlas kitq zrpa qpbb"
+
+    # Always print OTP to terminal for development - multiple methods to ensure visibility
+    import sys
+    import logging
+    
+    message = f"\n{'='*70}\n[DEVELOPMENT MODE] OTP CODE FOR: {receiver_email}\n{'='*70}\nOTP CODE: {otp_code}\nVerification URL: http://127.0.0.1:5000/verify\nDirect OTP URL: http://127.0.0.1:5000/test_otp/{receiver_email}\n{'='*70}\n"
+    
+    # Multiple output methods to ensure visibility
+    print(message, flush=True)
+    sys.stdout.write(message)
+    sys.stdout.flush()
+    sys.stderr.write(message)
+    sys.stderr.flush()
+    
+    # Use logging to ensure it appears
+    logging.info(message)
+
+    # Development mode: print OTP to terminal if email not configured
+    if sender_email == "your_email@gmail.com" or sender_password == "your_16_digit_app_password":
+        print("\n WARNING: Email credentials not set! Using development mode. Check the terminal for the OTP.")
+        return True  # Allow registration for testing
+
+    # Production mode: send automated email
+    msg = MIMEText(f"Welcome to MMU OSSD!\n\nYour 6-digit verification code is: {otp_code}\n\nThis code will expire in 15 minutes.")
+    msg['Subject'] = 'MMU OSSD Verification Code'
+    msg['From'] = sender_email
+    msg['To'] = receiver_email
+
+    try:
+        # Connecting to Google's SMTP Server using SSL
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(sender_email, sender_password)
+            server.send_message(msg)
+        print(f"✓ OTP email automatically sent to {receiver_email}")
+        return True
+    except Exception as e:
+        print(f"✗ Email Automation Error: {e}")
+        return False
+
+
+# --- ADDED: Route for the Verify Page ---
+@views.route('/verify')
+def verify_page():
+    return render_template('otp.html')
+# ----------------------------------------

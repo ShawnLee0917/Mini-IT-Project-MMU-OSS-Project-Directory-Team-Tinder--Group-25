@@ -156,6 +156,7 @@
             const res = await fetch('/api/register', {
                 method:  'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body:    JSON.stringify({
                     name:     document.getElementById('reg-name').value.trim(),
                     email:    document.getElementById('reg-email').value.trim().toLowerCase(),
@@ -164,8 +165,9 @@
             });
             const data = await res.json();
             if (res.ok) {
-                showSuccess('Account created! Redirecting to login…');
-                setTimeout(() => window.location.href = '/login', 1500);
+                showSuccess('Account created! Check email for OTP.');
+                localStorage.setItem('verify_email', document.getElementById('reg-email').value.trim().toLowerCase());
+                setTimeout(() => window.location.href = '/verify', 1500);
             } else {
                 showError(data.error || 'Registration failed');
             }

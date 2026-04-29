@@ -100,9 +100,16 @@
         }
     });
 
-    function showError(msg) {
+    function showError(msg, isHtml = false) {
         const box = document.getElementById('error-msg');
-        document.getElementById('error-text').textContent = msg;
+        const textEl = document.getElementById('error-text');
+        
+        if (isHtml) {
+            textEl.innerHTML = msg;
+        } else {
+            textEl.textContent = msg;
+        }
+        
         box.classList.remove('hidden');
         box.classList.add('flex');
     }
