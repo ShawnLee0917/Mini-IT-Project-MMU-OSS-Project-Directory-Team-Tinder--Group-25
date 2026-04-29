@@ -206,6 +206,22 @@
                     </div>
                 </section>
 
+                <!-- Project Interests Section -->
+                <section class="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest">Project Interests</h3>
+                        <span class="text-xs text-gray-400 italic">Edit via <span class="font-semibold text-red-500">Edit Profile</span></span>
+                    </div>
+                    <div id="display-interests" class="flex flex-wrap gap-2">
+                        <span class="bg-gray-100 px-3 py-1 rounded-full text-xs font-semibold text-gray-400 italic">Loading…</span>
+                    </div>
+                    <p class="mt-4 text-xs text-gray-400">
+                        <i class="fas fa-brain text-red-400 mr-1"></i>
+                        Your interests power the <a href="/" class="text-red-500 font-semibold hover:underline">AI Suggestions</a> on the Home page.
+                    </p>
+                </section>
+
+
                 <section class="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
                     <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6">My Projects</h3>
                     <div id="projects-list" class="space-y-4">
@@ -248,6 +264,12 @@
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-1">Skills &amp; Languages <span class="text-gray-400 font-normal">(comma separated)</span></label>
                     <input type="text" id="edit-skills" placeholder="e.g. Python, JavaScript, React" class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-red-500 text-sm bg-gray-50">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-3">Project Interests</label>
+                    <div id="modal-interests" class="grid grid-cols-2 gap-2">
+                        <!-- Checkboxes will be inserted here -->
+                    </div>
                 </div>
                 <div class="pt-2 flex justify-end gap-3">
                     <button type="button" id="cancel-edit-btn" class="px-5 py-2 rounded-xl border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50 transition">Cancel</button>
@@ -354,6 +376,7 @@
                 setBio(d.bio);
                 setAvatar(d.name, d.avatar_url || '');
                 renderSkills(d.skills);
+                renderInterests(d.interests || []);
                 
                 document.getElementById('edit-name').value = d.name;
                 document.getElementById('edit-faculty').value = d.faculty;
@@ -364,6 +387,25 @@
             }
         }
 
+        function renderInterests(interests) {
+            const el = document.getElementById('display-interests');
+            el.innerHTML = '';
+            if (!interests.length) {
+                const span = document.createElement('span');
+                span.className = 'bg-gray-100 px-4 py-2 rounded-xl text-sm font-semibold text-gray-400 italic';
+                span.textContent = 'No interests set yet';
+                el.appendChild(span);
+                return;
+            }
+            interests.forEach(interest => {
+                const span = document.createElement('span');
+                span.className = 'bg-red-100 px-4 py-2 rounded-xl text-sm font-semibold text-red-700';
+                span.textContent = interest;
+                el.appendChild(span);
+            });
+        }
+
+
         async function saveProfile(name, faculty, bio, skills) {
             const saveBtn = document.getElementById('save-btn');
             const label = document.getElementById('save-label');
@@ -373,10 +415,13 @@
             spinner.classList.remove('hidden');
 
             try {
+                // Get selected interests
+                const interests = Array.from(document.querySelectorAll('#modal-interests input[type="checkbox"]:checked')).map(cb => cb.value);
+                
                 const res = await fetch(`${API}/profile`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, faculty, bio, skills }),
+                    body: JSON.stringify({ name, faculty, bio, skills, interests }),
                 });
                 if (!res.ok) throw new Error();
                 
@@ -384,8 +429,10 @@
                 document.getElementById('display-faculty').textContent = faculty;
                 setBio(bio);
                 renderSkills(skills);
+                renderInterests(interests);
                 document.getElementById('edit-profile-modal').classList.add('hidden');
                 showToast('Profile saved ✓');
+                await loadAISuggestions(); // Reload suggestions after updating interests
             } catch {
                 showToast('Failed to save', false);
             } finally {
@@ -455,12 +502,42 @@
         }
 
         // ── Event Listeners ─────────────────────────────────────────────────────
+        const INTEREST_OPTIONS = [
+            'Web Development', 'Mobile Development', 'AI/ML', 'Data Science',
+            'DevOps', 'Cloud', 'Blockchain', 'IoT', 'html', 'python', 'java', 'c++', 'c#'
+        ];
+
+        function populateInterestCheckboxes() {
+            const container = document.getElementById('modal-interests');
+            container.innerHTML = INTEREST_OPTIONS.map(interest => `
+                <label class="flex items-center gap-2 cursor-pointer hover:bg-red-50 p-2 rounded-lg transition">
+                    <input type="checkbox" value="${interest}" class="w-4 h-4 text-red-600 rounded">
+                    <span class="text-sm text-gray-700">${interest}</span>
+                </label>
+            `).join('');
+        }
+
+        function updateCheckboxesFromDisplay() {
+            const interestElements = document.querySelectorAll('#display-interests span');
+            const currentInterests = Array.from(interestElements).map(el => el.textContent.trim()).filter(t => t !== 'No interests set yet');
+            const checkboxes = document.querySelectorAll('#modal-interests input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                cb.checked = currentInterests.includes(cb.value);
+            });
+        }
+
         document.addEventListener('DOMContentLoaded', async () => {
             await loadProfile();
             await loadProjects();
 
+            populateInterestCheckboxes();
+
             const modal = document.getElementById('edit-profile-modal');
-            document.getElementById('open-edit-modal-btn').addEventListener('click', () => modal.classList.remove('hidden'));
+            document.getElementById('open-edit-modal-btn').addEventListener('click', () => {
+                populateInterestCheckboxes();
+                updateCheckboxesFromDisplay();
+                modal.classList.remove('hidden');
+            });
             document.getElementById('close-modal-btn').addEventListener('click', () => modal.classList.add('hidden'));
             document.getElementById('cancel-edit-btn').addEventListener('click', () => modal.classList.add('hidden'));
             modal.addEventListener('click', e => { if (e.target === modal) modal.classList.add('hidden'); });

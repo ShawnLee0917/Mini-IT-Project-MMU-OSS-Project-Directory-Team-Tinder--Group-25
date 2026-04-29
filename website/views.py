@@ -45,6 +45,12 @@ def search():
     all_projects = Project.query.order_by(Project.created_at.desc()).all()
     return render_template("Search.html", projects=all_projects)
 
+@views.route('/suggestions')
+def suggestions():
+    if 'user_email' not in session:
+        return redirect(url_for('views.login'))
+    return render_template("AI_Suggestions.html")
+
 @views.route('/my_projects')
 def my_projects():
     current_user = get_current_user()
@@ -204,6 +210,7 @@ def api_register():
     email    = data.get('email', '').strip().lower()
     name     = data.get('name', '').strip()
     password = data.get('password', '')
+    interests = data.get('interests', [])
 
     if not email or not password or not name:
         return jsonify({'error': 'All fields are required'}), 400
@@ -212,12 +219,20 @@ def api_register():
 
     pw_hash = generate_password_hash(password)
     try:
-        user = User(email=email, name=name, password_hash=pw_hash)
+        user = User(
+            email=email, 
+            name=name, 
+            password_hash=pw_hash,
+            interests=','.join(interests) if interests else ''
+        )
         db.session.add(user)
         db.session.commit()
-    except Exception:
+    except Exception as e:
         db.session.rollback()
-        return jsonify({'error': 'Email already registered'}), 409
+        print(f"Registration error: {str(e)}")
+        if 'unique' in str(e).lower() or 'email' in str(e).lower():
+            return jsonify({'error': 'Email already registered'}), 409
+        return jsonify({'error': f'Registration failed: {str(e)}'}), 400
     
     return jsonify({'success': True, 'message': 'Account created!'})
 
@@ -275,6 +290,8 @@ def get_profile():
     
     avatar_url = f"/static/uploads/{user.avatar_path}" if user.avatar_path else ''
     
+    interests_list = [i.strip() for i in user.interests.split(',') if i.strip()] if user.interests else []
+
     return jsonify({
         'email':      user.email,
         'name':       user.name,
@@ -285,6 +302,7 @@ def get_profile():
         'karma':      user.karma,
         'skills':     [s.skill for s in skills],
         'badges':     [b.badge for b in badges],
+        'interests':  interests_list,
     })
 
 
@@ -318,7 +336,11 @@ def update_profile():
             if skill.strip():
                 skill_obj = Skill(user_id=user.id, skill=skill.strip())
                 db.session.add(skill_obj)
-    
+
+    interests = data.get('interests')
+    if interests is not None:
+        user.interests = ','.join([i.strip() for i in interests if i.strip()])
+
     db.session.commit()
 
     return jsonify({'success': True, 'message': 'Profile updated'})
@@ -1086,3 +1108,241 @@ def create_comment_label():
         'color': label.color,
         'description': label.description,
     }), 201
+
+
+# =====================================================================
+# AI SUGGESTION SYSTEM
+# =====================================================================
+
+def _calculate_match_score(user_interests, project_languages, project_description):
+    """
+    Calculate how well a project matches user interests.
+    Returns a score from 0-100 based on:
+    1. Project languages matching user interests
+    2. Project description keywords matching interests
+    """
+    score = 0
+    interest_matches = 0
+    
+    # Convert to lowercase for comparison
+    user_interests_lower = [i.lower() for i in user_interests]
+    project_langs_lower = project_languages.lower() if project_languages else ''
+    project_desc_lower = project_description.lower() if project_description else ''
+    project_combined = (project_langs_lower + ' ' + project_desc_lower).lower()
+    
+    # Map interests to keywords for better matching
+    interest_keywords = {
+        'web development': ['web', 'frontend', 'backend', 'react', 'vue', 'django', 'flask', 'nodejs', 'express', 'html', 'css', 'javascript', 'typescript'],
+        'mobile development': ['mobile', 'ios', 'android', 'flutter', 'react native', 'swift', 'kotlin'],
+        'ai/ml': ['ai', 'ml', 'machine learning', 'deep learning', 'tensorflow', 'pytorch', 'nlp', 'cv', 'neural'],
+        'data science': ['data', 'science', 'analytics', 'pandas', 'numpy', 'data analysis', 'visualization'],
+        'devops': ['devops', 'docker', 'kubernetes', 'ci/cd', 'jenkins', 'devops', 'automation', 'infrastructure'],
+        'cloud': ['cloud', 'aws', 'azure', 'gcp', 'serverless', 'cloud computing'],
+        'blockchain': ['blockchain', 'crypto', 'web3', 'ethereum', 'smart contract', 'solidity'],
+        'iot': ['iot', 'embedded', 'arduino', 'raspberry', 'iot', 'sensor', 'microcontroller'],
+        'html': ['html', 'css', 'javascript', 'typescript', 'web', 'frontend', 'backend', 'react', 'vue', 'django', 'flask', 'nodejs', 'express'],
+        'python': ['python', 'django', 'flask', 'pandas', 'numpy', 'machine learning', 'deep learning', 'tensorflow', 'pytorch', 'nlp', 'cv', 'neural'],
+        'java': ['java', 'spring', 'springboot', 'android', 'maven', 'gradle', 'jvm', 'microservices'],
+        'c++': ['c++', 'cpp', 'gaming', 'graphics', 'performance', 'linux', 'embedded', 'real-time'],
+        'c#': ['c#', 'csharp', 'unity', 'windows', 'dotnet', 'blazor', 'aspnet']
+    }
+    
+    # Check direct matches
+    for interest in user_interests_lower:
+        if interest in project_combined:
+            interest_matches += 10
+    
+    # Check keyword matches
+    for interest in user_interests_lower:
+        keywords = interest_keywords.get(interest, [])
+        for keyword in keywords:
+            if keyword in project_combined:
+                interest_matches += 5
+    
+    # Cap the score at 100
+    score = min(100, 50 + interest_matches)
+    
+    return score
+
+
+@views.route('/api/ai-suggestions', methods=['GET'])
+def get_ai_suggestions():
+    """
+    Get AI-powered project suggestions based on user interests and skills.
+    """
+    err = require_login()
+    if err:
+        return err
+    
+    email = session.get('user_email')
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    # Parse user interests
+    user_interests = [i.strip() for i in user.interests.split(',') if i.strip()] if user.interests else []
+    
+    if not user_interests:
+        return jsonify({'message': 'Please set your interests to get suggestions', 'suggestions': []})
+    
+    # Get user's skills
+    my_skills = [s.skill.lower() for s in Skill.query.filter_by(user_id=user.id).all()]
+    
+    # Get projects already suggested to this user
+    already_suggested = db.session.query(Suggestion.project_id).filter_by(user_id=user.id).all()
+    already_suggested_ids = [s[0] for s in already_suggested]
+    
+    # Get all projects from OTHER users
+    all_projects = Project.query.filter(
+        Project.user_id != user.id,
+        ~Project.id.in_(already_suggested_ids)
+    ).all()
+    
+    # Score and sort projects
+    scored_projects = []
+    for project in all_projects:
+        match_score = _calculate_match_score(user_interests, project.languages, project.description)
+        scored_projects.append((project, match_score))
+    
+    # Sort by score (descending) and then by creation date (newest first)
+    scored_projects.sort(key=lambda x: (-x[1], -x[0].created_at.timestamp()))
+    
+    # Return top 10 suggestions
+    result = []
+    for project, match_score in scored_projects[:10]:
+        owner = User.query.get(project.user_id)
+        result.append({
+            'id': project.id,
+            'project_id': project.id,
+            'project_name': project.project_name,
+            'description': project.description,
+            'owner_name': owner.name if owner else 'Unknown',
+            'owner_id': project.user_id,
+            'status': project.status,
+            'contributors': project.contributors,
+            'languages': project.languages,
+            'roles_needed': project.roles_needed,
+            'match_score': match_score,
+            'match_reason': 'Matches your interests in ' + ', '.join(user_interests),
+            'created_at': project.created_at.isoformat(),
+        })
+    
+    return jsonify({
+        'success': True,
+        'user_interests': user_interests,
+        'suggestions': result,
+        'total': len(result)
+    })
+
+
+@views.route('/api/project/<int:project_id>/similar', methods=['GET'])
+def get_similar_projects(project_id):
+    """
+    Get projects similar to the given project.
+    Scores by: shared languages, shared description keywords, user's own interests.
+    """
+    project = Project.query.get_or_404(project_id)
+
+    # Detect logged-in user and their interests
+    user = None
+    user_interests = []
+    if 'user_email' in session:
+        user = User.query.filter_by(email=session['user_email']).first()
+        if user and user.interests:
+            user_interests = [i.strip().lower() for i in user.interests.split(',') if i.strip()]
+
+    # Stopwords to ignore when comparing descriptions
+    STOPWORDS = {
+        'the', 'a', 'an', 'and', 'or', 'in', 'on', 'is', 'to', 'for', 'of',
+        'with', 'that', 'this', 'it', 'as', 'are', 'was', 'be', 'from', 'at',
+        'by', 'we', 'our', 'your', 'not', 'has', 'have', 'will', 'can', 'i',
+        'its', 'an', 'using', 'used', 'use', 'based', 'built', 'build',
+    }
+
+    # Tokenise the current project
+    current_langs = set(
+        l.strip().lower() for l in (project.languages or '').split(',') if l.strip()
+    )
+    current_desc_words = (
+        set((project.description or '').lower().split()) - STOPWORDS
+    )
+
+    # Candidate projects: exclude self and projects owned by the viewer
+    query = Project.query.filter(Project.id != project_id)
+    if user:
+        query = query.filter(Project.user_id != user.id)
+    all_projects = query.all()
+
+    scored = []
+    for p in all_projects:
+        score = 0
+
+        # --- Language overlap (25 pts per shared language, max 50) ---
+        p_langs = set(l.strip().lower() for l in (p.languages or '').split(',') if l.strip())
+        lang_overlap = len(current_langs & p_langs)
+        score += min(lang_overlap * 25, 50)
+
+        # --- Description keyword overlap (3 pts per shared word, max 30) ---
+        p_desc_words = set((p.description or '').lower().split()) - STOPWORDS
+        if current_desc_words and p_desc_words:
+            desc_overlap = len(current_desc_words & p_desc_words)
+            score += min(desc_overlap * 3, 30)
+
+        # --- User-interest bonus (8 pts per matching interest, max 24) ---
+        combined_text = ((p.languages or '') + ' ' + (p.description or '')).lower()
+        interest_hits = sum(1 for i in user_interests if i in combined_text)
+        score += min(interest_hits * 8, 24)
+
+        # Normalise: floor at 20 so there's always a baseline
+        score = min(100, 20 + score)
+        scored.append((p, score))
+
+    # Sort: highest score first, then newest
+    scored.sort(key=lambda x: (-x[1], -x[0].created_at.timestamp()))
+
+    result = []
+    for p, score in scored[:5]:
+        owner = User.query.get(p.user_id)
+        result.append({
+            'id':           p.id,
+            'project_name': p.project_name,
+            'description':  p.description,
+            'owner_name':   owner.name if owner else 'Unknown',
+            'status':       p.status,
+            'languages':    p.languages,
+            'roles_needed': p.roles_needed,
+            'match_score':  score,
+        })
+
+    return jsonify({'similar': result, 'total': len(result)})
+
+
+@views.route('/api/save-interest', methods=['POST'])
+def save_interest():
+    """
+    Save or update user's project interests
+    """
+    err = require_login()
+    if err:
+        return err
+    
+    email = session.get('user_email')
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    data = request.get_json(silent=True) or {}
+    interests = data.get('interests', [])
+    
+    if not interests:
+        return jsonify({'error': 'At least one interest must be selected'}), 400
+    
+    # Save interests as comma-separated string
+    user.interests = ','.join(interests)
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'message': 'Interests updated successfully',
+        'interests': interests
+    })
