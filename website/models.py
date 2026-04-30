@@ -16,6 +16,7 @@ class User(db.Model):
     faculty = db.Column(db.String(255), nullable=False, default='Faculty of Computing & Informatics')
     bio = db.Column(db.Text, default='')
     avatar_path = db.Column(db.String(255), default='')
+    interests = db.Column(db.Text, default='')  # Comma-separated project interests
     rank = db.Column(db.Integer, nullable=False, default=0)
     karma = db.Column(db.Integer, nullable=False, default=0)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
