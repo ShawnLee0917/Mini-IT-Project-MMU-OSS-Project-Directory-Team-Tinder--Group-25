@@ -16,11 +16,12 @@ class User(db.Model):
     faculty = db.Column(db.String(255), nullable=False, default='Faculty of Computing & Informatics')
     bio = db.Column(db.Text, default='')
     avatar_path = db.Column(db.String(255), default='')
+    interests = db.Column(db.Text, default='')  # Comma-separated project interests
     rank = db.Column(db.Integer, nullable=False, default=0)
     karma = db.Column(db.Integer, nullable=False, default=0)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    is_verified = db.Column(db.Boolean, default=False)
     otp = db.Column(db.String(6), nullable=True)
-    is_verified = db.Column(db.Boolean, nullable=False, default=False)
     
     # Relationships
     skills = db.relationship('Skill', backref='user', lazy=True, cascade='all, delete-orphan')

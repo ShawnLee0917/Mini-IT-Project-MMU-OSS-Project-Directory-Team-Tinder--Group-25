@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -209,13 +210,23 @@
             </button>
         </div>
 
-        <!-- Project Suggestions -->
-        <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
-            <h3 class="font-black text-gray-800 text-lg mb-6 flex items-center">
-                <i class="fas fa-lightbulb mr-3 text-yellow-500"></i> Suggested Projects
-            </h3>
-            <div id="suggestions-list" class="space-y-3">
-                <div class="text-gray-400 text-sm italic text-center py-4">Loading suggestions…</div>
+        <!-- AI Suggested Projects -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="bg-gradient-to-r from-red-600 to-red-700 px-6 py-4 flex items-center justify-between">
+                <h3 class="font-black text-white text-base flex items-center gap-2">
+                    <i class="fas fa-brain"></i> AI Suggested Projects
+                </h3>
+                <span class="text-[10px] font-bold bg-white/20 text-white px-2 py-1 rounded-full tracking-widest uppercase">Smart Match</span>
+            </div>
+            <div id="suggestions-list" class="divide-y divide-gray-50">
+                <div class="p-6 text-gray-400 text-sm italic text-center">
+                    <i class="fas fa-spinner fa-spin mr-2"></i>Loading…
+                </div>
+            </div>
+            <div class="px-6 py-3 bg-gray-50 border-t border-gray-100">
+                <a href="{{ url_for('views.profile') }}" class="text-xs font-bold text-red-600 hover:text-red-700 flex items-center gap-1 transition">
+                    <i class="fas fa-sliders-h"></i> Manage Interests
+                </a>
             </div>
         </div>
 
@@ -334,59 +345,80 @@
         `).join('');
     }
 
-    // ── Load suggestions ─────────────────────────────────────────────────────
-    async function loadSuggestions() {
+    // ── Load AI Suggestions ──────────────────────────────────────────────────
+    async function loadAISuggestions() {
         if (IS_FILE) {
-            document.getElementById('suggestions-list').innerHTML = '<div class="text-gray-400 text-sm italic">(Suggestions disabled in offline mode)</div>';
+            document.getElementById('suggestions-list').innerHTML = '<div class="p-6 text-gray-400 text-sm italic text-center">(Suggestions disabled in offline mode)</div>';
             return;
         }
         try {
-            const res = await fetch(`${API}/suggestions`);
+            const res = await fetch(`${API}/ai-suggestions`);
             if (!res.ok) throw new Error();
-            const suggestions = await res.json();
-            renderSuggestions(suggestions);
+            const data = await res.json();
+            renderAISuggestions(data);
         } catch (err) {
-            console.error('Failed to load suggestions:', err);
+            console.error('Failed to load AI suggestions:', err);
+            document.getElementById('suggestions-list').innerHTML =
+                '<div class="p-6 text-gray-400 text-sm italic text-center">Could not load suggestions.</div>';
         }
     }
 
-    function renderSuggestions(suggestions) {
+    function renderAISuggestions(data) {
         const list = document.getElementById('suggestions-list');
-        if (!suggestions.length) {
-            list.innerHTML = '<div class="text-gray-400 text-sm italic text-center py-4">No new suggestions yet.</div>';
+        const suggestions = data.suggestions || [];
+        const interests = data.user_interests || [];
+
+        if (!interests.length) {
+            list.innerHTML = `
+                <div class="p-6 text-center">
+                    <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <i class="fas fa-sliders-h text-red-600 text-xl"></i>
+                    </div>
+                    <p class="text-sm font-semibold text-gray-700 mb-1">No interests set yet</p>
+                    <p class="text-xs text-gray-400 mb-3">Tell us what you care about and we'll find matching projects.</p>
+                    <a href="/profile" class="inline-block bg-red-600 text-white text-xs font-bold px-4 py-2 rounded-lg hover:bg-red-700 transition">
+                        <i class="fas fa-plus mr-1"></i>Set Interests
+                    </a>
+                </div>`;
             return;
         }
-        list.innerHTML = suggestions.map(s => `
-            <div class="p-4 border border-yellow-100 bg-yellow-50 rounded-xl">
-                <div class="flex justify-between items-start mb-2">
-                    <div class="flex-1">
-                        <h4 class="font-bold text-gray-800 text-sm">${escapeHtml(s.name)}</h4>
-                        <p class="text-xs text-gray-500">by ${escapeHtml(s.owner_name)}</p>
-                    </div>
-                    <span class="bg-yellow-200 text-yellow-800 text-xs font-bold px-2 py-1 rounded">${s.match_score}% match</span>
-                </div>
-                <p class="text-xs text-gray-600 mb-3">${escapeHtml(s.description || 'No description')}</p>
-                <button onclick="acceptSuggestion(${s.project_id})"
-                    class="w-full bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-bold py-2 rounded-lg transition">
-                    <i class="fas fa-check mr-1"></i>View Project
-                </button>
-            </div>
-        `).join('');
-    }
 
-    async function acceptSuggestion(projectId) {
-        if (IS_FILE) return;
-        try {
-            const res = await fetch(`${API}/suggestions/${projectId}`, { method: 'POST' });
-            if (res.ok) {
-                showNotif('✓ Added to your suggestions!');
-                await loadSuggestions();
-            } else {
-                showNotif('Already added', false);
-            }
-        } catch (err) {
-            console.error('Accept suggestion error:', err);
+        if (!suggestions.length) {
+            list.innerHTML = `
+                <div class="p-6 text-center">
+                    <i class="fas fa-check-circle text-green-400 text-3xl mb-2"></i>
+                    <p class="text-sm font-semibold text-gray-600">You're all caught up!</p>
+                    <p class="text-xs text-gray-400 mt-1">No new matching projects to suggest right now.</p>
+                </div>`;
+            return;
         }
+
+        list.innerHTML = suggestions.map(p => {
+            const scoreColor = p.match_score >= 70 ? '#16a34a' : p.match_score >= 40 ? '#d97706' : '#dc2626';
+            const scoreBg   = p.match_score >= 70 ? '#f0fdf4' : p.match_score >= 40 ? '#fffbeb' : '#fef2f2';
+            const langs = (p.languages || '').split(',').map(l => l.trim()).filter(Boolean).slice(0, 3);
+            const langTags = langs.map(l =>
+                `<span class="text-[10px] font-bold bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">${escapeHtml(l)}</span>`
+            ).join('');
+            const desc = (p.description || '').slice(0, 80) + ((p.description || '').length > 80 ? '…' : '');
+            return `
+            <a href="/project/${p.id}" class="block px-5 py-4 hover:bg-red-50 transition group">
+                <div class="flex items-start justify-between gap-2 mb-1">
+                    <span class="font-bold text-gray-800 text-sm group-hover:text-red-700 transition leading-snug">${escapeHtml(p.project_name)}</span>
+                    <span class="shrink-0 text-xs font-black px-2 py-0.5 rounded-full" style="background:${scoreBg};color:${scoreColor}">${p.match_score}%</span>
+                </div>
+                <div class="flex items-center gap-1 text-[11px] text-gray-400 mb-2">
+                    <i class="fas fa-user-circle"></i>
+                    <span>${escapeHtml(p.owner_name)}</span>
+                </div>
+                ${desc ? `<p class="text-xs text-gray-500 leading-relaxed mb-2">${escapeHtml(desc)}</p>` : ''}
+                <div class="flex flex-wrap gap-1">${langTags}</div>
+                <!-- match score bar -->
+                <div class="mt-2 h-1 bg-gray-100 rounded-full overflow-hidden">
+                    <div class="h-full rounded-full transition-all duration-700" style="width:${p.match_score}%;background:${scoreColor}"></div>
+                </div>
+            </a>`;
+        }).join('');
     }
 
     function formatTime(dateStr) {
@@ -476,17 +508,6 @@
         window.location.href = '/login';
     }
 
-    async function logout() {
-        if (!IS_FILE) {
-            try {
-                await fetch(`${API}/logout`, { method: 'POST' });
-            } catch (err) {
-                console.error('Logout error:', err);
-            }
-        }
-        window.location.href = '/login';
-    }
-
     document.getElementById('logout-btn').addEventListener('click', logout);
     document.getElementById('logout-btn-mobile').addEventListener('click', logout);
     document.getElementById('submit-comment-btn').addEventListener('click', postComment);
@@ -494,7 +515,8 @@
         if (e.key === 'Enter' && e.ctrlKey) postComment();
     });
 
-    initNav();
+    initNav().then(() => loadAISuggestions());
+    loadComments();
 </script>
 </body>
 </html>

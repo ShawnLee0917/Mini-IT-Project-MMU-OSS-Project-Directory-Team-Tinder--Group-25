@@ -8,7 +8,10 @@ def create_app():
     app = Flask(__name__)
     app.secret_key = 'mmu-ossd-secret-key-2026'
     
-    DB_PATH = os.path.join(os.path.dirname(__file__), 'mmu_ossd.db')
+    INSTANCE_PATH = os.path.join(os.path.dirname(__file__), 'instance')
+    os.makedirs(INSTANCE_PATH, exist_ok=True) 
+    DB_PATH = os.path.join(INSTANCE_PATH, 'mmu_ossd.db')
+
     app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{DB_PATH}'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
@@ -28,7 +31,6 @@ def create_app():
         _initialize_default_labels()
 
     return app
-
 
 def _initialize_default_labels():
     """Initialize default comment labels if they don't exist"""

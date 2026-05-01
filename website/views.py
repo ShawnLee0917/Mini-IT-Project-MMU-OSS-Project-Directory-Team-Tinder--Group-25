@@ -1,13 +1,13 @@
 import os
+import random
+import smtplib
+import sys
+import logging
+from email.mime.text import MIMEText
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 import uuid
-import random
-import smtplib
-from email.mime.text import MIMEText
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify, session
-
-# 导入所有模型，包括新的 Suggestion
 from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel
 
 views = Blueprint('views', __name__)
@@ -24,11 +24,47 @@ def require_login():
     return None
 
 def get_current_user():
-    email = session.get('user_email')
-    if not email:
-        return None
+    email = session.get('user_email', 'student@mmu.edu.my')
     user = User.query.filter_by(email=email).first()
     return user
+
+# --- ADDED: Auto-Email Sending Function ---
+def send_otp_email(receiver_email, otp_code):
+    # =====================================================================
+    # ⚠️ 关键步骤: 在这里替换为你真实的 Gmail 邮箱和 16 位 Google App Password ⚠️
+    # =====================================================================
+    sender_email = "kohkonghao4@gmail.com" 
+    sender_password = "wlas kitq zrpa qpbb"
+
+    message = f"\n{'='*70}\n[DEVELOPMENT MODE] OTP CODE FOR: {receiver_email}\n{'='*70}\nOTP CODE: {otp_code}\nVerification URL: http://127.0.0.1:5000/verify\nDirect OTP URL: http://127.0.0.1:5000/test_otp/{receiver_email}\n{'='*70}\n"
+    
+    print(message, flush=True)
+    sys.stdout.write(message)
+    sys.stdout.flush()
+    sys.stderr.write(message)
+    sys.stderr.flush()
+    
+    logging.info(message)
+    current_app.logger.info(message)
+
+    if sender_email == "your_email@gmail.com" or sender_password == "your_16_digit_app_password":
+        print("\n WARNING: Email credentials not set! Using development mode. Check the terminal for the OTP.")
+        return True  # Allow registration for testing
+
+    msg = MIMEText(f"Welcome to MMU OSSD!\n\nYour 6-digit verification code is: {otp_code}\n\nThis code will expire in 15 minutes.")
+    msg['Subject'] = 'MMU OSSD Verification Code'
+    msg['From'] = sender_email
+    msg['To'] = receiver_email
+
+    try:
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(sender_email, sender_password)
+            server.send_message(msg)
+        print(f" OTP email automatically sent to {receiver_email}")
+        return True
+    except Exception as e:
+        print(f" Email Automation Error: {e}")
+        return False
 
 @views.route('/')
 @views.route('/home')
@@ -45,10 +81,57 @@ def login():
 def register():
     return render_template("register.html")
 
+# --- ADDED: Verify Page Route ---
+@views.route('/verify')
+def verify_page():
+    return render_template("otp.html")
+
+# --- ADDED: New Endpoint for verifying the OTP ---
+@views.route('/api/verify_otp', methods=['POST'])
+def api_verify_otp():
+    data = request.get_json(silent=True) or {}
+    email = data.get('email', '').strip().lower()
+    otp = data.get('otp', '').strip()
+
+    user = User.query.filter_by(email=email).first()
+
+    if user and user.otp == otp:
+        user.is_verified = True
+        user.otp = None  # Clear OTP after successful use
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Account verified!'})
+        
+    return jsonify({'error': 'Invalid code. Please check and try again.'}), 401
+
+# --- ADDED: Simple test route to display OTP ---
+@views.route('/test_otp/<email>')
+def test_otp(email):
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return f"User {email} not found"
+    
+    if user.is_verified:
+        return f"User {email} is already verified"
+    
+    if not user.otp:
+        return f"No OTP available for {email}"
+    
+    return f"""
+    <h1>OTP for {email}</h1>
+    <h2 style="color: red; font-size: 48px;">{user.otp}</h2>
+    <p>Use this code at: <a href="/verify">http://127.0.0.1:5000/verify</a></p>
+    """
+
 @views.route('/search')
 def search():
     all_projects = Project.query.order_by(Project.created_at.desc()).all()
     return render_template("Search.html", projects=all_projects)
+
+@views.route('/suggestions')
+def suggestions():
+    if 'user_email' not in session:
+        return redirect(url_for('views.login'))
+    return render_template("AI_Suggestions.html")
 
 @views.route('/my_projects')
 def my_projects():
@@ -209,6 +292,7 @@ def api_register():
     email    = data.get('email', '').strip().lower()
     name     = data.get('name', '').strip()
     password = data.get('password', '')
+    interests = data.get('interests', [])
 
     if not email or not password or not name:
         return jsonify({'error': 'All fields are required'}), 400
@@ -217,93 +301,36 @@ def api_register():
 
     pw_hash = generate_password_hash(password)
     
-    # --- MODIFIED: Generate OTP with f-string to ensure it's always 6 digits with leading zeros ---
+# --- MODIFIED: Generate OTP ---
     otp_code = f"{random.randint(0, 999999):06d}"
-    print(f"DEBUG: Generated OTP {otp_code} for {email}", flush=True)  
-    # ---------------------------
     
     try:
-        # --- MODIFIED: Added otp to new user creation ---
-        user = User(email=email, name=name, password_hash=pw_hash, otp=otp_code)
+        user = User(
+            email=email, 
+            name=name, 
+            password_hash=pw_hash, 
+            otp=otp_code,
+            interests=','.join(interests) if interests else ''
+        )
         db.session.add(user)
         db.session.commit()
         
-        # --- ADDED: Trigger Email ---
-        print(f"DEBUG: About to call send_otp_email for {email}", flush=True)
         if send_otp_email(email, otp_code):
-            print(f"DEBUG: send_otp_email returned True for {email}", flush=True)
             return jsonify({'success': True, 'message': 'Account created! Check email for OTP.'})
         else:
-            # If email fails, delete user and return error
             db.session.delete(user)
             db.session.commit()
             return jsonify({'error': 'Failed to send verification email. Please try again.'}), 500
-        # ----------------------------
+            
     except Exception as e:
+        
         db.session.rollback()
-        return jsonify({'error': 'Email already registered'}), 409
-    
-# --- ADDED: New Endpoint for verifying the OTP ---
-@views.route('/api/verify_otp', methods=['POST'])
-def api_verify_otp():
-    data = request.get_json(silent=True) or {}
-    email = data.get('email', '').strip().lower()
-    otp = data.get('otp', '').strip()
-
-    user = User.query.filter_by(email=email).first()
-
-    if user and user.otp == otp:
-        user.is_verified = True
-        user.otp = None  # Clear OTP after successful use
-        db.session.commit()
-        return jsonify({'success': True, 'message': 'Account verified!'})
+        print(f"Registration error: {str(e)}")
         
-    return jsonify({'error': 'Invalid code. Please check and try again.'}), 401
-# -------------------------------------------------
-
-# --- ADDED: Endpoint to retrieve OTP for development ---
-@views.route('/api/get_otp', methods=['POST'])
-def api_get_otp():
-    data = request.get_json(silent=True) or {}
-    email = data.get('email', '').strip().lower()
-    
-    user = User.query.filter_by(email=email).first()
-    
-    if not user:
-        return jsonify({'error': 'User not found'}), 404
-    
-    if not user.otp:
-        return jsonify({'error': 'No OTP available. Please register first.'}), 400
-    
-    return jsonify({'success': True, 'otp': user.otp}), 200
-# -------------------------------------------------
-        
-    return jsonify({'error': 'Invalid code. Please check and try again.'}), 401
-# -------------------------------------------------
-
-# --- ADDED: Simple test route to display OTP ---
-@views.route('/test_otp/<email>')
-def test_otp(email):
-    """
-    Simple test route to display OTP for development.
-    Usage: http://127.0.0.1:5000/test_otp/test@example.com
-    """
-    user = User.query.filter_by(email=email).first()
-    if not user:
-        return f"User {email} not found"
-    
-    if user.is_verified:
-        return f"User {email} is already verified"
-    
-    if not user.otp:
-        return f"No OTP available for {email}"
-    
-    return f"""
-    <h1>OTP for {email}</h1>
-    <h2 style="color: red; font-size: 48px;">{user.otp}</h2>
-    <p>Use this code at: <a href="/verify">http://127.0.0.1:5000/verify</a></p>
-    """
-# -------------------------------------------------
+        if 'unique' in str(e).lower() or 'email' in str(e).lower():
+            return jsonify({'error': 'Email already registered'}), 409
+            
+        return jsonify({'error': f'Registration failed: {str(e)}'}), 400
 
 @views.route('/api/login', methods=['POST'])
 def api_login():
@@ -315,12 +342,11 @@ def api_login():
     if not user or not user.password_hash or \
        not check_password_hash(user.password_hash, password):
         return jsonify({'error': 'Invalid email or password'}), 401
-    
+
     # --- ADDED: Check if account is verified ---
     if not user.is_verified:
         return jsonify({'error': 'Please verify your email first.'}), 403
-    # -------------------------------------------
-
+    
     session['user_email'] = user.email
     session['user_name']  = user.name
     return jsonify({'success': True, 'email': user.email, 'name': user.name})
@@ -363,6 +389,8 @@ def get_profile():
     
     avatar_url = f"/static/uploads/{user.avatar_path}" if user.avatar_path else ''
     
+    interests_list = [i.strip() for i in user.interests.split(',') if i.strip()] if user.interests else []
+
     return jsonify({
         'email':      user.email,
         'name':       user.name,
@@ -373,6 +401,7 @@ def get_profile():
         'karma':      user.karma,
         'skills':     [s.skill for s in skills],
         'badges':     [b.badge for b in badges],
+        'interests':  interests_list,
     })
 
 
@@ -406,7 +435,11 @@ def update_profile():
             if skill.strip():
                 skill_obj = Skill(user_id=user.id, skill=skill.strip())
                 db.session.add(skill_obj)
-    
+
+    interests = data.get('interests')
+    if interests is not None:
+        user.interests = ','.join([i.strip() for i in interests if i.strip()])
+
     db.session.commit()
 
     return jsonify({'success': True, 'message': 'Profile updated'})
@@ -1175,58 +1208,240 @@ def create_comment_label():
         'description': label.description,
     }), 201
 
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXT
 
-# --- ADDED: Auto-Email Sending Function ---
-def send_otp_email(receiver_email, otp_code):
-    # =====================================================================
-    # ⚠️ 关键步骤: 在这里替换为你真实的 Gmail 邮箱和 16 位 Google App Password ⚠️
-    # =====================================================================
-    sender_email = "kohkonghao4@gmail.com" 
-    sender_password = "wlas kitq zrpa qpbb"
+# =====================================================================
+# AI SUGGESTION SYSTEM
+# =====================================================================
 
-    # Always print OTP to terminal for development - multiple methods to ensure visibility
-    import sys
-    import logging
+def _calculate_match_score(user_interests, project_languages, project_description):
+    """
+    Calculate how well a project matches user interests.
+    Returns a score from 0-100 based on:
+    1. Project languages matching user interests
+    2. Project description keywords matching interests
+    """
+    score = 0
+    interest_matches = 0
     
-    message = f"\n{'='*70}\n[DEVELOPMENT MODE] OTP CODE FOR: {receiver_email}\n{'='*70}\nOTP CODE: {otp_code}\nVerification URL: http://127.0.0.1:5000/verify\nDirect OTP URL: http://127.0.0.1:5000/test_otp/{receiver_email}\n{'='*70}\n"
+    # Convert to lowercase for comparison
+    user_interests_lower = [i.lower() for i in user_interests]
+    project_langs_lower = project_languages.lower() if project_languages else ''
+    project_desc_lower = project_description.lower() if project_description else ''
+    project_combined = (project_langs_lower + ' ' + project_desc_lower).lower()
     
-    # Multiple output methods to ensure visibility
-    print(message, flush=True)
-    sys.stdout.write(message)
-    sys.stdout.flush()
-    sys.stderr.write(message)
-    sys.stderr.flush()
+    # Map interests to keywords for better matching
+    interest_keywords = {
+        'web development': ['web', 'frontend', 'backend', 'react', 'vue', 'django', 'flask', 'nodejs', 'express', 'html', 'css', 'javascript', 'typescript'],
+        'mobile development': ['mobile', 'ios', 'android', 'flutter', 'react native', 'swift', 'kotlin'],
+        'ai/ml': ['ai', 'ml', 'machine learning', 'deep learning', 'tensorflow', 'pytorch', 'nlp', 'cv', 'neural'],
+        'data science': ['data', 'science', 'analytics', 'pandas', 'numpy', 'data analysis', 'visualization'],
+        'devops': ['devops', 'docker', 'kubernetes', 'ci/cd', 'jenkins', 'devops', 'automation', 'infrastructure'],
+        'cloud': ['cloud', 'aws', 'azure', 'gcp', 'serverless', 'cloud computing'],
+        'blockchain': ['blockchain', 'crypto', 'web3', 'ethereum', 'smart contract', 'solidity'],
+        'iot': ['iot', 'embedded', 'arduino', 'raspberry', 'iot', 'sensor', 'microcontroller'],
+        'html': ['html', 'css', 'javascript', 'typescript', 'web', 'frontend', 'backend', 'react', 'vue', 'django', 'flask', 'nodejs', 'express'],
+        'python': ['python', 'django', 'flask', 'pandas', 'numpy', 'machine learning', 'deep learning', 'tensorflow', 'pytorch', 'nlp', 'cv', 'neural'],
+        'java': ['java', 'spring', 'springboot', 'android', 'maven', 'gradle', 'jvm', 'microservices'],
+        'c++': ['c++', 'cpp', 'gaming', 'graphics', 'performance', 'linux', 'embedded', 'real-time'],
+        'c#': ['c#', 'csharp', 'unity', 'windows', 'dotnet', 'blazor', 'aspnet']
+    }
     
-    # Use logging to ensure it appears
-    logging.info(message)
-
-    # Development mode: print OTP to terminal if email not configured
-    if sender_email == "your_email@gmail.com" or sender_password == "your_16_digit_app_password":
-        print("\n WARNING: Email credentials not set! Using development mode. Check the terminal for the OTP.")
-        return True  # Allow registration for testing
-
-    # Production mode: send automated email
-    msg = MIMEText(f"Welcome to MMU OSSD!\n\nYour 6-digit verification code is: {otp_code}\n\nThis code will expire in 15 minutes.")
-    msg['Subject'] = 'MMU OSSD Verification Code'
-    msg['From'] = sender_email
-    msg['To'] = receiver_email
-
-    try:
-        # Connecting to Google's SMTP Server using SSL
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            server.login(sender_email, sender_password)
-            server.send_message(msg)
-        print(f"✓ OTP email automatically sent to {receiver_email}")
-        return True
-    except Exception as e:
-        print(f"✗ Email Automation Error: {e}")
-        return False
+    # Check direct matches
+    for interest in user_interests_lower:
+        if interest in project_combined:
+            interest_matches += 10
+    
+    # Check keyword matches
+    for interest in user_interests_lower:
+        keywords = interest_keywords.get(interest, [])
+        for keyword in keywords:
+            if keyword in project_combined:
+                interest_matches += 5
+    
+    # Cap the score at 100
+    score = min(100, 50 + interest_matches)
+    
+    return score
 
 
-# --- ADDED: Route for the Verify Page ---
-@views.route('/verify')
-def verify_page():
-    return render_template('otp.html')
-# ----------------------------------------
+@views.route('/api/ai-suggestions', methods=['GET'])
+def get_ai_suggestions():
+    """
+    Get AI-powered project suggestions based on user interests and skills.
+    """
+    err = require_login()
+    if err:
+        return err
+    
+    email = session.get('user_email')
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    # Parse user interests
+    user_interests = [i.strip() for i in user.interests.split(',') if i.strip()] if user.interests else []
+    
+    if not user_interests:
+        return jsonify({'message': 'Please set your interests to get suggestions', 'suggestions': []})
+    
+    # Get user's skills
+    my_skills = [s.skill.lower() for s in Skill.query.filter_by(user_id=user.id).all()]
+    
+    # Get projects already suggested to this user
+    already_suggested = db.session.query(Suggestion.project_id).filter_by(user_id=user.id).all()
+    already_suggested_ids = [s[0] for s in already_suggested]
+    
+    # Get all projects from OTHER users
+    all_projects = Project.query.filter(
+        Project.user_id != user.id,
+        ~Project.id.in_(already_suggested_ids)
+    ).all()
+    
+    # Score and sort projects
+    scored_projects = []
+    for project in all_projects:
+        match_score = _calculate_match_score(user_interests, project.languages, project.description)
+        scored_projects.append((project, match_score))
+    
+    # Sort by score (descending) and then by creation date (newest first)
+    scored_projects.sort(key=lambda x: (-x[1], -x[0].created_at.timestamp()))
+    
+    # Return top 10 suggestions
+    result = []
+    for project, match_score in scored_projects[:10]:
+        owner = User.query.get(project.user_id)
+        result.append({
+            'id': project.id,
+            'project_id': project.id,
+            'project_name': project.project_name,
+            'description': project.description,
+            'owner_name': owner.name if owner else 'Unknown',
+            'owner_id': project.user_id,
+            'status': project.status,
+            'contributors': project.contributors,
+            'languages': project.languages,
+            'roles_needed': project.roles_needed,
+            'match_score': match_score,
+            'match_reason': 'Matches your interests in ' + ', '.join(user_interests),
+            'created_at': project.created_at.isoformat(),
+        })
+    
+    return jsonify({
+        'success': True,
+        'user_interests': user_interests,
+        'suggestions': result,
+        'total': len(result)
+    })
+
+
+@views.route('/api/project/<int:project_id>/similar', methods=['GET'])
+def get_similar_projects(project_id):
+    """
+    Get projects similar to the given project.
+    Scores by: shared languages, shared description keywords, user's own interests.
+    """
+    project = Project.query.get_or_404(project_id)
+
+    # Detect logged-in user and their interests
+    user = None
+    user_interests = []
+    if 'user_email' in session:
+        user = User.query.filter_by(email=session['user_email']).first()
+        if user and user.interests:
+            user_interests = [i.strip().lower() for i in user.interests.split(',') if i.strip()]
+
+    # Stopwords to ignore when comparing descriptions
+    STOPWORDS = {
+        'the', 'a', 'an', 'and', 'or', 'in', 'on', 'is', 'to', 'for', 'of',
+        'with', 'that', 'this', 'it', 'as', 'are', 'was', 'be', 'from', 'at',
+        'by', 'we', 'our', 'your', 'not', 'has', 'have', 'will', 'can', 'i',
+        'its', 'an', 'using', 'used', 'use', 'based', 'built', 'build',
+    }
+
+    # Tokenise the current project
+    current_langs = set(
+        l.strip().lower() for l in (project.languages or '').split(',') if l.strip()
+    )
+    current_desc_words = (
+        set((project.description or '').lower().split()) - STOPWORDS
+    )
+
+    # Candidate projects: exclude self and projects owned by the viewer
+    query = Project.query.filter(Project.id != project_id)
+    if user:
+        query = query.filter(Project.user_id != user.id)
+    all_projects = query.all()
+
+    scored = []
+    for p in all_projects:
+        score = 0
+
+        # --- Language overlap (25 pts per shared language, max 50) ---
+        p_langs = set(l.strip().lower() for l in (p.languages or '').split(',') if l.strip())
+        lang_overlap = len(current_langs & p_langs)
+        score += min(lang_overlap * 25, 50)
+
+        # --- Description keyword overlap (3 pts per shared word, max 30) ---
+        p_desc_words = set((p.description or '').lower().split()) - STOPWORDS
+        if current_desc_words and p_desc_words:
+            desc_overlap = len(current_desc_words & p_desc_words)
+            score += min(desc_overlap * 3, 30)
+
+        # --- User-interest bonus (8 pts per matching interest, max 24) ---
+        combined_text = ((p.languages or '') + ' ' + (p.description or '')).lower()
+        interest_hits = sum(1 for i in user_interests if i in combined_text)
+        score += min(interest_hits * 8, 24)
+
+        # Normalise: floor at 20 so there's always a baseline
+        score = min(100, 20 + score)
+        scored.append((p, score))
+
+    # Sort: highest score first, then newest
+    scored.sort(key=lambda x: (-x[1], -x[0].created_at.timestamp()))
+
+    result = []
+    for p, score in scored[:5]:
+        owner = User.query.get(p.user_id)
+        result.append({
+            'id':           p.id,
+            'project_name': p.project_name,
+            'description':  p.description,
+            'owner_name':   owner.name if owner else 'Unknown',
+            'status':       p.status,
+            'languages':    p.languages,
+            'roles_needed': p.roles_needed,
+            'match_score':  score,
+        })
+
+    return jsonify({'similar': result, 'total': len(result)})
+
+
+@views.route('/api/save-interest', methods=['POST'])
+def save_interest():
+    """
+    Save or update user's project interests
+    """
+    err = require_login()
+    if err:
+        return err
+    
+    email = session.get('user_email')
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    data = request.get_json(silent=True) or {}
+    interests = data.get('interests', [])
+    
+    if not interests:
+        return jsonify({'error': 'At least one interest must be selected'}), 400
+    
+    # Save interests as comma-separated string
+    user.interests = ','.join(interests)
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'message': 'Interests updated successfully',
+        'interests': interests
+    })
