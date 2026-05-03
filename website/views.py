@@ -5,7 +5,7 @@ import uuid
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify, session
 
 # 导入所有模型，包括新的 Suggestion
-from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel
+from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, QuestionCommentImage, QuestionImage
 
 views = Blueprint('views', __name__)
 
@@ -369,7 +369,7 @@ def upload_avatar():
     user.avatar_path = filename
     db.session.commit()
 
-    return jsonify({'success': True, 'avatar_url': f'/uploads/{filename}'})
+    return jsonify({'success': True, 'avatar_url': f'/static/uploads/{filename}'})
 
 
 # Comments API
@@ -575,13 +575,16 @@ def get_questions():
             user_faved = QuestionFavorite.query.filter_by(
                 user_id=current_user_id, question_id=q.id).first() is not None
 
+        image_urls = [f'/static/uploads/{img.image_path}' for img in q.images]
+
         result.append({
             'id':           q.id,
             'user_id':      q.user_id,
             'author_name':  author_name,
             'title':        q.title,
             'body':         q.body,
-            'image_url':    f'/uploads/{q.image_path}' if q.image_path else '',
+            'image_url':    f'/static/uploads/{q.image_path}' if q.image_path else '',
+            'image_urls':   image_urls,
             'created_at':   q.created_at.isoformat(),
             'like_count':   like_count,
             'fav_count':    fav_count,
@@ -621,14 +624,16 @@ def post_question():
     user = User.query.filter_by(email=session['user_email']).first()
     q = Question(user_id=user.id, title=title, body=body)
 
-    # Handle optional image
-    if 'image' in request.files:
-        file = request.files['image']
-        if file and file.filename and allowed_file(file.filename):
-            ext = file.filename.rsplit('.', 1)[1].lower()
-            filename = f"q_{uuid.uuid4().hex}.{ext}"
-            file.save(os.path.join(UPLOAD_FOLDER, filename))
-            q.image_path = filename
+    # Handle optional multiple images
+    if 'images' in request.files:
+        files = request.files.getlist('images')
+        for file in files:
+            if file and file.filename and allowed_file(file.filename):
+                ext = file.filename.rsplit('.', 1)[1].lower()
+                filename = f"q_{uuid.uuid4().hex}.{ext}"
+                file.save(os.path.join(UPLOAD_FOLDER, filename))
+                img = QuestionImage(image_path=filename)
+                q.images.append(img)
 
     db.session.add(q)
     db.session.commit()
@@ -650,6 +655,96 @@ def delete_question(question_id):
         return jsonify({'error': 'Not authorised'}), 403
 
     db.session.delete(q)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@views.route('/api/questions/<int:question_id>', methods=['PUT'])
+def edit_question(question_id):
+    err = require_login()
+    if err:
+        return err
+
+    user = User.query.filter_by(email=session['user_email']).first()
+    q = Question.query.get(question_id)
+
+    if not q:
+        return jsonify({'error': 'Question not found'}), 404
+    if q.user_id != user.id:
+        return jsonify({'error': 'Not authorised'}), 403
+
+    # Support multipart (with images) and plain JSON
+    if request.content_type and 'multipart' in request.content_type:
+        title = request.form.get('title', '').strip()
+        body = request.form.get('body', '').strip()
+    else:
+        data = request.get_json(silent=True) or {}
+        title = data.get('title', '').strip()
+        body = data.get('body', '').strip()
+
+    if not title:
+        return jsonify({'error': 'Title is required'}), 400
+    if not body:
+        return jsonify({'error': 'Question body is required'}), 400
+    if len(title) > 300:
+        return jsonify({'error': 'Title too long (max 300 chars)'}), 400
+    if len(body) > 5000:
+        return jsonify({'error': 'Body too long (max 5000 chars)'}), 400
+
+    q.title = title
+    q.body = body
+
+    # Handle optional new images
+    if 'images' in request.files:
+        files = request.files.getlist('images')
+        for file in files:
+            if file and file.filename and allowed_file(file.filename):
+                ext = file.filename.rsplit('.', 1)[1].lower()
+                filename = f"q_{uuid.uuid4().hex}.{ext}"
+                file.save(os.path.join(UPLOAD_FOLDER, filename))
+                img = QuestionImage(image_path=filename)
+                q.images.append(img)
+
+    db.session.commit()
+    return jsonify({'success': True, 'id': q.id})
+
+
+@views.route('/api/question-images/<int:image_id>', methods=['DELETE'])
+def delete_question_image(image_id):
+    err = require_login()
+    if err:
+        return err
+
+    user = User.query.filter_by(email=session['user_email']).first()
+    img = QuestionImage.query.get(image_id)
+    if not img:
+        return jsonify({'error': 'Image not found'}), 404
+    
+    q = img.question
+    if q.user_id != user.id:
+        return jsonify({'error': 'Not authorised'}), 403
+
+    db.session.delete(img)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@views.route('/api/comment-images/<int:image_id>', methods=['DELETE'])
+def delete_comment_image(image_id):
+    err = require_login()
+    if err:
+        return err
+
+    user = User.query.filter_by(email=session['user_email']).first()
+    img = QuestionCommentImage.query.get(image_id)
+    if not img:
+        return jsonify({'error': 'Image not found'}), 404
+    
+    c = img.comment
+    if c.user_id != user.id:
+        return jsonify({'error': 'Not authorised'}), 403
+
+    db.session.delete(img)
     db.session.commit()
     return jsonify({'success': True})
 
@@ -718,6 +813,7 @@ def get_question_comments(question_id):
         'parent_id':   c.parent_id,
         'created_at':  c.created_at.isoformat(),
         'is_owner':    (current_user_id == c.user_id),
+        'image_urls':  [f'/static/uploads/{img.image_path}' for img in c.images],
     } for c, name in rows]
 
     return jsonify(result)
@@ -729,8 +825,12 @@ def post_question_comment(question_id):
     if err:
         return err
 
-    data = request.get_json(silent=True) or {}
-    body = data.get('body', '').strip()
+    # Support multipart (with images) and plain JSON
+    if request.content_type and 'multipart' in request.content_type:
+        body = request.form.get('body', '').strip()
+    else:
+        data = request.get_json(silent=True) or {}
+        body = data.get('body', '').strip()
 
     if not body:
         return jsonify({'error': 'Comment cannot be empty'}), 400
@@ -741,7 +841,13 @@ def post_question_comment(question_id):
     if not q:
         return jsonify({'error': 'Question not found'}), 404
 
-    parent_id = data.get('parent_id', None)
+    parent_id = None
+    if request.content_type and 'multipart' in request.content_type:
+        parent_id = request.form.get('parent_id', None)
+    else:
+        data = request.get_json(silent=True) or {}
+        parent_id = data.get('parent_id', None)
+    
     if parent_id:
         parent = QuestionComment.query.get(parent_id)
         if not parent or parent.question_id != question_id:
@@ -749,6 +855,18 @@ def post_question_comment(question_id):
 
     user = User.query.filter_by(email=session['user_email']).first()
     c = QuestionComment(user_id=user.id, question_id=question_id, body=body, parent_id=parent_id)
+    
+    # Handle optional multiple images
+    if 'images' in request.files:
+        files = request.files.getlist('images')
+        for file in files:
+            if file and file.filename and allowed_file(file.filename):
+                ext = file.filename.rsplit('.', 1)[1].lower()
+                filename = f"c_{uuid.uuid4().hex}.{ext}"
+                file.save(os.path.join(UPLOAD_FOLDER, filename))
+                img = QuestionCommentImage(image_path=filename)
+                c.images.append(img)
+    
     db.session.add(c)
     db.session.commit()
     return jsonify({'success': True, 'id': c.id})
@@ -794,8 +912,12 @@ def edit_question_comment(question_id, comment_id):
     if c.user_id != user.id:
         return jsonify({'error': 'Not authorised'}), 403
 
-    data = request.get_json(silent=True) or {}
-    body = data.get('body', '').strip()
+    # Support multipart (with images) and plain JSON
+    if request.content_type and 'multipart' in request.content_type:
+        body = request.form.get('body', '').strip()
+    else:
+        data = request.get_json(silent=True) or {}
+        body = data.get('body', '').strip()
 
     if not body:
         return jsonify({'error': 'Comment cannot be empty'}), 400
@@ -803,6 +925,18 @@ def edit_question_comment(question_id, comment_id):
         return jsonify({'error': 'Comment too long (max 1000 chars)'}), 400
 
     c.body = body
+    
+    # Handle optional new images
+    if 'images' in request.files:
+        files = request.files.getlist('images')
+        for file in files:
+            if file and file.filename and allowed_file(file.filename):
+                ext = file.filename.rsplit('.', 1)[1].lower()
+                filename = f"c_{uuid.uuid4().hex}.{ext}"
+                file.save(os.path.join(UPLOAD_FOLDER, filename))
+                img = QuestionCommentImage(image_path=filename)
+                c.images.append(img)
+    
     db.session.commit()
     return jsonify({'success': True, 'body': c.body})
 
@@ -817,10 +951,12 @@ def _build_question_result(q, author_name, current_user_id):
     cmt_count  = QuestionComment.query.filter_by(question_id=q.id).count()
     user_liked = QuestionLike.query.filter_by(user_id=current_user_id, question_id=q.id).first() is not None
     user_faved = QuestionFavorite.query.filter_by(user_id=current_user_id, question_id=q.id).first() is not None
+    image_urls = [f'/static/uploads/{img.image_path}' for img in q.images]
     return {
         'id': q.id, 'user_id': q.user_id, 'author_name': author_name,
         'title': q.title, 'body': q.body,
-        'image_url': f'/uploads/{q.image_path}' if q.image_path else '',
+        'image_url': f'/static/uploads/{q.image_path}' if q.image_path else '',
+        'image_urls': image_urls,
         'created_at': q.created_at.isoformat(),
         'like_count': like_count, 'fav_count': fav_count, 'comment_count': cmt_count,
         'user_liked': user_liked, 'user_faved': user_faved,
