@@ -99,6 +99,23 @@ class Suggestion(db.Model):
     __table_args__ = (db.UniqueConstraint('user_id', 'project_id', name='unique_user_project'),)
 
 
+class JoinRequest(db.Model):
+    __tablename__ = 'join_requests'
+    
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id', ondelete='CASCADE'), nullable=False)
+    status = db.Column(db.String(50), nullable=False, default='pending')  # 'pending', 'accepted', 'rejected'
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    user = db.relationship('User', backref='join_requests')
+    project = db.relationship('Project', backref='join_requests')
+    
+    __table_args__ = (db.UniqueConstraint('user_id', 'project_id', name='unique_user_project_request'),)
+
+
 # ---------------------------------------------------------------------------
 # Project Comment Models
 # ---------------------------------------------------------------------------

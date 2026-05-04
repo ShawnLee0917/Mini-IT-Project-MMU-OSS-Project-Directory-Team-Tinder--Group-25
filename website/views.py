@@ -8,7 +8,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 import uuid
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify, session
-from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel
+from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, JoinRequest
 
 views = Blueprint('views', __name__)
 
@@ -298,6 +298,8 @@ def api_register():
         return jsonify({'error': 'All fields are required'}), 400
     if len(password) < 6:
         return jsonify({'error': 'Password must be at least 6 characters'}), 400
+    if not (email.endswith('@mmu.edu.my') or email.endswith('@student.mmu.edu.my')):
+        return jsonify({'error': 'Only MMU email addresses (@mmu.edu.my or @student.mmu.edu.my) are allowed'}), 400
 
     pw_hash = generate_password_hash(password)
     
@@ -337,6 +339,9 @@ def api_login():
     data = request.get_json(silent=True) or {}
     email = data.get('email', '').strip().lower()
     password = data.get('password', '')
+
+    if not (email.endswith('@mmu.edu.my') or email.endswith('@student.mmu.edu.my')):
+        return jsonify({'error': 'Only MMU email addresses (@mmu.edu.my or @student.mmu.edu.my) are allowed'}), 400
 
     user = User.query.filter_by(email=email).first()
     if not user or not user.password_hash or \
@@ -987,6 +992,135 @@ def add_member(project_id):
     db.session.commit()
 
     return jsonify({"success": "Member added successfully!", "user_name": user_to_add.name})
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Join Request API
+# ─────────────────────────────────────────────────────────────────────────
+
+@views.route('/api/project/<int:project_id>/request-join', methods=['POST'])
+def request_join_project(project_id):
+    """User requests to join a project"""
+    err = require_login()
+    if err: return err
+    
+    current_user = get_current_user()
+    project = Project.query.get_or_404(project_id)
+    
+    # Check if user is already a member
+    if current_user in project.members:
+        return jsonify({"error": "You are already a member of this project"}), 400
+    
+    # Check if request already exists
+    existing_request = JoinRequest.query.filter_by(
+        user_id=current_user.id,
+        project_id=project_id
+    ).first()
+    
+    if existing_request:
+        if existing_request.status == 'pending':
+            return jsonify({"error": "You have already sent a join request"}), 400
+        elif existing_request.status == 'rejected':
+            return jsonify({"error": "Your join request was rejected"}), 400
+    
+    # Create new join request
+    join_request = JoinRequest(
+        user_id=current_user.id,
+        project_id=project_id,
+        status='pending'
+    )
+    db.session.add(join_request)
+    db.session.commit()
+    
+    return jsonify({"success": "Join request sent successfully!"}), 201
+
+
+@views.route('/api/project/<int:project_id>/join-requests', methods=['GET'])
+def get_join_requests(project_id):
+    """Get all join requests for a project (only for project lead)"""
+    err = require_login()
+    if err: return err
+    
+    current_user = get_current_user()
+    project = Project.query.get_or_404(project_id)
+    
+    # Security check: Only the project lead can view requests
+    if project.user_id != current_user.id:
+        return jsonify({"error": "Unauthorized. Only the Project Lead can view requests."}), 403
+    
+    # Get pending requests
+    requests = JoinRequest.query.filter_by(
+        project_id=project_id,
+        status='pending'
+    ).order_by(JoinRequest.created_at.desc()).all()
+    
+    return jsonify([{
+        'id': r.id,
+        'user_id': r.user_id,
+        'user_name': r.user.name,
+        'user_email': r.user.email,
+        'user_faculty': r.user.faculty,
+        'created_at': r.created_at.isoformat()
+    } for r in requests])
+
+
+@views.route('/api/project/<int:project_id>/join-requests/<int:request_id>/accept', methods=['POST'])
+def accept_join_request(project_id, request_id):
+    """Accept a join request"""
+    err = require_login()
+    if err: return err
+    
+    current_user = get_current_user()
+    project = Project.query.get_or_404(project_id)
+    join_request = JoinRequest.query.get_or_404(request_id)
+    
+    # Security check: Only the project lead can accept requests
+    if project.user_id != current_user.id:
+        return jsonify({"error": "Unauthorized. Only the Project Lead can accept requests."}), 403
+    
+    if join_request.project_id != project_id:
+        return jsonify({"error": "Request does not belong to this project"}), 400
+    
+    if join_request.status != 'pending':
+        return jsonify({"error": f"Request is already {join_request.status}"}), 400
+    
+    # Add user to project members
+    user_to_add = User.query.get_or_404(join_request.user_id)
+    if user_to_add not in project.members:
+        project.members.append(user_to_add)
+    
+    # Update request status
+    join_request.status = 'accepted'
+    db.session.commit()
+    
+    return jsonify({"success": "Join request accepted!", "user_name": user_to_add.name})
+
+
+@views.route('/api/project/<int:project_id>/join-requests/<int:request_id>/reject', methods=['POST'])
+def reject_join_request(project_id, request_id):
+    """Reject a join request"""
+    err = require_login()
+    if err: return err
+    
+    current_user = get_current_user()
+    project = Project.query.get_or_404(project_id)
+    join_request = JoinRequest.query.get_or_404(request_id)
+    
+    # Security check: Only the project lead can reject requests
+    if project.user_id != current_user.id:
+        return jsonify({"error": "Unauthorized. Only the Project Lead can reject requests."}), 403
+    
+    if join_request.project_id != project_id:
+        return jsonify({"error": "Request does not belong to this project"}), 400
+    
+    if join_request.status != 'pending':
+        return jsonify({"error": f"Request is already {join_request.status}"}), 400
+    
+    # Update request status
+    join_request.status = 'rejected'
+    db.session.commit()
+    
+    return jsonify({"success": "Join request rejected!"})
 
 
 # ─────────────────────────────────────────────────────────────────────────

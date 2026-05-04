@@ -159,10 +159,16 @@
             
             <h2 class="text-4xl font-black text-gray-900 leading-tight">{{ project.project_name }}</h2>
             
-            <div class="flex gap-3 mt-6">
+            <div class="flex gap-3 mt-6 flex-wrap">
+                {% if current_user and current_user.id == project.user_id %}
                 <a href="{{ url_for('views.edit_project', project_id=project.id) }}" class="bg-yellow-100 text-yellow-700 px-6 py-3 rounded-xl font-bold hover:bg-yellow-200 transition flex items-center gap-2 border border-yellow-300">
                     <i class="fas fa-edit text-xl"></i> Edit
                 </a>
+                {% elif current_user and current_user not in project.members %}
+                <button onclick="requestJoinProject('{{ project.id }}')" class="bg-blue-100 text-blue-700 px-6 py-3 rounded-xl font-bold hover:bg-blue-200 transition flex items-center gap-2 border border-blue-300">
+                    <i class="fas fa-user-plus text-xl"></i> Request to Join
+                </button>
+                {% endif %}
                 
                 <a href="{{ project.repo_url }}" target="_blank" class="bg-gray-100 text-gray-700 px-6 py-3 rounded-xl font-bold hover:bg-gray-200 transition flex items-center gap-2">
                     <i class="fab fa-github text-xl"></i> Repository
@@ -327,14 +333,42 @@
             <div class="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm mt-8">
                 <h4 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Team Members</h4>
             
-            <div class="space-y-3 mb-6" id="members-list">
-                {% for member in project.members %}
-                <div class="flex items-center gap-3 text-sm font-medium text-gray-700">
-                    <i class="fas fa-user text-gray-400"></i>
-                    {{ member.name }}
+                <!-- Current Team Section -->
+                <div class="mb-6">
+                    <h5 class="text-xs font-semibold text-gray-600 mb-3 pb-2 border-b border-gray-200">
+                        <i class="fas fa-users text-blue-500 mr-2"></i>Current Team
+                    </h5>
+                    <div class="space-y-2" id="members-list">
+                        {% for member in project.members %}
+                        <div class="flex items-center gap-3 p-2 bg-gray-50 rounded-lg hover:bg-blue-50 transition">
+                            <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm flex-shrink-0">
+                                {{ member.name[0] | upper }}
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-sm font-medium text-gray-700">{{ member.name }}</div>
+                                <div class="text-xs text-gray-500">{{ member.faculty if member.faculty else 'MMU Student' }}</div>
+                            </div>
+                            <i class="fas fa-check-circle text-green-500 text-sm flex-shrink-0"></i>
+                        </div>
+                        {% endfor %}
+                    </div>
                 </div>
-                {% endfor %}
-            </div>
+
+                <!-- Project Stats -->
+                <div class="grid grid-cols-3 gap-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg mb-6">
+                    <div class="text-center">
+                        <div class="text-lg font-bold text-blue-700">{{ project.members|length }}</div>
+                        <div class="text-xs text-gray-600">Team Size</div>
+                    </div>
+                    <div class="text-center border-l border-r border-gray-200">
+                        <div class="text-lg font-bold text-indigo-700">{{ project.status }}</div>
+                        <div class="text-xs text-gray-600">Status</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-lg font-bold text-purple-700">{{ project.roles_needed if project.roles_needed else '—' }}</div>
+                        <div class="text-xs text-gray-600">Roles Needed</div>
+                    </div>
+                </div>
 
             <div class="border-t border-gray-100 pt-4 mt-4">
                 <label class="text-xs font-bold text-gray-500 mb-2 block">Invite Member by Email</label>
@@ -348,6 +382,18 @@
                 </div>
                 <p id="add-member-msg" class="text-xs mt-2 hidden"></p>
             </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm mt-8">
+                <h4 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Request to Join Team</h4>
+            
+                <div class="space-y-3" id="join-requests-list">
+                    <!-- Join requests will be dynamically loaded here -->
+                    <div class="text-center text-gray-400 text-sm py-4">
+                        <i class="fas fa-inbox text-2xl mb-2 block opacity-50"></i>
+                        No requests at the moment
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -758,10 +804,139 @@ document.getElementById('comment-type').addEventListener('change', (e) => {
 document.addEventListener('DOMContentLoaded', () => {
     loadCommentLabels();
     loadComments();
+    loadJoinRequests();
     loadSimilarProjects();
     // Set first tab as active
     document.querySelector('.comment-tab[data-type="all"]').classList.add('border-red-600', 'text-red-600');
 });
+
+// ──────────────────────────────────────────────────────────────────────
+// Join Request Functions
+// ──────────────────────────────────────────────────────────────────────
+
+async function loadJoinRequests() {
+    // Only load if user is the project owner
+    if (currentUserId !== projectOwnerId) {
+        return;
+    }
+    
+    try {
+        const res = await fetch(`${API}/project/${projectId}/join-requests`);
+        if (!res.ok) return;
+        const requests = await res.json();
+        renderJoinRequests(requests);
+    } catch (err) {
+        console.error('Error loading join requests:', err);
+    }
+}
+
+function renderJoinRequests(requests) {
+    const container = document.getElementById('join-requests-list');
+    if (!container) return;
+    
+    if (!requests.length) {
+        container.innerHTML = `
+            <div class="text-center text-gray-400 text-sm py-4">
+                <i class="fas fa-inbox text-2xl mb-2 block opacity-50"></i>
+                No requests at the moment
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = requests.map(req => `
+        <div class="flex items-center justify-between gap-3 p-3 bg-gray-50 rounded-lg">
+            <div class="flex items-center gap-3 flex-1">
+                <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm flex-shrink-0">
+                    ${req.user_name[0].toUpperCase()}
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="text-sm font-medium text-gray-700">${escapeHtml(req.user_name)}</div>
+                    <div class="text-xs text-gray-500">${escapeHtml(req.user_email)}</div>
+                    <div class="text-xs text-gray-400">${new Date(req.created_at).toLocaleDateString()}</div>
+                </div>
+            </div>
+            <div class="flex gap-2 flex-shrink-0">
+                <button onclick="acceptJoinRequest(${projectId}, ${req.id})" class="bg-green-100 text-green-700 px-3 py-1 rounded-lg text-xs font-bold hover:bg-green-200 transition whitespace-nowrap">
+                    <i class="fas fa-check mr-1"></i>Accept
+                </button>
+                <button onclick="rejectJoinRequest(${projectId}, ${req.id})" class="bg-red-100 text-red-700 px-3 py-1 rounded-lg text-xs font-bold hover:bg-red-200 transition whitespace-nowrap">
+                    <i class="fas fa-times mr-1"></i>Reject
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function requestJoinProject(projectId) {
+    if (currentUserId === projectOwnerId) {
+        alert('You are the project owner');
+        return;
+    }
+    
+    try {
+        const res = await fetch(`${API}/project/${projectId}/request-join`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const data = await res.json();
+        
+        if (res.ok) {
+            alert('Join request sent successfully!');
+        } else {
+            alert(data.error || 'Failed to send join request');
+        }
+    } catch (err) {
+        console.error('Error requesting to join:', err);
+        alert('Failed to send join request');
+    }
+}
+
+async function acceptJoinRequest(projectId, requestId) {
+    try {
+        const res = await fetch(`${API}/project/${projectId}/join-requests/${requestId}/accept`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const data = await res.json();
+        
+        if (res.ok) {
+            alert(data.success);
+            await loadJoinRequests();
+            window.location.reload();
+        } else {
+            alert(data.error || 'Failed to accept request');
+        }
+    } catch (err) {
+        console.error('Error accepting request:', err);
+        alert('Failed to accept request');
+    }
+}
+
+async function rejectJoinRequest(projectId, requestId) {
+    if (!confirm('Are you sure you want to reject this request?')) return;
+    
+    try {
+        const res = await fetch(`${API}/project/${projectId}/join-requests/${requestId}/reject`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const data = await res.json();
+        
+        if (res.ok) {
+            alert(data.success);
+            await loadJoinRequests();
+        } else {
+            alert(data.error || 'Failed to reject request');
+        }
+    } catch (err) {
+        console.error('Error rejecting request:', err);
+        alert('Failed to reject request');
+    }
+}
 
 // ──────────────────────────────────────────────────────────────────────
 // Similar Projects
