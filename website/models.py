@@ -173,9 +173,10 @@ class Question(db.Model):
     image_path = db.Column(db.String(255), default='')
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
-    likes     = db.relationship('QuestionLike',    backref='question', lazy=True, cascade='all, delete-orphan')
-    favorites = db.relationship('QuestionFavorite', backref='question', lazy=True, cascade='all, delete-orphan')
+    likes      = db.relationship('QuestionLike',    backref='question', lazy=True, cascade='all, delete-orphan')
+    favorites  = db.relationship('QuestionFavorite', backref='question', lazy=True, cascade='all, delete-orphan')
     q_comments = db.relationship('QuestionComment', backref='question', lazy=True, cascade='all, delete-orphan')
+    images     = db.relationship('QuestionImage', backref='question', lazy=True, cascade='all, delete-orphan')
 
 
 class QuestionLike(db.Model):
@@ -198,6 +199,14 @@ class QuestionFavorite(db.Model):
     __table_args__ = (db.UniqueConstraint('user_id', 'question_id', name='unique_user_question_fav'),)
 
 
+class QuestionImage(db.Model):
+    __tablename__ = 'question_images'
+
+    id          = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    question_id = db.Column(db.Integer, db.ForeignKey('questions.id', ondelete='CASCADE'), nullable=False)
+    image_path  = db.Column(db.String(255), nullable=False)
+
+
 class QuestionComment(db.Model):
     __tablename__ = 'question_comments'
 
@@ -207,3 +216,13 @@ class QuestionComment(db.Model):
     parent_id   = db.Column(db.Integer, db.ForeignKey('question_comments.id', ondelete='CASCADE'), nullable=True)
     body        = db.Column(db.Text, nullable=False)
     created_at  = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    
+    images = db.relationship('QuestionCommentImage', backref='comment', lazy=True, cascade='all, delete-orphan')
+
+
+class QuestionCommentImage(db.Model):
+    __tablename__ = 'question_comment_images'
+
+    id         = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    comment_id = db.Column(db.Integer, db.ForeignKey('question_comments.id', ondelete='CASCADE'), nullable=False)
+    image_path = db.Column(db.String(255), nullable=False)

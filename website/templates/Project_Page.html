@@ -383,18 +383,6 @@
                 <p id="add-member-msg" class="text-xs mt-2 hidden"></p>
             </div>
             </div>
-
-            <div class="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm mt-8">
-                <h4 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Request to Join Team</h4>
-            
-                <div class="space-y-3" id="join-requests-list">
-                    <!-- Join requests will be dynamically loaded here -->
-                    <div class="text-center text-gray-400 text-sm py-4">
-                        <i class="fas fa-inbox text-2xl mb-2 block opacity-50"></i>
-                        No requests at the moment
-                    </div>
-                </div>
-            </div>
         </div>
 
         <!-- Similar Projects Card -->
@@ -936,6 +924,69 @@ async function rejectJoinRequest(projectId, requestId) {
         console.error('Error rejecting request:', err);
         alert('Failed to reject request');
     }
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Similar Projects
+// ──────────────────────────────────────────────────────────────────────
+
+function escapeHtml(text) {
+    const d = document.createElement('div');
+    d.textContent = String(text || '');
+    return d.innerHTML;
+}
+
+async function loadSimilarProjects() {
+    const container = document.getElementById('similar-projects-list');
+    try {
+        const res = await fetch(`${API}/project/${projectId}/similar`);
+        if (!res.ok) throw new Error('Failed');
+        const data = await res.json();
+        renderSimilarProjects(data.similar || []);
+    } catch (err) {
+        console.error('Similar projects error:', err);
+        if (container) container.innerHTML =
+            '<div class="p-5 text-center text-gray-400 text-xs italic">Could not load similar projects.</div>';
+    }
+}
+
+function renderSimilarProjects(projects) {
+    const container = document.getElementById('similar-projects-list');
+    if (!container) return;
+
+    if (!projects.length) {
+        container.innerHTML = `
+            <div class="p-5 text-center">
+                <i class="fas fa-folder-open text-gray-300 text-2xl mb-2"></i>
+                <p class="text-xs text-gray-400">No similar projects found yet.</p>
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = projects.map(p => {
+        const scoreColor = p.match_score >= 70 ? '#16a34a' : p.match_score >= 40 ? '#d97706' : '#dc2626';
+        const scoreBg   = p.match_score >= 70 ? '#f0fdf4' : p.match_score >= 40 ? '#fffbeb' : '#fef2f2';
+        const langs = (p.languages || '').split(',').map(l => l.trim()).filter(Boolean).slice(0, 2);
+        const langTags = langs.map(l =>
+            `<span class="text-[10px] font-bold bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">${escapeHtml(l)}</span>`
+        ).join('');
+        const desc = (p.description || '').slice(0, 65) + ((p.description || '').length > 65 ? '…' : '');
+        return `
+        <a href="/project/${p.id}" class="block px-5 py-4 hover:bg-red-50 transition group">
+            <div class="flex items-start justify-between gap-2 mb-1">
+                <span class="font-bold text-gray-800 text-xs leading-snug group-hover:text-red-700 transition">${escapeHtml(p.project_name)}</span>
+                <span class="shrink-0 text-[10px] font-black px-1.5 py-0.5 rounded-full" style="background:${scoreBg};color:${scoreColor}">${p.match_score}%</span>
+            </div>
+            <div class="flex items-center gap-1 text-[10px] text-gray-400 mb-1.5">
+                <i class="fas fa-user-circle"></i><span>${escapeHtml(p.owner_name)}</span>
+            </div>
+            ${desc ? `<p class="text-[11px] text-gray-500 leading-relaxed mb-1.5">${escapeHtml(desc)}</p>` : ''}
+            <div class="flex flex-wrap gap-1 mb-1.5">${langTags}</div>
+            <div class="h-1 bg-gray-100 rounded-full overflow-hidden">
+                <div class="h-full rounded-full" style="width:${p.match_score}%;background:${scoreColor}"></div>
+            </div>
+        </a>`;
+    }).join('');
 }
 
 // ──────────────────────────────────────────────────────────────────────
