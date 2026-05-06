@@ -7,7 +7,7 @@ from email.mime.text import MIMEText
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 import uuid
-from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify, session
+from flask import (Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify, session)
 from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, QuestionCommentImage, QuestionImage, JoinRequest
 
 views = Blueprint('views', __name__)
@@ -570,55 +570,6 @@ def get_all_projects():
 
 
 # Suggestions API
-
-
-@views.route('/api/suggestions', methods=['GET'])
-def get_suggestions():
-    err = require_login()
-    if err:
-        return err
-    
-    email = session['user_email']
-    user = User.query.filter_by(email=email).first()
-    if not user:
-        return jsonify({'error': 'User not found'}), 404
-    
-    # Get user's skills
-    my_skills = Skill.query.filter_by(user_id=user.id).all()
-    my_skill_list = [s.skill.lower() for s in my_skills]
-    
-    # Get all projects from OTHER users that match skills
-    already_suggested = db.session.query(Suggestion.project_id).filter_by(user_id=user.id).all()
-    already_suggested_ids = [s[0] for s in already_suggested]
-    
-    suggestions = db.session.query(
-        Project,
-        User.name,
-        db.func.count(Skill.id).label('skill_matches')
-    ).join(User, Project.user_id == User.id).outerjoin(
-        Skill, Skill.user_id == User.id
-    ).filter(
-        Project.user_id != user.id,
-        ~Project.id.in_(already_suggested_ids)
-    ).group_by(Project.id).order_by(
-        db.desc('skill_matches'),
-        db.desc(Project.created_at)
-    ).limit(5).all()
-    
-    result = []
-    for project, owner_name, skill_matches in suggestions:
-        result.append({
-            'id': project.id,
-            'project_id': project.id,
-            'owner_name': owner_name,
-            'project_name': project.project_name,
-            'description': project.description,
-            'status': project.status,
-            'contributors': project.contributors,
-            'match_score': min(100, 50 + (skill_matches or 0) * 10),
-        })
-    
-    return jsonify(result)
 
 
 @views.route('/api/suggestions/<int:project_id>', methods=['POST'])
@@ -1873,93 +1824,55 @@ def _calculate_match_score(user_interests, project_languages, project_descriptio
 
 @views.route('/api/ai-suggestions', methods=['GET'])
 def get_ai_suggestions():
-    """
-    Get AI-powered project suggestions based on user interests and skills.
-    Uses the unified matching algorithm.
-    """
     err = require_login()
     if err:
         return err
     
-    email = session.get('user_email')
+    email = session['user_email']
     user = User.query.filter_by(email=email).first()
     if not user:
         return jsonify({'error': 'User not found'}), 404
     
-    # Parse user interests
-    user_interests = [i.strip() for i in user.interests.split(',') if i.strip()] if user.interests else []
+    # Extract user interests to satisfy the frontend check
+    interests_list = [i.strip() for i in user.interests.split(',') if i.strip()] if user.interests else []
     
-    if not user_interests:
-        return jsonify({'message': 'Please set your interests to get suggestions', 'suggestions': []})
-    
-    # Get user's skills for enhanced matching
-    my_skills = [s.skill for s in Skill.query.filter_by(user_id=user.id).all()]
-    
-    # Get projects already suggested to this user
+    # Get all projects from OTHER users that match skills
     already_suggested = db.session.query(Suggestion.project_id).filter_by(user_id=user.id).all()
     already_suggested_ids = [s[0] for s in already_suggested]
     
-    # Get all projects from OTHER users (with quality filtering)
-    all_projects = Project.query.filter(
+    suggestions = db.session.query(
+        Project,
+        User.name,
+        db.func.count(Skill.id).label('skill_matches')
+    ).join(User, Project.user_id == User.id).outerjoin(
+        Skill, Skill.user_id == User.id
+    ).filter(
         Project.user_id != user.id,
-        ~Project.id.in_(already_suggested_ids),
-        Project.status != 'Archived',
-        Project.project_name != '',
-        (Project.languages != '') | (Project.description != '')
-    ).all()
+        ~Project.id.in_(already_suggested_ids)
+    ).group_by(Project.id).order_by(
+        db.desc('skill_matches'),
+        db.desc(Project.created_at)
+    ).limit(5).all()
     
-    # Score projects using unified algorithm in 'ai' mode
-    scored_projects = []
-    for project in all_projects:
-        match_score = _calculate_unified_match_score(
-            candidate_project=project,
-            user_interests=user_interests,
-            user_skills=my_skills,
-            mode='ai'
-        )
-        
-        if match_score >= 30:
-            scored_projects.append((project, match_score))
-    
-    # Sort by score (descending), then by project activity (newer first)
-    scored_projects.sort(key=lambda x: (-x[1], -x[0].created_at.timestamp()))
-    
-    # Return top 12 suggestions
     result = []
-    for project, match_score in scored_projects[:12]:
-        owner = User.query.get(project.user_id)
-        
-        # Generate contextual match reason
-        match_reason = 'Matches your interests'
-        if match_score >= 80:
-            match_reason = 'Excellent match for your profile'
-        elif match_score >= 70:
-            match_reason = 'Strong match for your skills'
-        elif match_score >= 50:
-            match_reason = 'Good match for your interests'
-        
+    for project, owner_name, skill_matches in suggestions:
         result.append({
             'id': project.id,
             'project_id': project.id,
+            'owner_name': owner_name,
             'project_name': project.project_name,
             'description': project.description,
-            'owner_name': owner.name if owner else 'Unknown',
-            'owner_id': project.user_id,
             'status': project.status,
-            'contributors': project.contributors or 0,
-            'languages': project.languages,
-            'roles_needed': project.roles_needed,
-            'match_score': match_score,
-            'match_reason': match_reason,
-            'created_at': project.created_at.isoformat(),
+            'contributors': project.contributors,
+            'languages': project.languages, # Required for frontend tags
+            'match_score': min(100, 50 + (skill_matches or 0) * 10),
+            'match_reason': 'Matches your skills' 
         })
     
+    # Return an object with both required lists
     return jsonify({
-        'success': True,
-        'user_interests': user_interests,
         'suggestions': result,
-        'total': len(result),
-        'algorithm_version': 'unified-v1'
+        'user_interests': interests_list
     })
 
 
