@@ -20,6 +20,8 @@ class User(db.Model):
     rank = db.Column(db.Integer, nullable=False, default=0)
     karma = db.Column(db.Integer, nullable=False, default=0)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    is_verified = db.Column(db.Boolean, default=False)
+    otp = db.Column(db.String(6), nullable=True)
     
     # Relationships
     skills = db.relationship('Skill', backref='user', lazy=True, cascade='all, delete-orphan')
@@ -95,6 +97,23 @@ class Suggestion(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     
     __table_args__ = (db.UniqueConstraint('user_id', 'project_id', name='unique_user_project'),)
+
+
+class JoinRequest(db.Model):
+    __tablename__ = 'join_requests'
+    
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id', ondelete='CASCADE'), nullable=False)
+    status = db.Column(db.String(50), nullable=False, default='pending')  # 'pending', 'accepted', 'rejected'
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    user = db.relationship('User', backref='join_requests')
+    project = db.relationship('Project', backref='join_requests')
+    
+    __table_args__ = (db.UniqueConstraint('user_id', 'project_id', name='unique_user_project_request'),)
 
 
 # ---------------------------------------------------------------------------

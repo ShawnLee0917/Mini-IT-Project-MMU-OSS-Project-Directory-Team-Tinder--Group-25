@@ -1,11 +1,14 @@
 import os
+import random
+import smtplib
+import sys
+import logging
+from email.mime.text import MIMEText
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 import uuid
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify, session
-
-# 导入所有模型，包括新的 Suggestion
-from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, QuestionCommentImage, QuestionImage
+from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, QuestionCommentImage, QuestionImage, JoinRequest
 
 views = Blueprint('views', __name__)
 
@@ -25,6 +28,44 @@ def get_current_user():
     user = User.query.filter_by(email=email).first()
     return user
 
+# --- ADDED: Auto-Email Sending Function ---
+def send_otp_email(receiver_email, otp_code):
+    # =====================================================================
+    # ⚠️ 关键步骤: 在这里替换为你真实的 Gmail 邮箱和 16 位 Google App Password ⚠️
+    # =====================================================================
+    sender_email = "kohkonghao4@gmail.com" 
+    sender_password = "wlas kitq zrpa qpbb"
+
+    message = f"\n{'='*70}\n[DEVELOPMENT MODE] OTP CODE FOR: {receiver_email}\n{'='*70}\nOTP CODE: {otp_code}\nVerification URL: http://127.0.0.1:5000/verify\nDirect OTP URL: http://127.0.0.1:5000/test_otp/{receiver_email}\n{'='*70}\n"
+    
+    print(message, flush=True)
+    sys.stdout.write(message)
+    sys.stdout.flush()
+    sys.stderr.write(message)
+    sys.stderr.flush()
+    
+    logging.info(message)
+    current_app.logger.info(message)
+
+    if sender_email == "your_email@gmail.com" or sender_password == "your_16_digit_app_password":
+        print("\n WARNING: Email credentials not set! Using development mode. Check the terminal for the OTP.")
+        return True  # Allow registration for testing
+
+    msg = MIMEText(f"Welcome to MMU OSSD!\n\nYour 6-digit verification code is: {otp_code}\n\nThis code will expire in 15 minutes.")
+    msg['Subject'] = 'MMU OSSD Verification Code'
+    msg['From'] = sender_email
+    msg['To'] = receiver_email
+
+    try:
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(sender_email, sender_password)
+            server.send_message(msg)
+        print(f" OTP email automatically sent to {receiver_email}")
+        return True
+    except Exception as e:
+        print(f" Email Automation Error: {e}")
+        return False
+
 @views.route('/')
 @views.route('/home')
 def home():
@@ -39,6 +80,47 @@ def login():
 @views.route('/register')
 def register():
     return render_template("register.html")
+
+# --- ADDED: Verify Page Route ---
+@views.route('/verify')
+def verify_page():
+    return render_template("otp.html")
+
+# --- ADDED: New Endpoint for verifying the OTP ---
+@views.route('/api/verify_otp', methods=['POST'])
+def api_verify_otp():
+    data = request.get_json(silent=True) or {}
+    email = data.get('email', '').strip().lower()
+    otp = data.get('otp', '').strip()
+
+    user = User.query.filter_by(email=email).first()
+
+    if user and user.otp == otp:
+        user.is_verified = True
+        user.otp = None  # Clear OTP after successful use
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Account verified!'})
+        
+    return jsonify({'error': 'Invalid code. Please check and try again.'}), 401
+
+# --- ADDED: Simple test route to display OTP ---
+@views.route('/test_otp/<email>')
+def test_otp(email):
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return f"User {email} not found"
+    
+    if user.is_verified:
+        return f"User {email} is already verified"
+    
+    if not user.otp:
+        return f"No OTP available for {email}"
+    
+    return f"""
+    <h1>OTP for {email}</h1>
+    <h2 style="color: red; font-size: 48px;">{user.otp}</h2>
+    <p>Use this code at: <a href="/verify">http://127.0.0.1:5000/verify</a></p>
+    """
 
 @views.route('/search')
 def search():
@@ -216,26 +298,41 @@ def api_register():
         return jsonify({'error': 'All fields are required'}), 400
     if len(password) < 6:
         return jsonify({'error': 'Password must be at least 6 characters'}), 400
+    if not (email.endswith('@mmu.edu.my') or email.endswith('@student.mmu.edu.my')):
+        return jsonify({'error': 'Only MMU email addresses (@mmu.edu.my or @student.mmu.edu.my) are allowed'}), 400
 
     pw_hash = generate_password_hash(password)
+    
+# --- MODIFIED: Generate OTP ---
+    otp_code = f"{random.randint(0, 999999):06d}"
+    
     try:
         user = User(
             email=email, 
             name=name, 
-            password_hash=pw_hash,
+            password_hash=pw_hash, 
+            otp=otp_code,
             interests=','.join(interests) if interests else ''
         )
         db.session.add(user)
         db.session.commit()
+        
+        if send_otp_email(email, otp_code):
+            return jsonify({'success': True, 'message': 'Account created! Check email for OTP.'})
+        else:
+            db.session.delete(user)
+            db.session.commit()
+            return jsonify({'error': 'Failed to send verification email. Please try again.'}), 500
+            
     except Exception as e:
+        
         db.session.rollback()
         print(f"Registration error: {str(e)}")
+        
         if 'unique' in str(e).lower() or 'email' in str(e).lower():
             return jsonify({'error': 'Email already registered'}), 409
+            
         return jsonify({'error': f'Registration failed: {str(e)}'}), 400
-    
-    return jsonify({'success': True, 'message': 'Account created!'})
-
 
 @views.route('/api/login', methods=['POST'])
 def api_login():
@@ -243,11 +340,18 @@ def api_login():
     email = data.get('email', '').strip().lower()
     password = data.get('password', '')
 
+    if not (email.endswith('@mmu.edu.my') or email.endswith('@student.mmu.edu.my')):
+        return jsonify({'error': 'Only MMU email addresses (@mmu.edu.my or @student.mmu.edu.my) are allowed'}), 400
+
     user = User.query.filter_by(email=email).first()
     if not user or not user.password_hash or \
        not check_password_hash(user.password_hash, password):
         return jsonify({'error': 'Invalid email or password'}), 401
 
+    # --- ADDED: Check if account is verified ---
+    if not user.is_verified:
+        return jsonify({'error': 'Please verify your email first.'}), 403
+    
     session['user_email'] = user.email
     session['user_name']  = user.name
     return jsonify({'success': True, 'email': user.email, 'name': user.name})
@@ -1024,6 +1128,135 @@ def add_member(project_id):
     db.session.commit()
 
     return jsonify({"success": "Member added successfully!", "user_name": user_to_add.name})
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Join Request API
+# ─────────────────────────────────────────────────────────────────────────
+
+@views.route('/api/project/<int:project_id>/request-join', methods=['POST'])
+def request_join_project(project_id):
+    """User requests to join a project"""
+    err = require_login()
+    if err: return err
+    
+    current_user = get_current_user()
+    project = Project.query.get_or_404(project_id)
+    
+    # Check if user is already a member
+    if current_user in project.members:
+        return jsonify({"error": "You are already a member of this project"}), 400
+    
+    # Check if request already exists
+    existing_request = JoinRequest.query.filter_by(
+        user_id=current_user.id,
+        project_id=project_id
+    ).first()
+    
+    if existing_request:
+        if existing_request.status == 'pending':
+            return jsonify({"error": "You have already sent a join request"}), 400
+        elif existing_request.status == 'rejected':
+            return jsonify({"error": "Your join request was rejected"}), 400
+    
+    # Create new join request
+    join_request = JoinRequest(
+        user_id=current_user.id,
+        project_id=project_id,
+        status='pending'
+    )
+    db.session.add(join_request)
+    db.session.commit()
+    
+    return jsonify({"success": "Join request sent successfully!"}), 201
+
+
+@views.route('/api/project/<int:project_id>/join-requests', methods=['GET'])
+def get_join_requests(project_id):
+    """Get all join requests for a project (only for project lead)"""
+    err = require_login()
+    if err: return err
+    
+    current_user = get_current_user()
+    project = Project.query.get_or_404(project_id)
+    
+    # Security check: Only the project lead can view requests
+    if project.user_id != current_user.id:
+        return jsonify({"error": "Unauthorized. Only the Project Lead can view requests."}), 403
+    
+    # Get pending requests
+    requests = JoinRequest.query.filter_by(
+        project_id=project_id,
+        status='pending'
+    ).order_by(JoinRequest.created_at.desc()).all()
+    
+    return jsonify([{
+        'id': r.id,
+        'user_id': r.user_id,
+        'user_name': r.user.name,
+        'user_email': r.user.email,
+        'user_faculty': r.user.faculty,
+        'created_at': r.created_at.isoformat()
+    } for r in requests])
+
+
+@views.route('/api/project/<int:project_id>/join-requests/<int:request_id>/accept', methods=['POST'])
+def accept_join_request(project_id, request_id):
+    """Accept a join request"""
+    err = require_login()
+    if err: return err
+    
+    current_user = get_current_user()
+    project = Project.query.get_or_404(project_id)
+    join_request = JoinRequest.query.get_or_404(request_id)
+    
+    # Security check: Only the project lead can accept requests
+    if project.user_id != current_user.id:
+        return jsonify({"error": "Unauthorized. Only the Project Lead can accept requests."}), 403
+    
+    if join_request.project_id != project_id:
+        return jsonify({"error": "Request does not belong to this project"}), 400
+    
+    if join_request.status != 'pending':
+        return jsonify({"error": f"Request is already {join_request.status}"}), 400
+    
+    # Add user to project members
+    user_to_add = User.query.get_or_404(join_request.user_id)
+    if user_to_add not in project.members:
+        project.members.append(user_to_add)
+    
+    # Update request status
+    join_request.status = 'accepted'
+    db.session.commit()
+    
+    return jsonify({"success": "Join request accepted!", "user_name": user_to_add.name})
+
+
+@views.route('/api/project/<int:project_id>/join-requests/<int:request_id>/reject', methods=['POST'])
+def reject_join_request(project_id, request_id):
+    """Reject a join request"""
+    err = require_login()
+    if err: return err
+    
+    current_user = get_current_user()
+    project = Project.query.get_or_404(project_id)
+    join_request = JoinRequest.query.get_or_404(request_id)
+    
+    # Security check: Only the project lead can reject requests
+    if project.user_id != current_user.id:
+        return jsonify({"error": "Unauthorized. Only the Project Lead can reject requests."}), 403
+    
+    if join_request.project_id != project_id:
+        return jsonify({"error": "Request does not belong to this project"}), 400
+    
+    if join_request.status != 'pending':
+        return jsonify({"error": f"Request is already {join_request.status}"}), 400
+    
+    # Update request status
+    join_request.status = 'rejected'
+    db.session.commit()
+    
+    return jsonify({"success": "Join request rejected!"})
 
 
 # ─────────────────────────────────────────────────────────────────────────

@@ -100,9 +100,16 @@
         }
     });
 
-    function showError(msg) {
+    function showError(msg, isHtml = false) {
         const box = document.getElementById('error-msg');
-        document.getElementById('error-text').textContent = msg;
+        const textEl = document.getElementById('error-text');
+        
+        if (isHtml) {
+            textEl.innerHTML = msg; 
+        } else {
+            textEl.textContent = msg; 
+        }
+        
         box.classList.remove('hidden');
         box.classList.add('flex');
     }
@@ -122,16 +129,22 @@
             const res = await fetch('/api/login', {
                 method:  'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include', 
                 body:    JSON.stringify({
                     email:    document.getElementById('email').value.trim(),
                     password: document.getElementById('password').value,
                 })
             });
             const data = await res.json();
+            
             if (res.ok) {
-                window.location.href = '/';
+                window.location.href = '/'; 
             } else {
-                showError(data.error || 'Login failed. Please try again.');
+                if (res.status === 403 && data.error.includes('verify')) {
+                    showError(`${data.error} <a href="/verify" class="underline font-semibold hover:text-red-800">Go to verification →</a>`, true);
+                } else {
+                    showError(data.error || 'Login failed. Please try again.');
+                }
             }
         } catch {
             showError('Connection error — is the Flask server running?');
