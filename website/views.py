@@ -1245,66 +1245,404 @@ def create_comment_label():
         'description': label.description,
     }), 201
 
+# ─────────────────────────────────────────────────────────────────────────
+# UNIFIED SUGGESTION SYSTEM - COMBINED MATCHING ALGORITHM
+# ─────────────────────────────────────────────────────────────────────────
+# This unified system handles both:
+# 1. AI Suggestions (home page) - based on user interests/skills
+# 2. Similar Projects (project page) - based on a reference project
+# ─────────────────────────────────────────────────────────────────────────
 
-# =====================================================================
-# AI SUGGESTION SYSTEM
-# =====================================================================
-
-def _calculate_match_score(user_interests, project_languages, project_description):
+def _calculate_unified_match_score(
+    candidate_project,
+    reference_data=None,
+    user_interests=None,
+    user_skills=None,
+    mode='ai'
+):
     """
-    Calculate how well a project matches user interests.
-    Returns a score from 0-100 based on:
-    1. Project languages matching user interests
-    2. Project description keywords matching interests
+    Unified matching algorithm for both AI suggestions and similar projects.
+    
+    Args:
+        candidate_project: Project object to score
+        reference_data: Dict with keys: 'languages', 'description' (for similar projects mode)
+        user_interests: List of user interests (for AI suggestions mode)
+        user_skills: List of user skills (for AI suggestions mode)
+        mode: 'ai' for AI suggestions or 'similar' for similar projects
+    
+    Returns:
+        Score from 0-100 representing project relevance
     """
-    score = 0
-    interest_matches = 0
     
-    # Convert to lowercase for comparison
-    user_interests_lower = [i.lower() for i in user_interests]
-    project_langs_lower = project_languages.lower() if project_languages else ''
-    project_desc_lower = project_description.lower() if project_description else ''
-    project_combined = (project_langs_lower + ' ' + project_desc_lower).lower()
-    
-    # Map interests to keywords for better matching
-    interest_keywords = {
-        'web development': ['web', 'frontend', 'backend', 'react', 'vue', 'django', 'flask', 'nodejs', 'express', 'html', 'css', 'javascript', 'typescript'],
-        'mobile development': ['mobile', 'ios', 'android', 'flutter', 'react native', 'swift', 'kotlin'],
-        'ai/ml': ['ai', 'ml', 'machine learning', 'deep learning', 'tensorflow', 'pytorch', 'nlp', 'cv', 'neural'],
-        'data science': ['data', 'science', 'analytics', 'pandas', 'numpy', 'data analysis', 'visualization'],
-        'devops': ['devops', 'docker', 'kubernetes', 'ci/cd', 'jenkins', 'devops', 'automation', 'infrastructure'],
-        'cloud': ['cloud', 'aws', 'azure', 'gcp', 'serverless', 'cloud computing'],
-        'blockchain': ['blockchain', 'crypto', 'web3', 'ethereum', 'smart contract', 'solidity'],
-        'iot': ['iot', 'embedded', 'arduino', 'raspberry', 'iot', 'sensor', 'microcontroller'],
-        'html': ['html', 'css', 'javascript', 'typescript', 'web', 'frontend', 'backend', 'react', 'vue', 'django', 'flask', 'nodejs', 'express'],
-        'python': ['python', 'django', 'flask', 'pandas', 'numpy', 'machine learning', 'deep learning', 'tensorflow', 'pytorch', 'nlp', 'cv', 'neural'],
-        'java': ['java', 'spring', 'springboot', 'android', 'maven', 'gradle', 'jvm', 'microservices'],
-        'c++': ['c++', 'cpp', 'gaming', 'graphics', 'performance', 'linux', 'embedded', 'real-time'],
-        'c#': ['c#', 'csharp', 'unity', 'windows', 'dotnet', 'blazor', 'aspnet']
+    STOPWORDS = {
+        'the', 'a', 'an', 'and', 'or', 'in', 'on', 'is', 'to', 'for', 'of',
+        'with', 'that', 'this', 'it', 'as', 'are', 'was', 'be', 'from', 'at',
+        'by', 'we', 'our', 'your', 'not', 'has', 'have', 'will', 'can', 'i',
+        'its', 'an', 'using', 'used', 'use', 'based', 'built', 'build',
+        'project', 'help', 'need', 'team', 'member', 'members'
     }
     
-    # Check direct matches
-    for interest in user_interests_lower:
-        if interest in project_combined:
-            interest_matches += 10
+    PROGRAMMING_LANGUAGES = {
+        'python': ['python', 'py'],
+        'javascript': ['javascript', 'js'],
+        'typescript': ['typescript', 'ts'],
+        'java': ['java'],
+        'c++': ['c++', 'cpp'],
+        'c#': ['c#', 'csharp', '.net', 'dotnet'],
+        'php': ['php'],
+        'ruby': ['ruby', 'rails'],
+        'go': ['go', 'golang'],
+        'rust': ['rust'],
+        'kotlin': ['kotlin'],
+        'swift': ['swift'],
+        'sql': ['sql', 'plsql', 'mysql', 'postgres', 'postgresql'],
+        'html': ['html', 'html5'],
+        'css': ['css', 'scss', 'sass', 'less'],
+        'react': ['react', 'reactjs', 'react.js'],
+        'vue': ['vue', 'vuejs', 'vue.js'],
+        'angular': ['angular', 'angularjs'],
+        'nodejs': ['nodejs', 'node.js', 'node'],
+        'django': ['django'],
+        'flask': ['flask'],
+        'spring': ['spring', 'springboot', 'spring boot'],
+        'docker': ['docker'],
+        'kubernetes': ['kubernetes', 'k8s'],
+        'terraform': ['terraform'],
+    }
     
-    # Check keyword matches
+    interest_keywords = {
+        'web development': ['web', 'frontend', 'backend', 'react', 'vue', 'django', 'flask', 'nodejs', 'node.js', 'express', 'html', 'css', 'javascript', 'typescript', 'responsive', 'api', 'rest', 'graphql'],
+        'mobile development': ['mobile', 'ios', 'android', 'flutter', 'react native', 'swift', 'kotlin', 'app', 'native', 'cross-platform'],
+        'ai/ml': ['ai', 'ml', 'machine learning', 'deep learning', 'tensorflow', 'pytorch', 'nlp', 'cv', 'neural', 'model', 'algorithm', 'prediction'],
+        'data science': ['data', 'science', 'analytics', 'pandas', 'numpy', 'visualization', 'dashboard', 'bi', 'warehouse', 'etl', 'spark'],
+        'devops': ['devops', 'docker', 'kubernetes', 'ci/cd', 'jenkins', 'automation', 'infrastructure', 'deployment', 'pipeline'],
+        'cloud': ['cloud', 'aws', 'azure', 'gcp', 'google cloud', 'serverless', 'lambda', 'ec2', 'rds'],
+        'blockchain': ['blockchain', 'crypto', 'cryptocurrency', 'web3', 'ethereum', 'smart contract', 'solidity'],
+        'iot': ['iot', 'embedded', 'arduino', 'raspberry', 'sensor', 'microcontroller', 'hardware'],
+        'python': ['python', 'django', 'flask', 'pandas', 'numpy', 'scikit', 'jupyter', 'fastapi'],
+        'java': ['java', 'spring', 'springboot', 'android', 'maven', 'gradle', 'microservices'],
+        'c++': ['c++', 'cpp', 'gaming', 'graphics', 'performance', 'embedded', 'real-time'],
+        'c#': ['c#', 'csharp', '.net', 'dotnet', 'unity', 'windows', 'blazor', 'aspnet'],
+        'javascript': ['javascript', 'js', 'nodejs', 'node.js', 'react', 'vue', 'angular', 'typescript'],
+        'database': ['database', 'sql', 'mongodb', 'postgres', 'postgresql', 'mysql', 'redis', 'cassandra', 'elastic'],
+        'design': ['design', 'ui', 'ux', 'figma', 'adobe', 'photoshop', 'wireframe', 'prototype'],
+        'security': ['security', 'encryption', 'cryptography', 'penetration', 'authentication', 'authorization', 'oauth', 'jwt'],
+    }
+    
+    score = 0
+    candidate_langs = (candidate_project.languages or '').lower()
+    candidate_desc = (candidate_project.description or '').lower()
+    candidate_roles = (candidate_project.roles_needed or '').lower()
+    
+    candidate_langs_set = set(l.strip().lower() for l in candidate_langs.split(',') if l.strip())
+    candidate_desc_words = set(w for w in candidate_desc.split() if w not in STOPWORDS and len(w) > 2)
+    
+    if mode == 'similar':
+        # SIMILAR PROJECTS MODE: Compare with reference project
+        ref_langs = (reference_data.get('languages', '') or '').lower()
+        ref_desc = (reference_data.get('description', '') or '').lower()
+        
+        ref_langs_set = set(l.strip().lower() for l in ref_langs.split(',') if l.strip())
+        ref_desc_words = set(w for w in ref_desc.split() if w not in STOPWORDS and len(w) > 2)
+        
+        # Language overlap (30 pts max)
+        lang_overlap = len(candidate_langs_set & ref_langs_set)
+        lang_score = min(lang_overlap * 15, 30)
+        score += lang_score
+        
+        # Description keyword overlap (25 pts max)
+        if ref_desc_words and candidate_desc_words:
+            desc_overlap = len(candidate_desc_words & ref_desc_words)
+            desc_score = min(desc_overlap * 3, 25)
+            score += desc_score
+        
+        # User interests bonus (20 pts max) - if user logged in
+        if user_interests:
+            user_interests_lower = [i.lower() for i in user_interests]
+            combined_text = candidate_langs + ' ' + candidate_desc
+            interest_hits = 0
+            for interest in user_interests_lower:
+                keywords = interest_keywords.get(interest, [])
+                for keyword in keywords:
+                    if keyword in combined_text:
+                        interest_hits += 1
+            
+            interest_score = min(interest_hits * 5, 20)
+            score += interest_score
+        
+        # Baseline score of 15 to ensure visibility
+        score = min(100, 15 + score)
+        
+    else:  # mode == 'ai'
+        # AI SUGGESTIONS MODE: Compare with user interests/skills
+        if not user_interests:
+            return 0
+        
+        user_interests_lower = [i.lower() for i in user_interests]
+        
+        # Factor 1: Direct Programming Language Matching (35 pts max)
+        language_match_bonus = 0
+        for interest in user_interests_lower:
+            if interest in PROGRAMMING_LANGUAGES:
+                lang_variants = PROGRAMMING_LANGUAGES[interest]
+                for variant in lang_variants:
+                    if variant in candidate_langs:
+                        language_match_bonus += 12
+            
+            if interest in candidate_langs:
+                language_match_bonus += 15
+        
+        for lang_name, lang_variants in PROGRAMMING_LANGUAGES.items():
+            for variant in lang_variants:
+                if variant in candidate_langs:
+                    if lang_name in user_interests_lower or lang_name.lower() in ' '.join(user_interests_lower):
+                        language_match_bonus += 6
+        
+        language_match_bonus = min(language_match_bonus, 35)
+        score += language_match_bonus
+        
+        # Factor 2: Direct Interest Keyword Matching (30 pts max)
+        interest_keyword_hits = set()
+        for interest in user_interests_lower:
+            keywords = interest_keywords.get(interest, [])
+            for keyword in keywords:
+                if keyword in candidate_desc or keyword in candidate_langs:
+                    interest_keyword_hits.add(keyword)
+        
+        interest_match_score = min(len(interest_keyword_hits) * 2, 30)
+        score += interest_match_score
+        
+        # Factor 3: Language Overlap with Interest Keywords (20 pts max)
+        language_keyword_score = 0
+        for interest in user_interests_lower:
+            keywords = interest_keywords.get(interest, [])
+            for keyword in keywords:
+                for proj_lang in candidate_langs_set:
+                    if keyword in proj_lang or proj_lang in keyword:
+                        language_keyword_score += 6
+        
+        language_keyword_score = min(language_keyword_score, 20)
+        score += language_keyword_score
+        
+        # Factor 4: Description Quality & Keyword Density (10 pts max)
+        if candidate_desc:
+            desc_keyword_matches = 0
+            for interest in user_interests_lower:
+                keywords = interest_keywords.get(interest, [])
+                for keyword in keywords:
+                    keyword_words = set(keyword.split())
+                    if keyword_words & candidate_desc_words:
+                        desc_keyword_matches += 1
+            
+            desc_match_score = min(desc_keyword_matches * 2, 10)
+            score += desc_match_score
+        
+        # Factor 5: Skills-to-Roles Alignment Bonus (5 pts max)
+        if user_skills and candidate_roles:
+            user_skills_lower = [s.lower() for s in user_skills]
+            skills_in_roles = 0
+            for skill in user_skills_lower:
+                if skill in candidate_roles:
+                    skills_in_roles += 1
+            
+            skills_bonus = min(skills_in_roles * 2, 5)
+            score += skills_bonus
+        
+        # Precision filters
+        if score > 70:
+            pass  # High quality, keep as is
+        elif score < 30:
+            score = max(score, 10)  # Minimum 10% for showing
+        
+        score = min(100, max(0, score))
+    
+    return int(score)
+
+
+def _calculate_match_score(user_interests, project_languages, project_description, user_skills=None, project_roles=None):
+    """
+    Calculate how well a project matches user interests with advanced precision scoring.
+    
+    Scoring factors:
+    1. Direct programming language matching (35 pts max) - NEW!
+    2. Direct interest keyword matching (30 pts max)
+    3. Language overlap with interests (20 pts max)
+    4. Description keyword alignment (10 pts max)
+    5. Skills-to-roles alignment bonus (5 pts max)
+    
+    Returns a score from 0-100 for precise project recommendations.
+    """
+    
+    # Programming language mapping - maps languages to development areas
+    PROGRAMMING_LANGUAGES = {
+        'python': ['python', 'py'],
+        'javascript': ['javascript', 'js'],
+        'typescript': ['typescript', 'ts'],
+        'java': ['java'],
+        'c++': ['c++', 'cpp'],
+        'c#': ['c#', 'csharp', '.net', 'dotnet'],
+        'php': ['php'],
+        'ruby': ['ruby', 'rails'],
+        'go': ['go', 'golang'],
+        'rust': ['rust'],
+        'kotlin': ['kotlin'],
+        'swift': ['swift'],
+        'sql': ['sql', 'plsql', 'mysql', 'postgres', 'postgresql'],
+        'html': ['html', 'html5'],
+        'css': ['css', 'scss', 'sass', 'less'],
+        'react': ['react', 'reactjs', 'react.js'],
+        'vue': ['vue', 'vuejs', 'vue.js'],
+        'angular': ['angular', 'angularjs'],
+        'nodejs': ['nodejs', 'node.js', 'node'],
+        'django': ['django'],
+        'flask': ['flask'],
+        'spring': ['spring', 'springboot', 'spring boot'],
+        'docker': ['docker'],
+        'kubernetes': ['kubernetes', 'k8s'],
+        'terraform': ['terraform'],
+    }
+    
+    # Comprehensive keyword mapping for interests
+    interest_keywords = {
+        'web development': ['web', 'frontend', 'backend', 'react', 'vue', 'django', 'flask', 'nodejs', 'node.js', 'express', 'html', 'css', 'javascript', 'typescript', 'html5', 'responsive', 'api', 'rest', 'graphql'],
+        'mobile development': ['mobile', 'ios', 'android', 'flutter', 'react native', 'swift', 'kotlin', 'app', 'native', 'cross-platform', 'xamarin'],
+        'ai/ml': ['ai', 'ml', 'machine learning', 'deep learning', 'tensorflow', 'pytorch', 'nlp', 'cv', 'neural', 'neural network', 'model', 'algorithm', 'prediction', 'classifier', 'regression'],
+        'data science': ['data', 'science', 'analytics', 'pandas', 'numpy', 'data analysis', 'visualization', 'dashboard', 'bi', 'warehouse', 'etl', 'spark', 'hadoop'],
+        'devops': ['devops', 'docker', 'kubernetes', 'ci/cd', 'jenkins', 'automation', 'infrastructure', 'deployment', 'pipeline', 'monitoring', 'logging', 'terraform'],
+        'cloud': ['cloud', 'aws', 'azure', 'gcp', 'google cloud', 'serverless', 'cloud computing', 'lambda', 'ec2', 'rds', 'storage', 'distributed'],
+        'blockchain': ['blockchain', 'crypto', 'cryptocurrency', 'web3', 'ethereum', 'smart contract', 'solidity', 'dapp', 'defi', 'nft', 'web3.js'],
+        'iot': ['iot', 'embedded', 'arduino', 'raspberry', 'sensor', 'microcontroller', 'hardware', 'firmware', 'real-time', 'edge'],
+        'python': ['python', 'django', 'flask', 'pandas', 'numpy', 'scikit', 'jupyter', 'pipenv', 'poetry', 'asyncio', 'fastapi'],
+        'java': ['java', 'spring', 'springboot', 'android', 'maven', 'gradle', 'jvm', 'microservices', 'orm', 'hibernate'],
+        'c++': ['c++', 'cpp', 'gaming', 'graphics', 'performance', 'linux', 'embedded', 'real-time', 'unreal', 'opencv'],
+        'c#': ['c#', 'csharp', '.net', 'dotnet', 'unity', 'windows', 'blazor', 'aspnet', 'asp.net', 'entity framework'],
+        'javascript': ['javascript', 'js', 'nodejs', 'node.js', 'react', 'vue', 'angular', 'typescript', 'web'],
+        'database': ['database', 'sql', 'mongodb', 'postgres', 'postgresql', 'mysql', 'redis', 'cassandra', 'elastic', 'nosql', 'db'],
+        'design': ['design', 'ui', 'ux', 'figma', 'adobe', 'photoshop', 'wireframe', 'prototype', 'usability', 'sketch', 'accessibility'],
+        'security': ['security', 'encryption', 'cryptography', 'penetration', 'authentication', 'authorization', 'oauth', 'jwt', 'ssl', 'tls'],
+    }
+    
+    score = 0
+    
+    # Convert to lowercase
+    user_interests_lower = [i.lower() for i in user_interests]
+    project_langs_lower = (project_languages or '').lower()
+    project_desc_lower = (project_description or '').lower()
+    
+    # Parse project languages into set
+    project_langs_set = set(l.strip().lower() for l in project_langs_lower.split(',') if l.strip())
+    
+    # --- Factor 1: Direct Programming Language Matching (35 pts max) ---
+    # This is NEW and prioritizes exact language matches
+    language_match_bonus = 0
+    
+    # Check if any user interest is a programming language
+    for interest in user_interests_lower:
+        # Get all variants of this language
+        if interest in PROGRAMMING_LANGUAGES:
+            lang_variants = PROGRAMMING_LANGUAGES[interest]
+            # Check if project uses this language
+            for variant in lang_variants:
+                if variant in project_langs_lower:
+                    language_match_bonus += 12  # 12 pts per language match
+        
+        # Also check if interest is in project languages directly
+        if interest in project_langs_lower:
+            language_match_bonus += 15  # 15 pts for exact interest match
+    
+    # Also check all programming languages against user interests
+    for lang_name, lang_variants in PROGRAMMING_LANGUAGES.items():
+        for variant in lang_variants:
+            if variant in project_langs_lower:
+                # Check if this language matches any user interest
+                if lang_name in user_interests_lower:
+                    language_match_bonus += 8  # Already counted above
+                elif lang_name.lower() in ' '.join(user_interests_lower):
+                    language_match_bonus += 6
+    
+    language_match_bonus = min(language_match_bonus, 35)
+    score += language_match_bonus
+    
+    # --- Factor 2: Direct Interest Keyword Matching (30 pts max) ---
+    interest_keyword_hits = set()
     for interest in user_interests_lower:
         keywords = interest_keywords.get(interest, [])
         for keyword in keywords:
-            if keyword in project_combined:
-                interest_matches += 5
+            if keyword in project_desc_lower or keyword in project_langs_lower:
+                interest_keyword_hits.add(keyword)
     
-    # Cap the score at 100
-    score = min(100, 50 + interest_matches)
+    # Award points for unique keyword matches (2 pts each, max 30)
+    interest_match_score = min(len(interest_keyword_hits) * 2, 30)
+    score += interest_match_score
     
-    return score
+    # --- Factor 3: Language Overlap with Interest Keywords (20 pts max) ---
+    language_keyword_score = 0
+    for interest in user_interests_lower:
+        keywords = interest_keywords.get(interest, [])
+        for keyword in keywords:
+            # Check if any keyword matches a project language
+            for proj_lang in project_langs_set:
+                if keyword in proj_lang or proj_lang in keyword:
+                    language_keyword_score += 6
+    
+    language_keyword_score = min(language_keyword_score, 20)
+    score += language_keyword_score
+    
+    # --- Factor 4: Description Quality & Keyword Density (10 pts max) ---
+    STOPWORDS = {
+        'the', 'a', 'an', 'and', 'or', 'in', 'on', 'is', 'to', 'for', 'of', 'with',
+        'that', 'this', 'it', 'as', 'are', 'was', 'be', 'from', 'at', 'by', 'we',
+        'our', 'your', 'not', 'has', 'have', 'will', 'can', 'i', 'its', 'using',
+        'used', 'use', 'based', 'built', 'build', 'project', 'help', 'need', 'team',
+    }
+    
+    if project_desc_lower:
+        desc_words = set(word for word in project_desc_lower.split() if word not in STOPWORDS and len(word) > 2)
+        
+        # Count keywords from interests that appear in description
+        desc_keyword_matches = 0
+        for interest in user_interests_lower:
+            keywords = interest_keywords.get(interest, [])
+            for keyword in keywords:
+                keyword_words = set(keyword.split())
+                if keyword_words & desc_words:
+                    desc_keyword_matches += 1
+        
+        desc_match_score = min(desc_keyword_matches * 2, 10)
+        score += desc_match_score
+    
+    # --- Factor 5: Skills-to-Roles Alignment Bonus (5 pts max) ---
+    if user_skills and project_roles:
+        user_skills_lower = [s.lower() for s in (user_skills or [])]
+        roles_needed = (project_roles or '').lower()
+        
+        skills_in_roles = 0
+        for skill in user_skills_lower:
+            if skill in roles_needed:
+                skills_in_roles += 1
+        
+        skills_bonus = min(skills_in_roles * 2, 5)
+        score += skills_bonus
+    
+    # Normalize and ensure score is between 0-100
+    score = min(100, max(0, score))
+    
+    # Apply a precision boost for high-relevance matches
+    if score > 70:
+        # Already high quality, keep as is
+        pass
+    elif score < 30:
+        # Filter out very low matches
+        score = max(score, 10)  # Minimum 10% for showing
+    
+    return int(score)
 
 
 @views.route('/api/ai-suggestions', methods=['GET'])
 def get_ai_suggestions():
     """
     Get AI-powered project suggestions based on user interests and skills.
+    Uses the unified matching algorithm.
     """
     err = require_login()
     if err:
@@ -1321,32 +1659,52 @@ def get_ai_suggestions():
     if not user_interests:
         return jsonify({'message': 'Please set your interests to get suggestions', 'suggestions': []})
     
-    # Get user's skills
-    my_skills = [s.skill.lower() for s in Skill.query.filter_by(user_id=user.id).all()]
+    # Get user's skills for enhanced matching
+    my_skills = [s.skill for s in Skill.query.filter_by(user_id=user.id).all()]
     
     # Get projects already suggested to this user
     already_suggested = db.session.query(Suggestion.project_id).filter_by(user_id=user.id).all()
     already_suggested_ids = [s[0] for s in already_suggested]
     
-    # Get all projects from OTHER users
+    # Get all projects from OTHER users (with quality filtering)
     all_projects = Project.query.filter(
         Project.user_id != user.id,
-        ~Project.id.in_(already_suggested_ids)
+        ~Project.id.in_(already_suggested_ids),
+        Project.status != 'Archived',
+        Project.project_name != '',
+        (Project.languages != '') | (Project.description != '')
     ).all()
     
-    # Score and sort projects
+    # Score projects using unified algorithm in 'ai' mode
     scored_projects = []
     for project in all_projects:
-        match_score = _calculate_match_score(user_interests, project.languages, project.description)
-        scored_projects.append((project, match_score))
+        match_score = _calculate_unified_match_score(
+            candidate_project=project,
+            user_interests=user_interests,
+            user_skills=my_skills,
+            mode='ai'
+        )
+        
+        if match_score >= 30:
+            scored_projects.append((project, match_score))
     
-    # Sort by score (descending) and then by creation date (newest first)
+    # Sort by score (descending), then by project activity (newer first)
     scored_projects.sort(key=lambda x: (-x[1], -x[0].created_at.timestamp()))
     
-    # Return top 10 suggestions
+    # Return top 12 suggestions
     result = []
-    for project, match_score in scored_projects[:10]:
+    for project, match_score in scored_projects[:12]:
         owner = User.query.get(project.user_id)
+        
+        # Generate contextual match reason
+        match_reason = 'Matches your interests'
+        if match_score >= 80:
+            match_reason = 'Excellent match for your profile'
+        elif match_score >= 70:
+            match_reason = 'Strong match for your skills'
+        elif match_score >= 50:
+            match_reason = 'Good match for your interests'
+        
         result.append({
             'id': project.id,
             'project_id': project.id,
@@ -1355,11 +1713,11 @@ def get_ai_suggestions():
             'owner_name': owner.name if owner else 'Unknown',
             'owner_id': project.user_id,
             'status': project.status,
-            'contributors': project.contributors,
+            'contributors': project.contributors or 0,
             'languages': project.languages,
             'roles_needed': project.roles_needed,
             'match_score': match_score,
-            'match_reason': 'Matches your interests in ' + ', '.join(user_interests),
+            'match_reason': match_reason,
             'created_at': project.created_at.isoformat(),
         })
     
@@ -1367,7 +1725,8 @@ def get_ai_suggestions():
         'success': True,
         'user_interests': user_interests,
         'suggestions': result,
-        'total': len(result)
+        'total': len(result),
+        'algorithm_version': 'unified-v1'
     })
 
 
@@ -1375,7 +1734,8 @@ def get_ai_suggestions():
 def get_similar_projects(project_id):
     """
     Get projects similar to the given project.
-    Scores by: shared languages, shared description keywords, user's own interests.
+    Uses the unified matching algorithm.
+    Includes user interests for personalization if logged in.
     """
     project = Project.query.get_or_404(project_id)
 
@@ -1387,51 +1747,32 @@ def get_similar_projects(project_id):
         if user and user.interests:
             user_interests = [i.strip().lower() for i in user.interests.split(',') if i.strip()]
 
-    # Stopwords to ignore when comparing descriptions
-    STOPWORDS = {
-        'the', 'a', 'an', 'and', 'or', 'in', 'on', 'is', 'to', 'for', 'of',
-        'with', 'that', 'this', 'it', 'as', 'are', 'was', 'be', 'from', 'at',
-        'by', 'we', 'our', 'your', 'not', 'has', 'have', 'will', 'can', 'i',
-        'its', 'an', 'using', 'used', 'use', 'based', 'built', 'build',
+    # Reference data from the current project
+    reference_data = {
+        'languages': project.languages,
+        'description': project.description
     }
 
-    # Tokenise the current project
-    current_langs = set(
-        l.strip().lower() for l in (project.languages or '').split(',') if l.strip()
-    )
-    current_desc_words = (
-        set((project.description or '').lower().split()) - STOPWORDS
-    )
-
-    # Candidate projects: exclude self and projects owned by the viewer
+    # Candidate projects: exclude self
     query = Project.query.filter(Project.id != project_id)
+    
+    # Exclude projects owned by the current user if logged in
     if user:
         query = query.filter(Project.user_id != user.id)
+    
     all_projects = query.all()
 
+    # Score projects using unified algorithm in 'similar' mode
     scored = []
     for p in all_projects:
-        score = 0
-
-        # --- Language overlap (25 pts per shared language, max 50) ---
-        p_langs = set(l.strip().lower() for l in (p.languages or '').split(',') if l.strip())
-        lang_overlap = len(current_langs & p_langs)
-        score += min(lang_overlap * 25, 50)
-
-        # --- Description keyword overlap (3 pts per shared word, max 30) ---
-        p_desc_words = set((p.description or '').lower().split()) - STOPWORDS
-        if current_desc_words and p_desc_words:
-            desc_overlap = len(current_desc_words & p_desc_words)
-            score += min(desc_overlap * 3, 30)
-
-        # --- User-interest bonus (8 pts per matching interest, max 24) ---
-        combined_text = ((p.languages or '') + ' ' + (p.description or '')).lower()
-        interest_hits = sum(1 for i in user_interests if i in combined_text)
-        score += min(interest_hits * 8, 24)
-
-        # Normalise: floor at 20 so there's always a baseline
-        score = min(100, 20 + score)
-        scored.append((p, score))
+        match_score = _calculate_unified_match_score(
+            candidate_project=p,
+            reference_data=reference_data,
+            user_interests=user_interests if user else None,
+            mode='similar'
+        )
+        
+        scored.append((p, match_score))
 
     # Sort: highest score first, then newest
     scored.sort(key=lambda x: (-x[1], -x[0].created_at.timestamp()))
@@ -1450,7 +1791,7 @@ def get_similar_projects(project_id):
             'match_score':  score,
         })
 
-    return jsonify({'similar': result, 'total': len(result)})
+    return jsonify({'similar': result, 'total': len(result), 'algorithm_version': 'unified-v1'})
 
 
 @views.route('/api/save-interest', methods=['POST'])
