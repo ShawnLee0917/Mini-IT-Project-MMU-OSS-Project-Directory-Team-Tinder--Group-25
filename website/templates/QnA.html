@@ -1,4 +1,4 @@
-﻿<html lang="en">
+<html lang="en">
 <head>
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
     <title>Q&amp;A Forum — MMU OSSD</title>
@@ -227,15 +227,19 @@
           class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-red-500 text-sm bg-gray-50 resize-none"></textarea>
       </div>
       <div>
-        <label class="text-sm font-bold text-gray-600 mb-1 block">Attach Image <span class="text-gray-400 font-normal">(optional)</span></label>
+        <label class="text-sm font-bold text-gray-600 mb-1 block">Attach Images <span class="text-gray-400 font-normal">(optional, unlimited)</span></label>
         <label class="flex flex-col items-center gap-2 border-2 border-dashed border-gray-200 rounded-xl p-4 cursor-pointer hover:border-red-400 transition bg-gray-50" id="img-drop-area">
           <i class="fas fa-cloud-upload-alt text-2xl text-gray-300"></i>
-          <span id="img-label" class="text-sm text-gray-400">Click to upload image (PNG, JPG, GIF, WEBP)</span>
-          <input id="q-image" type="file" accept="image/png,image/jpeg,image/gif,image/webp" class="hidden">
+          <span id="img-label" class="text-sm text-gray-400">Click to upload images (PNG, JPG, GIF, WEBP)</span>
+          <span id="img-count" class="text-xs text-gray-500 hidden"></span>
+          <input id="q-images" type="file" accept="image/png,image/jpeg,image/gif,image/webp" class="hidden">
         </label>
         <div id="img-preview-wrap" class="mt-2 hidden">
-          <img id="img-preview" class="rounded-xl max-h-40 object-cover w-full">
-          <button id="img-clear" class="mt-1 text-xs text-red-500 hover:text-red-700 font-semibold"><i class="fas fa-times mr-1"></i>Remove image</button>
+          <div id="img-preview-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3"></div>
+          <div class="flex gap-2">
+            <button id="img-add-more" type="button" class="text-xs bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg font-semibold transition"><i class="fas fa-plus mr-1"></i>Add more images</button>
+            <button id="img-clear" type="button" class="text-xs text-red-500 hover:text-red-700 font-semibold"><i class="fas fa-trash mr-1"></i>Clear all</button>
+          </div>
         </div>
       </div>
       <button id="submit-question-btn" class="w-full bg-red-600 hover:bg-red-700 active:scale-95 text-white font-black py-3 rounded-xl transition flex items-center justify-center gap-2">
@@ -286,18 +290,20 @@ async function loadQuestions(){
     if(currentMode==='all'){document.getElementById('stat-q').textContent=qs.length;document.getElementById('stat-a').textContent=qs.reduce((a,q)=>a+q.comment_count,0);}
     if(!qs.length){feed.innerHTML='<div class="text-gray-400 italic text-sm p-6 bg-white rounded-2xl border">No questions here yet.</div>';return;}
     feed.innerHTML=qs.map(q=>renderCard(q)).join('');
-    feed.querySelectorAll('[data-qid]').forEach(c=>attachCardEvents(c));
-  }catch(e){feed.innerHTML='<div class="text-red-400 text-sm p-6 bg-white rounded-2xl border">Failed to load.</div>';}
+    feed.querySelectorAll('.card[data-qid]').forEach(c=>attachCardEvents(c));
+  }catch(e){console.error(e); feed.innerHTML='<div class="text-red-400 text-sm p-6 bg-white rounded-2xl border">Failed to load.</div>';}
 }
 function renderCard(q){
   const ini=(q.author_name||'?')[0].toUpperCase();
-  const imgHtml=q.image_url?`<img src="${q.image_url}" class="w-full rounded-xl mt-3 max-h-64 object-cover" loading="lazy">`:'';
+  const imgs=(q.image_urls||[]).filter(u=>u);
+  const imgHtml=imgs.length>0?`<div class="grid grid-cols-2 gap-3 mt-3">${imgs.map(url=>`<img src="${url}" class="rounded-xl object-cover w-full h-40 bg-gray-100" loading="lazy">`).join('')}</div>`:'';
+  const editBtn=q.is_owner?`<button class="btn-edit-question text-gray-300 hover:text-blue-500 transition text-sm ml-1 font-semibold" data-qid="${q.id}" title="Edit question"><i class="fas fa-edit"></i> Edit</button>`:'';
   const delBtn=q.is_owner?`<a href="/qna/delete/${q.id}" class="text-gray-300 hover:text-red-500 transition text-sm ml-2 font-semibold" title="Delete question"><i class="fas fa-trash"></i> Delete</a>`:'';
   return `<div class="card bg-white rounded-2xl border border-gray-100 shadow-sm p-6" data-qid="${q.id}">
   <div class="flex items-start gap-3 mb-2">
     <div class="w-9 h-9 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-black text-sm flex-shrink-0">${ini}</div>
     <div class="flex-1 min-w-0">
-      <div class="flex items-center gap-2 flex-wrap">${delBtn?'<span class="font-bold text-gray-800 text-sm">'+esc(q.author_name)+'</span><span class="text-xs text-gray-400">'+ago(q.created_at)+'</span>'+delBtn:'<span class="font-bold text-gray-800 text-sm">'+esc(q.author_name)+'</span><span class="text-xs text-gray-400">'+ago(q.created_at)+'</span>'}</div>
+      <div class="flex items-center gap-2 flex-wrap">${editBtn?'<span class="font-bold text-gray-800 text-sm">'+esc(q.author_name)+'</span><span class="text-xs text-gray-400">'+ago(q.created_at)+'</span>'+editBtn+delBtn:'<span class="font-bold text-gray-800 text-sm">'+esc(q.author_name)+'</span><span class="text-xs text-gray-400">'+ago(q.created_at)+'</span>'}</div>
       <h3 class="font-black text-gray-900 mt-1 leading-snug text-base">${esc(q.title)}</h3>
     </div>
   </div>
@@ -312,8 +318,11 @@ function renderCard(q){
     <div class="cmt-list space-y-3 mb-3"></div>
     <div class="flex gap-2">
       <input class="cmt-input flex-1 text-sm px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-red-400 bg-gray-50" placeholder="Write an answer...">
+      <button class="btn-add-img text-gray-400 hover:text-blue-500 transition px-2" title="Attach images"><i class="fas fa-image"></i></button>
       <button class="btn-send bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-sm font-bold transition"><i class="fas fa-paper-plane"></i></button>
     </div>
+    <div class="cmt-img-preview mt-2 hidden"><div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2"></div><button type="button" class="text-xs text-red-500 hover:text-red-700 font-semibold btn-clear-cmt-imgs"><i class="fas fa-trash mr-1"></i>Clear</button></div>
+    <input class="cmt-img-input hidden" type="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple>
   </div>
 </div>`;
 }
@@ -331,6 +340,23 @@ function attachCardEvents(card){
   });
   card.querySelector('.btn-send').addEventListener('click',()=>submitComment(card,qid,null,null));
   card.querySelector('.cmt-input').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.ctrlKey)submitComment(card,qid,null,null);});
+  
+  const cmtImgInput=card.querySelector('.cmt-img-input');
+  const cmtImgPreview=card.querySelector('.cmt-img-preview');
+  const cmtImgGrid=cmtImgPreview.querySelector('.grid');
+  let cmtImages=[];
+  card.querySelector('.btn-add-img').addEventListener('click',e=>{e.preventDefault();cmtImgInput.click();});
+  cmtImgInput.addEventListener('change',()=>{if(cmtImgInput.files.length>0){Array.from(cmtImgInput.files).forEach(f=>{cmtImages.push(f);});cmtImgInput.value='';renderCmtImagePreviews();}});
+  function renderCmtImagePreviews(){
+    if(cmtImages.length===0){cmtImgPreview.classList.add('hidden');return;}
+    cmtImgGrid.innerHTML=cmtImages.map((f,idx)=>{const d=document.createElement('div');d.innerHTML=`<div class="relative group"><img class="rounded-lg object-cover w-full h-16 bg-gray-100" id="cmt-preview-${idx}"><button type="button" class="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition rounded-lg del-cmt-img" data-idx="${idx}"><i class="fas fa-trash text-white"></i></button></div>`;const img=d.querySelector('img');const reader=new FileReader();reader.onload=e=>{img.src=e.target.result;};reader.readAsDataURL(f);return d.innerHTML;}).join('');
+    cmtImgPreview.classList.remove('hidden');
+    cmtImgGrid.parentElement.querySelectorAll('.del-cmt-img').forEach(btn=>{btn.addEventListener('click',e=>{e.preventDefault();cmtImages.splice(parseInt(btn.dataset.idx),1);renderCmtImagePreviews();});});
+  }
+  card.querySelector('.btn-clear-cmt-imgs').addEventListener('click',e=>{e.preventDefault();cmtImages=[];cmtImgInput.value='';renderCmtImagePreviews();});
+  
+  const editBtn=card.querySelector('.btn-edit-question');
+  if(editBtn){editBtn.addEventListener('click',e=>{e.preventDefault();openEditModal(qid,card);});}
 }
 async function loadComments(card,qid){
   const list=card.querySelector('.cmt-list');
@@ -349,14 +375,19 @@ function renderComments(list,comments,qid,card){
     const reps=replies.filter(r=>r.parent_id===c.id);
     const cDel=c.is_owner?`<button class="btn-del-cmt text-gray-300 hover:text-red-500 transition text-xs ml-2" data-cid="${c.id}" title="Delete comment"><i class="fas fa-trash"></i></button>`:'';
     const cEdit=c.is_owner?`<button class="btn-edit-cmt text-gray-300 hover:text-blue-500 transition text-xs ml-1" data-cid="${c.id}" title="Edit comment"><i class="fas fa-edit"></i></button>`:'';
+    const cImgs=(c.image_urls||[]).filter(u=>u);
+    const cImgHtml=cImgs.length>0?`<div class="grid grid-cols-2 gap-2 mt-2">${cImgs.map(url=>`<img src="${url}" class="rounded-lg object-cover w-full h-20 bg-gray-100">`).join('')}</div>`:'';
     const repsHtml=reps.map(r=>{
       const rDel=r.is_owner?`<button class="btn-del-cmt text-gray-300 hover:text-red-500 transition text-xs ml-2" data-cid="${r.id}" title="Delete reply"><i class="fas fa-trash"></i></button>`:'';
       const rEdit=r.is_owner?`<button class="btn-edit-cmt text-gray-300 hover:text-blue-500 transition text-xs ml-1" data-cid="${r.id}" title="Edit reply"><i class="fas fa-edit"></i></button>`:'';
+      const rImgs=(r.image_urls||[]).filter(u=>u);
+      const rImgHtml=rImgs.length>0?`<div class="grid grid-cols-2 gap-2 mt-2">${rImgs.map(url=>`<img src="${url}" class="rounded-lg object-cover w-full h-20 bg-gray-100">`).join('')}</div>`:'';
       return `<div class="flex gap-2 bg-blue-50 rounded-xl p-3 ml-6 mt-2" data-cmt-card="${r.id}">
         <div class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-black flex-shrink-0 mt-0.5">${(r.author_name||'?')[0].toUpperCase()}</div>
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 justify-between"><div></div><div class="flex items-center gap-2"><span class="text-xs font-bold text-gray-700">${esc(r.author_name)}</span><span class="text-xs text-gray-400">${ago(r.created_at)}</span></div><div class="flex gap-1">${rEdit}${rDel}</div></div>
           <p class="text-xs text-gray-700 mt-1.5 break-words cmt-body">${esc(r.body)}</p>
+          ${rImgHtml}
         </div>
       </div>`;
     }).join('');
@@ -369,6 +400,7 @@ function renderComments(list,comments,qid,card){
             <div class="flex items-center gap-1">${cEdit}<button class="btn-reply text-xs text-blue-500 hover:text-blue-700 font-semibold" data-pid="${c.id}">Reply</button>${cDel}</div>
           </div>
           <p class="text-sm text-gray-700 mt-1.5 break-words cmt-body">${esc(c.body)}</p>
+          ${cImgHtml}
         </div>
       </div>
       ${repsHtml}
@@ -442,11 +474,19 @@ async function submitComment(card,qid,parentId,inputEl){
   const body=input.value.trim();
   if(!body){toast('Cannot be empty',false);return;}
   const btn=inputEl?inputEl.nextElementSibling:card.querySelector('.btn-send');
+  const cmtImgInput=card.querySelector('.cmt-img-input');
   if(btn)btn.disabled=true;
   try{
-    const r=await fetch(`${API}/questions/${qid}/comments`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({body,parent_id:parentId||null})});
+    const fd=new FormData();
+    fd.append('body',body);
+    fd.append('parent_id',parentId||null);
+    const cmtImgPreview=card.querySelector('.cmt-img-preview');
+    const imgs=cmtImgPreview.querySelectorAll('img');
+    imgs.forEach((img,idx)=>{if(img.id.startsWith('cmt-preview-')){const fileIdx=parseInt(img.id.replace('cmt-preview-',''));if(cmtImgInput.files[fileIdx])fd.append('images',cmtImgInput.files[fileIdx]);}});
+    const r=await fetch(`${API}/questions/${qid}/comments`,{method:'POST',body:fd});
     if(!r.ok){const d=await r.json();toast(d.error||'Failed',false);return;}
     input.value='';
+    cmtImgInput.value='';
     if(!parentId){const cc=card.querySelector('.cc');if(cc)cc.textContent=parseInt(cc.textContent||0)+1;}
     await loadComments(card,qid);
     toast('Posted!');
@@ -454,47 +494,122 @@ async function submitComment(card,qid,parentId,inputEl){
   finally{if(btn)btn.disabled=false;}
 }
 const modal=document.getElementById('ask-modal');
-document.getElementById('ask-btn').addEventListener('click',()=>modal.classList.add('show'));
-document.getElementById('close-modal').addEventListener('click',()=>modal.classList.remove('show'));
-modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('show');});
-const qImageInput=document.getElementById('q-image');
-const imgPreview=document.getElementById('img-preview');
+let editQuestionId = null;
+
+function openEditModal(qid, card) {
+    editQuestionId = qid;
+    const titleEl = card.querySelector('h3');
+    const bodyEl = card.querySelector('p.text-sm.text-gray-600');
+    
+    document.getElementById('q-title').value = titleEl.textContent;
+    document.getElementById('q-body').value = bodyEl.textContent;
+    
+    selectedImages=[];
+    qImagesInput.value='';
+    imgPreviewWrap.classList.add('hidden');
+    imgLabel.textContent='Click to upload images (PNG, JPG, GIF, WEBP)';
+    imgCount.classList.add('hidden');
+    
+    document.querySelector('#ask-modal h2').textContent = 'Edit Question';
+    document.getElementById('submit-question-btn').innerHTML = '<i class="fas fa-save"></i> Save Changes';
+    
+    modal.classList.add('show');
+}
+
+function resetModal() {
+    modal.classList.remove('show');
+    editQuestionId = null;
+    document.querySelector('#ask-modal h2').textContent = 'Ask a Question';
+    document.getElementById('submit-question-btn').innerHTML = '<i class="fas fa-paper-plane"></i> Post Question';
+    document.getElementById('q-title').value='';
+    document.getElementById('q-body').value='';
+    selectedImages=[];
+    qImagesInput.value='';
+    imgPreviewWrap.classList.add('hidden');
+    imgLabel.textContent='Click to upload images (PNG, JPG, GIF, WEBP)';
+    imgCount.classList.add('hidden');
+}
+
+document.getElementById('ask-btn').addEventListener('click',()=>{
+    resetModal();
+    modal.classList.add('show');
+});
+document.getElementById('close-modal').addEventListener('click', resetModal);
+modal.addEventListener('click',e=>{if(e.target===modal)resetModal();});
+const qImagesInput=document.getElementById('q-images');
+const imgDropArea=document.getElementById('img-drop-area');
+const imgPreviewGrid=document.getElementById('img-preview-grid');
 const imgPreviewWrap=document.getElementById('img-preview-wrap');
 const imgLabel=document.getElementById('img-label');
-qImageInput.addEventListener('change',()=>{
-  const file=qImageInput.files[0];
-  if(file){
-    imgLabel.textContent=file.name;
-    const reader=new FileReader();
-    reader.onload=e=>{imgPreview.src=e.target.result;imgPreviewWrap.classList.remove('hidden');};
-    reader.readAsDataURL(file);
+const imgCount=document.getElementById('img-count');
+let selectedImages=[];
+qImagesInput.addEventListener('change',()=>{
+  if(qImagesInput.files.length>0){
+    const newFiles=Array.from(qImagesInput.files);
+    selectedImages.push(...newFiles);
+    qImagesInput.value='';
+    renderImagePreviews();
   }
 });
-document.getElementById('img-clear').addEventListener('click',()=>{
-  qImageInput.value='';imgPreviewWrap.classList.add('hidden');imgLabel.textContent='Click to upload image (PNG, JPG, GIF, WEBP)';
+imgDropArea.addEventListener('dragover',e=>{e.preventDefault();imgDropArea.classList.add('border-red-400','bg-red-50');});
+imgDropArea.addEventListener('dragleave',()=>{imgDropArea.classList.remove('border-red-400','bg-red-50');});
+imgDropArea.addEventListener('drop',e=>{e.preventDefault();imgDropArea.classList.remove('border-red-400','bg-red-50');const files=Array.from(e.dataTransfer.files).filter(f=>['image/png','image/jpeg','image/gif','image/webp'].includes(f.type));if(files.length){selectedImages.push(...files);renderImagePreviews();}});
+document.getElementById('img-add-more').addEventListener('click',e=>{e.preventDefault();qImagesInput.click();});
+function renderImagePreviews(){
+  if(selectedImages.length===0){imgPreviewWrap.classList.add('hidden');imgLabel.textContent='Click to upload images (PNG, JPG, GIF, WEBP)';imgCount.classList.add('hidden');return;}
+  imgLabel.textContent='Click to add more images';
+  imgCount.textContent=`${selectedImages.length} image${selectedImages.length!==1?'s':''} added`;
+  imgCount.classList.remove('hidden');
+  imgPreviewGrid.innerHTML='';
+  selectedImages.forEach((file,idx)=>{
+    const div=document.createElement('div');
+    div.className='relative group';
+    div.innerHTML=`<img class="rounded-xl object-cover w-full h-32 bg-gray-100" id="preview-${idx}"><button type="button" class="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition rounded-xl delete-img-btn" data-idx="${idx}" title="Remove this image"><i class="fas fa-trash text-white text-lg"></i></button>`;
+    imgPreviewGrid.appendChild(div);
+    const reader=new FileReader();
+    reader.onload=e=>{const img=document.getElementById(`preview-${idx}`);if(img)img.src=e.target.result;};
+    reader.readAsDataURL(file);
+  });
+  imgPreviewGrid.querySelectorAll('.delete-img-btn').forEach(btn=>{
+    btn.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();const idx=parseInt(btn.dataset.idx);selectedImages.splice(idx,1);renderImagePreviews();});
+  });
+  imgPreviewWrap.classList.remove('hidden');
+}
+document.getElementById('img-clear').addEventListener('click',e=>{
+  e.preventDefault();
+  selectedImages=[];
+  qImagesInput.value='';
+  imgPreviewWrap.classList.add('hidden');
+  imgLabel.textContent='Click to upload images (PNG, JPG, GIF, WEBP)';
+  imgCount.classList.add('hidden');
 });
 document.getElementById('submit-question-btn').addEventListener('click',async()=>{
   const title=document.getElementById('q-title').value.trim();
   const body=document.getElementById('q-body').value.trim();
   if(!title||!body){toast('Please fill in both fields',false);return;}
   const btn=document.getElementById('submit-question-btn');
-  btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin mr-2"></i>Posting...';
+  btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin mr-2"></i>Saving...';
   try{
     const fd=new FormData();
     fd.append('title',title);fd.append('body',body);
-    if(qImageInput.files[0])fd.append('image',qImageInput.files[0]);
-    const r=await fetch(`${API}/questions`,{method:'POST',body:fd});
+    selectedImages.forEach(file=>{fd.append('images',file);});
+    
+    const url = editQuestionId ? `${API}/questions/${editQuestionId}` : `${API}/questions`;
+    const method = editQuestionId ? 'PUT' : 'POST';
+    
+    const r=await fetch(url,{method:method,body:fd});
     const d=await r.json();
     if(!r.ok){toast(d.error||'Failed',false);return;}
-    document.getElementById('q-title').value='';
-    document.getElementById('q-body').value='';
-    qImageInput.value='';imgPreviewWrap.classList.add('hidden');
-    imgLabel.textContent='Click to upload image (PNG, JPG, GIF, WEBP)';
-    modal.classList.remove('show');
-    toast('Question posted!');
+    
+    toast(editQuestionId ? 'Question updated!' : 'Question posted!');
+    resetModal();
     await loadQuestions();
-  }catch(e){toast('Error posting',false);}
-  finally{btn.disabled=false;btn.innerHTML='<i class="fas fa-paper-plane"></i> Post Question';}
+  }catch(e){toast('Error saving',false);}
+  finally{
+     btn.disabled=false;
+     if(!editQuestionId) btn.innerHTML='<i class="fas fa-paper-plane"></i> Post Question';
+     else btn.innerHTML='<i class="fas fa-save"></i> Save Changes';
+  }
 });
 initNav();
 loadQuestions();
