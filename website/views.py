@@ -8,7 +8,8 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 import uuid
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify, session
-from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, QuestionCommentImage, QuestionImage, JoinRequest
+from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, QuestionCommentImage, QuestionImage, JoinRequest, LeaveRequest, MemberHistory
+from datetime import datetime, timezone
 
 views = Blueprint('views', __name__)
 
@@ -144,6 +145,10 @@ def my_projects():
     own_projects = Project.query.filter_by(user_id=current_user.id).order_by(Project.created_at.desc()).all()
     
     joined_projects = current_user.joined_projects
+    
+    # Update current user's last_seen timestamp
+    current_user.last_seen = datetime.now(timezone.utc)
+    db.session.commit()
 
     return render_template("My_Projects.html", own_projects=own_projects, joined_projects=joined_projects)
 
@@ -1260,6 +1265,176 @@ def reject_join_request(project_id, request_id):
 
 
 # ─────────────────────────────────────────────────────────────────────────
+# Team Member Leave Request API
+# ─────────────────────────────────────────────────────────────────────────
+
+@views.route('/api/project/<int:project_id>/leave-request', methods=['POST'])
+def request_leave_team(project_id):
+    """Team member requests to leave a project"""
+    err = require_login()
+    if err:
+        return err
+    
+    project = Project.query.get_or_404(project_id)
+    current_user = get_current_user()
+    
+    # Check if user is a team member
+    if current_user not in project.members:
+        return jsonify({'error': 'You are not a member of this project'}), 403
+    
+    # Check if there's already a pending leave request
+    existing = LeaveRequest.query.filter_by(
+        user_id=current_user.id,
+        project_id=project_id,
+        status='pending'
+    ).first()
+    
+    if existing:
+        return jsonify({'error': 'You already have a pending leave request'}), 400
+    
+    data = request.get_json(silent=True) or {}
+    reason = data.get('reason', '').strip()
+    
+    if not reason:
+        return jsonify({'error': 'Reason is required'}), 400
+    
+    if len(reason) < 10:
+        return jsonify({'error': 'Reason must be at least 10 characters'}), 400
+    
+    leave_req = LeaveRequest(
+        user_id=current_user.id,
+        project_id=project_id,
+        reason=reason,
+        status='pending'
+    )
+    
+    db.session.add(leave_req)
+    db.session.commit()
+    
+    return jsonify({
+        'id': leave_req.id,
+        'reason': leave_req.reason,
+        'status': leave_req.status,
+        'created_at': leave_req.created_at.isoformat(),
+    }), 201
+
+
+@views.route('/api/project/<int:project_id>/leave-requests', methods=['GET'])
+def get_leave_requests(project_id):
+    """Get all leave requests for a project (owner only)"""
+    err = require_login()
+    if err:
+        return err
+    
+    project = Project.query.get_or_404(project_id)
+    current_user = get_current_user()
+    
+    # Only project owner can view leave requests
+    if project.user_id != current_user.id:
+        return jsonify({'error': 'Only project owner can view leave requests'}), 403
+    
+    requests = LeaveRequest.query.filter_by(project_id=project_id).order_by(LeaveRequest.created_at.desc()).all()
+    
+    return jsonify([{
+        'id': r.id,
+        'user_id': r.user_id,
+        'user_name': r.user.name,
+        'user_email': r.user.email,
+        'reason': r.reason,
+        'status': r.status,
+        'created_at': r.created_at.isoformat(),
+    } for r in requests])
+
+
+@views.route('/api/project/<int:project_id>/leave-requests/<int:request_id>/approve', methods=['POST'])
+def approve_leave_request(project_id, request_id):
+    """Approve a leave request and remove member from project"""
+    err = require_login()
+    if err:
+        return err
+    
+    project = Project.query.get_or_404(project_id)
+    leave_req = LeaveRequest.query.get_or_404(request_id)
+    current_user = get_current_user()
+    
+    # Only project owner can approve
+    if project.user_id != current_user.id:
+        return jsonify({'error': 'Only project owner can approve leave requests'}), 403
+    
+    if leave_req.project_id != project_id:
+        return jsonify({'error': 'Request not found in this project'}), 404
+    
+    if leave_req.status != 'pending':
+        return jsonify({'error': 'Request is already ' + leave_req.status}), 400
+    
+    # Get the member to remove
+    member = User.query.get(leave_req.user_id)
+    if member and member in project.members:
+        project.members.remove(member)
+    
+    # Update leave request status
+    leave_req.status = 'approved'
+    leave_req.approved_at = datetime.utcnow()
+    
+    db.session.commit()
+    
+    return jsonify({'success': 'Leave request approved. Member removed from project.'})
+
+
+@views.route('/api/project/<int:project_id>/leave-requests/<int:request_id>/reject', methods=['POST'])
+def reject_leave_request(project_id, request_id):
+    """Reject a leave request"""
+    err = require_login()
+    if err:
+        return err
+    
+    project = Project.query.get_or_404(project_id)
+    leave_req = LeaveRequest.query.get_or_404(request_id)
+    current_user = get_current_user()
+    
+    # Only project owner can reject
+    if project.user_id != current_user.id:
+        return jsonify({'error': 'Only project owner can reject leave requests'}), 403
+    
+    if leave_req.project_id != project_id:
+        return jsonify({'error': 'Request not found in this project'}), 404
+    
+    if leave_req.status != 'pending':
+        return jsonify({'error': 'Request is already ' + leave_req.status}), 400
+    
+    leave_req.status = 'rejected'
+    db.session.commit()
+    
+    return jsonify({'success': 'Leave request rejected.'})
+
+
+@views.route('/api/project/<int:project_id>/my-leave-status', methods=['GET'])
+def get_my_leave_status(project_id):
+    """Get current user's leave request status for a project"""
+    err = require_login()
+    if err:
+        return err
+    
+    current_user = get_current_user()
+    
+    leave_req = LeaveRequest.query.filter_by(
+        user_id=current_user.id,
+        project_id=project_id
+    ).first()
+    
+    if not leave_req:
+        return jsonify({'status': None})
+    
+    return jsonify({
+        'id': leave_req.id,
+        'status': leave_req.status,
+        'reason': leave_req.reason,
+        'created_at': leave_req.created_at.isoformat(),
+        'approved_at': leave_req.approved_at.isoformat() if leave_req.approved_at else None,
+    })
+
+
+# ─────────────────────────────────────────────────────────────────────────
 # Project Comments API
 # ─────────────────────────────────────────────────────────────────────────
 
@@ -2056,3 +2231,142 @@ def save_interest():
         'message': 'Interests updated successfully',
         'interests': interests
     })
+
+# ---------------------------------------------------------------------------
+# Member History & Online Status APIs
+# ---------------------------------------------------------------------------
+
+@views.route('/api/project/<int:project_id>/members-with-status', methods=['GET'])
+def get_members_with_status(project_id):
+    """Get current members with their online status"""
+    project = Project.query.get_or_404(project_id)
+    
+    members_data = []
+    for member in project.members:
+        is_online = False
+        if member.last_seen:
+            # Consider online if last seen within 5 minutes
+            time_diff = datetime.utcnow() - member.last_seen
+            is_online = time_diff.total_seconds() < 300
+        
+        members_data.append({
+            'id': member.id,
+            'name': member.name,
+            'email': member.email,
+            'avatar_path': member.avatar_path,
+            'is_online': is_online,
+            'last_seen': member.last_seen.isoformat() if member.last_seen else None
+        })
+    
+    return jsonify({'success': True, 'members': members_data})
+
+
+@views.route('/api/project/<int:project_id>/member-history', methods=['GET'])
+def get_member_history(project_id):
+    """Get member join/leave history for a project"""
+    project = Project.query.get_or_404(project_id)
+    
+    # Get current user to check if they're the owner
+    current_user = get_current_user()
+    if not current_user or current_user.id != project.user_id:
+        return jsonify({'error': 'Only project owner can view member history'}), 403
+    
+    history = MemberHistory.query.filter_by(project_id=project_id).order_by(MemberHistory.timestamp.desc()).all()
+    
+    history_data = []
+    for h in history:
+        user = User.query.get(h.user_id)
+        history_data.append({
+            'id': h.id,
+            'user_id': h.user_id,
+            'user_name': user.name if user else 'Unknown',
+            'user_email': user.email if user else 'Unknown',
+            'action': h.action,  # 'joined' or 'left'
+            'timestamp': h.timestamp.isoformat(),
+            'reason': h.reason
+        })
+    
+    return jsonify({'success': True, 'history': history_data})
+
+
+@views.route('/api/update-last-seen', methods=['POST'])
+def update_last_seen():
+    """Update current user's last_seen timestamp"""
+    current_user = get_current_user()
+    if not current_user:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    current_user.last_seen = datetime.utcnow()
+    db.session.commit()
+    
+    return jsonify({'success': True, 'last_seen': current_user.last_seen.isoformat()})
+
+
+@views.route('/api/record-member-action', methods=['POST'])
+def record_member_action():
+    """Record when a member joins or leaves a project (for project owner)"""
+    current_user = get_current_user()
+    if not current_user:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    data = request.get_json(silent=True) or {}
+    project_id = data.get('project_id')
+    user_id = data.get('user_id')
+    action = data.get('action')  # 'joined' or 'left'
+    reason = data.get('reason', '')
+    
+    project = Project.query.get(project_id)
+    if not project or project.user_id != current_user.id:
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    if action not in ['joined', 'left']:
+        return jsonify({'error': 'Invalid action'}), 400
+    
+    # Record the history
+    history = MemberHistory(
+        user_id=user_id,
+        project_id=project_id,
+        action=action,
+        reason=reason
+    )
+    db.session.add(history)
+    db.session.commit()
+    
+    return jsonify({'success': True, 'history_id': history.id})
+
+
+@views.route('/api/project/<int:project_id>/leave-team', methods=['POST'])
+def leave_team(project_id):
+    """Allow a team member to leave the project"""
+    current_user = get_current_user()
+    if not current_user:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    project = Project.query.get_or_404(project_id)
+    
+    # Check if user is a member (but not the owner)
+    if current_user.id == project.user_id:
+        return jsonify({'error': 'Project owner cannot leave their own project'}), 403
+    
+    if current_user not in project.members:
+        return jsonify({'error': 'You are not a member of this project'}), 400
+    
+    # Get reason if provided
+    data = request.get_json(silent=True) or {}
+    reason = data.get('reason', 'User left the team')
+    
+    # Record the history before removing
+    history = MemberHistory(
+        user_id=current_user.id,
+        project_id=project_id,
+        action='left',
+        reason=reason
+    )
+    db.session.add(history)
+    
+    # Remove user from project members
+    project.members.remove(current_user)
+    
+    db.session.commit()
+    
+    return jsonify({'success': True, 'message': 'Successfully left the team'})

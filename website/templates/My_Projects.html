@@ -178,6 +178,32 @@
                 
                 <p class="text-gray-600 text-sm mb-6 flex-grow">{{ project.description }}</p>
                 
+                <!-- Team Members Section -->
+                <div class="mb-4 border-t border-gray-50 pt-4">
+                    <div class="flex items-center justify-between mb-3 cursor-pointer toggle-members" data-project-id="{{ project.id }}" data-type="own">
+                        <h5 class="text-xs font-semibold text-gray-700 uppercase tracking-wide">Team Members</h5>
+                        <i class="fas fa-chevron-down text-gray-400 transition-transform duration-200"></i>
+                    </div>
+                    <div class="members-list hidden" id="members-{{ project.id }}">
+                        <div class="space-y-2 text-sm">
+                            <div class="text-gray-500 text-xs">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Member History Section -->
+                <div class="mb-4 border-t border-gray-50 pt-4">
+                    <div class="flex items-center justify-between mb-3 cursor-pointer toggle-history" data-project-id="{{ project.id }}" data-type="own">
+                        <h5 class="text-xs font-semibold text-gray-700 uppercase tracking-wide">Member History</h5>
+                        <i class="fas fa-chevron-down text-gray-400 transition-transform duration-200"></i>
+                    </div>
+                    <div class="history-list hidden" id="history-{{ project.id }}">
+                        <div class="space-y-2 text-sm">
+                            <div class="text-gray-500 text-xs">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="flex items-center justify-between pt-4 border-t border-gray-50 mt-auto">
                     <div class="flex -space-x-2">
                         <div class="w-8 h-8 rounded-full bg-red-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-red-600">
@@ -228,6 +254,17 @@
                                     N/A
                                 </span>
                             {% endif %}
+                        </div>
+                        
+                        <!-- Team Members Status -->
+                        <div class="mb-3 p-3 bg-gray-50 rounded-lg">
+                            <div class="flex items-center justify-between mb-2 cursor-pointer toggle-members" data-project-id="{{ project.id }}" data-type="joined">
+                                <h6 class="text-xs font-semibold text-gray-600 uppercase">Team Member Status</h6>
+                                <i class="fas fa-chevron-down text-gray-400 transition-transform duration-200 text-xs"></i>
+                            </div>
+                            <div class="members-status hidden" id="members-{{ project.id }}">
+                                <div class="text-gray-500 text-xs">Loading...</div>
+                            </div>
                         </div>
                     </div>
 
@@ -294,6 +331,184 @@
 
     document.getElementById('logout-btn').addEventListener('click', logout);
     document.getElementById('logout-btn-mobile').addEventListener('click', logout);
+
+    // ── Team Members & History Loading ─────────────────────────────────────
+    // Function to format last seen time
+    function formatLastSeen(lastSeenStr) {
+        if (!lastSeenStr) return 'Offline';
+        const lastSeen = new Date(lastSeenStr);
+        const now = new Date();
+        const diffMs = now - lastSeen;
+        const diffMins = Math.floor(diffMs / 60000);
+        
+        if (diffMins < 1) return 'Online';
+        if (diffMins < 60) return `${diffMins}m ago`;
+        const diffHours = Math.floor(diffMins / 60);
+        if (diffHours < 24) return `${diffHours}h ago`;
+        const diffDays = Math.floor(diffHours / 24);
+        return `${diffDays}d ago`;
+    }
+
+    // Load member status for each project
+    async function loadMembersStatus(projectId) {
+        try {
+            const response = await fetch(`${API}/project/${projectId}/members-with-status`);
+            const data = await response.json();
+            
+            if (!data.success) return;
+            
+            const container = document.getElementById(`members-${projectId}`);
+            if (!container) return;
+            
+            if (data.members.length === 0) {
+                container.innerHTML = '<div class="text-gray-400 text-xs">No members</div>';
+                return;
+            }
+            
+            let html = '<div class="space-y-1">';
+            data.members.forEach(member => {
+                const statusClass = member.is_online ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600';
+                const statusIcon = member.is_online ? '🟢' : '⚪';
+                const lastSeenText = formatLastSeen(member.last_seen);
+                
+                html += `
+                    <div class="flex items-center justify-between text-xs p-2 bg-gray-50 rounded">
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm">${statusIcon}</span>
+                            <div>
+                                <div class="font-medium text-gray-700">${member.name}</div>
+                                <div class="text-gray-500">${lastSeenText}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            
+            container.innerHTML = html;
+        } catch (err) {
+            console.error('Error loading members:', err);
+            const container = document.getElementById(`members-${projectId}`);
+            if (container) container.innerHTML = '<div class="text-red-500 text-xs">Failed to load</div>';
+        }
+    }
+
+    // Load member history for owned projects
+    async function loadMemberHistory(projectId) {
+        try {
+            const response = await fetch(`${API}/project/${projectId}/member-history`);
+            const data = await response.json();
+            
+            if (!data.success) {
+                const container = document.getElementById(`history-${projectId}`);
+                if (container) container.innerHTML = '<div class="text-gray-400 text-xs">Permission denied</div>';
+                return;
+            }
+            
+            const container = document.getElementById(`history-${projectId}`);
+            if (!container) return;
+            
+            if (data.history.length === 0) {
+                container.innerHTML = '<div class="text-gray-400 text-xs">No history yet</div>';
+                return;
+            }
+            
+            let html = '<div class="space-y-2 max-h-48 overflow-y-auto">';
+            data.history.forEach(h => {
+                const actionText = h.action === 'joined' ? '✅ Joined' : '❌ Left';
+                const timestamp = new Date(h.timestamp);
+                const dateStr = timestamp.toLocaleString('en-US');
+                
+                html += `
+                    <div class="text-xs p-2 bg-blue-50 rounded border-l-2 border-blue-300">
+                        <div class="font-medium text-blue-700">${actionText} ${h.user_name}</div>
+                        <div class="text-blue-600 text-[11px]">${dateStr}</div>
+                        ${h.reason ? `<div class="text-gray-600 text-[11px] mt-1">Reason: ${h.reason}</div>` : ''}
+                    </div>
+                `;
+            });
+            html += '</div>';
+            
+            container.innerHTML = html;
+        } catch (err) {
+            console.error('Error loading history:', err);
+            const container = document.getElementById(`history-${projectId}`);
+            if (container) container.innerHTML = '<div class="text-red-500 text-xs">Failed to load</div>';
+        }
+    }
+
+    // Toggle members dropdown
+    document.querySelectorAll('.toggle-members').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const projectId = this.dataset.projectId;
+            const container = document.getElementById(`members-${projectId}`);
+            const icon = this.querySelector('i');
+            
+            if (container.classList.contains('hidden')) {
+                container.classList.remove('hidden');
+                icon.classList.add('rotate-180');
+                // Load data if not already loaded
+                if (container.innerHTML.includes('加载中')) {
+                    await loadMembersStatus(projectId);
+                }
+            } else {
+                container.classList.add('hidden');
+                icon.classList.remove('rotate-180');
+            }
+        });
+    });
+
+    // Toggle history dropdown
+    document.querySelectorAll('.toggle-history').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const projectId = this.dataset.projectId;
+            const container = document.getElementById(`history-${projectId}`);
+            const icon = this.querySelector('i');
+            
+            if (container.classList.contains('hidden')) {
+                container.classList.remove('hidden');
+                icon.classList.add('rotate-180');
+                // Load data if not already loaded
+                if (container.innerHTML.includes('加载中')) {
+                    await loadMemberHistory(projectId);
+                }
+            } else {
+                container.classList.add('hidden');
+                icon.classList.remove('rotate-180');
+            }
+        });
+    });
+
+    // Toggle members status for joined projects (members-status class)
+    document.querySelectorAll('.toggle-members[data-type="joined"]').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const projectId = this.dataset.projectId;
+            const container = document.querySelector(`#members-${projectId}.members-status`);
+            if (!container) return;
+            
+            const icon = this.querySelector('i');
+            
+            if (container.classList.contains('hidden')) {
+                container.classList.remove('hidden');
+                icon.classList.add('rotate-180');
+                // Load data if not already loaded
+                if (container.innerHTML.includes('加载中')) {
+                    await loadMembersStatus(projectId);
+                }
+            } else {
+                container.classList.add('hidden');
+                icon.classList.remove('rotate-180');
+            }
+        });
+    });
+
+    // Update last seen when page is active
+    window.addEventListener('focus', () => {
+        fetch(`${API}/update-last-seen`, { method: 'POST' }).catch(err => console.log('Update last-seen:', err));
+    });
+    
+    // Also update on page load
+    fetch(`${API}/update-last-seen`, { method: 'POST' }).catch(err => console.log('Update last-seen on load:', err));
 </script>
 
 </body>
