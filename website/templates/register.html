@@ -77,64 +77,120 @@
                     <p id="strength-label" class="text-xs text-gray-400 mt-1"></p>
                 </div>
 
-                <!-- Project Interests -->
+                <!-- Development Interests -->
                 <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-3">Project Interests</label>
-                    <div class="grid grid-cols-2 gap-2">
+                    <label class="block text-sm font-bold text-gray-700 mb-2">Interest in Developing</label>
+                    <div class="grid grid-cols-2 gap-2 mb-3">
                         <label class="flex items-center gap-2 cursor-pointer hover:bg-red-50 p-2 rounded-lg transition">
-                            <input type="checkbox" name="interests" value="Web Development" class="w-4 h-4 text-red-600 rounded">
+                            <input type="checkbox" name="dev-interests" value="Web Development" class="w-4 h-4 text-red-600 rounded">
                             <span class="text-sm text-gray-700">Web Dev</span>
                         </label>
                         <label class="flex items-center gap-2 cursor-pointer hover:bg-red-50 p-2 rounded-lg transition">
-                            <input type="checkbox" name="interests" value="Mobile Development" class="w-4 h-4 text-red-600 rounded">
+                            <input type="checkbox" name="dev-interests" value="Mobile Development" class="w-4 h-4 text-red-600 rounded">
                             <span class="text-sm text-gray-700">Mobile</span>
                         </label>
                         <label class="flex items-center gap-2 cursor-pointer hover:bg-red-50 p-2 rounded-lg transition">
-                            <input type="checkbox" name="interests" value="AI/ML" class="w-4 h-4 text-red-600 rounded">
+                            <input type="checkbox" name="dev-interests" value="AI/ML" class="w-4 h-4 text-red-600 rounded">
                             <span class="text-sm text-gray-700">AI/ML</span>
                         </label>
                         <label class="flex items-center gap-2 cursor-pointer hover:bg-red-50 p-2 rounded-lg transition">
-                            <input type="checkbox" name="interests" value="Data Science" class="w-4 h-4 text-red-600 rounded">
+                            <input type="checkbox" name="dev-interests" value="Data Science" class="w-4 h-4 text-red-600 rounded">
                             <span class="text-sm text-gray-700">Data Science</span>
                         </label>
                         <label class="flex items-center gap-2 cursor-pointer hover:bg-red-50 p-2 rounded-lg transition">
-                            <input type="checkbox" name="interests" value="DevOps" class="w-4 h-4 text-red-600 rounded">
+                            <input type="checkbox" name="dev-interests" value="DevOps" class="w-4 h-4 text-red-600 rounded">
                             <span class="text-sm text-gray-700">DevOps</span>
                         </label>
                         <label class="flex items-center gap-2 cursor-pointer hover:bg-red-50 p-2 rounded-lg transition">
-                            <input type="checkbox" name="interests" value="Cloud" class="w-4 h-4 text-red-600 rounded">
+                            <input type="checkbox" name="dev-interests" value="Cloud" class="w-4 h-4 text-red-600 rounded">
                             <span class="text-sm text-gray-700">Cloud</span>
                         </label>
                         <label class="flex items-center gap-2 cursor-pointer hover:bg-red-50 p-2 rounded-lg transition">
-                            <input type="checkbox" name="interests" value="Blockchain" class="w-4 h-4 text-red-600 rounded">
+                            <input type="checkbox" name="dev-interests" value="Blockchain" class="w-4 h-4 text-red-600 rounded">
                             <span class="text-sm text-gray-700">Blockchain</span>
                         </label>
                         <label class="flex items-center gap-2 cursor-pointer hover:bg-red-50 p-2 rounded-lg transition">
-                            <input type="checkbox" name="interests" value="IoT" class="w-4 h-4 text-red-600 rounded">
+                            <input type="checkbox" name="dev-interests" value="IoT" class="w-4 h-4 text-red-600 rounded">
                             <span class="text-sm text-gray-700">IoT</span>
                         </label>
                         <label class="flex items-center gap-2 cursor-pointer hover:bg-red-50 p-2 rounded-lg transition">
-                            <input type="checkbox" name="interests" value="html" class="w-4 h-4 text-red-600 rounded">
-                            <span class="text-sm text-gray-700">html</span>
+                            <input type="checkbox" name="dev-interests" value="Desktop Development" class="w-4 h-4 text-red-600 rounded">
+                            <span class="text-sm text-gray-700">Desktop</span>
                         </label>
                         <label class="flex items-center gap-2 cursor-pointer hover:bg-red-50 p-2 rounded-lg transition">
-                            <input type="checkbox" name="interests" value="python" class="w-4 h-4 text-red-600 rounded">
-                            <span class="text-sm text-gray-700">python</span>
-                        </label>
-                        <label class="flex items-center gap-2 cursor-pointer hover:bg-red-50 p-2 rounded-lg transition">
-                            <input type="checkbox" name="interests" value="java" class="w-4 h-4 text-red-600 rounded">
-                            <span class="text-sm text-gray-700">java</span>
-                        </label>
-                        <label class="flex items-center gap-2 cursor-pointer hover:bg-red-50 p-2 rounded-lg transition">
-                            <input type="checkbox" name="interests" value="c++" class="w-4 h-4 text-red-600 rounded">
-                            <span class="text-sm text-gray-700">c++</span>
-                        </label>
-                        <label class="flex items-center gap-2 cursor-pointer hover:bg-red-50 p-2 rounded-lg transition">
-                            <input type="checkbox" name="interests" value="c#" class="w-4 h-4 text-red-600 rounded">
-                            <span class="text-sm text-gray-700">c#</span>
+                            <input type="checkbox" name="dev-interests" value="Game Development" class="w-4 h-4 text-red-600 rounded">
+                            <span class="text-sm text-gray-700">Game Dev</span>
                         </label>
                     </div>
-                    <p class="text-xs text-gray-400 mt-2">Select at least one interest to get AI-powered project suggestions</p>
+                    <div>
+                        <input type="text" id="custom-dev-interest" placeholder="Add your own interest (e.g., Cybersecurity)"
+                            class="input-field w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-red-500 text-sm bg-gray-50">
+                        <p class="text-xs text-gray-400 mt-1">💡 Type custom interests separated by commas</p>
+                    </div>
+                </div>
+
+                <!-- Programming Language Interests -->
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-2">Interest in Programming Languages</label>
+                    <div class="grid grid-cols-2 gap-2 mb-3">
+                        <label class="flex items-center gap-2 cursor-pointer hover:bg-blue-50 p-2 rounded-lg transition">
+                            <input type="checkbox" name="lang-interests" value="Python" class="w-4 h-4 text-red-600 rounded">
+                            <span class="text-sm text-gray-700">Python</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer hover:bg-blue-50 p-2 rounded-lg transition">
+                            <input type="checkbox" name="lang-interests" value="JavaScript" class="w-4 h-4 text-red-600 rounded">
+                            <span class="text-sm text-gray-700">JavaScript</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer hover:bg-blue-50 p-2 rounded-lg transition">
+                            <input type="checkbox" name="lang-interests" value="Java" class="w-4 h-4 text-red-600 rounded">
+                            <span class="text-sm text-gray-700">Java</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer hover:bg-blue-50 p-2 rounded-lg transition">
+                            <input type="checkbox" name="lang-interests" value="C++" class="w-4 h-4 text-red-600 rounded">
+                            <span class="text-sm text-gray-700">C++</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer hover:bg-blue-50 p-2 rounded-lg transition">
+                            <input type="checkbox" name="lang-interests" value="C#" class="w-4 h-4 text-red-600 rounded">
+                            <span class="text-sm text-gray-700">C#</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer hover:bg-blue-50 p-2 rounded-lg transition">
+                            <input type="checkbox" name="lang-interests" value="TypeScript" class="w-4 h-4 text-red-600 rounded">
+                            <span class="text-sm text-gray-700">TypeScript</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer hover:bg-blue-50 p-2 rounded-lg transition">
+                            <input type="checkbox" name="lang-interests" value="Go" class="w-4 h-4 text-red-600 rounded">
+                            <span class="text-sm text-gray-700">Go</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer hover:bg-blue-50 p-2 rounded-lg transition">
+                            <input type="checkbox" name="lang-interests" value="Rust" class="w-4 h-4 text-red-600 rounded">
+                            <span class="text-sm text-gray-700">Rust</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer hover:bg-blue-50 p-2 rounded-lg transition">
+                            <input type="checkbox" name="lang-interests" value="PHP" class="w-4 h-4 text-red-600 rounded">
+                            <span class="text-sm text-gray-700">PHP</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer hover:bg-blue-50 p-2 rounded-lg transition">
+                            <input type="checkbox" name="lang-interests" value="SQL" class="w-4 h-4 text-red-600 rounded">
+                            <span class="text-sm text-gray-700">SQL</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer hover:bg-blue-50 p-2 rounded-lg transition">
+                            <input type="checkbox" name="lang-interests" value="Ruby" class="w-4 h-4 text-red-600 rounded">
+                            <span class="text-sm text-gray-700">Ruby</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer hover:bg-blue-50 p-2 rounded-lg transition">
+                            <input type="checkbox" name="lang-interests" value="Swift" class="w-4 h-4 text-red-600 rounded">
+                            <span class="text-sm text-gray-700">Swift</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer hover:bg-blue-50 p-2 rounded-lg transition">
+                            <input type="checkbox" name="lang-interests" value="Kotlin" class="w-4 h-4 text-red-600 rounded">
+                            <span class="text-sm text-gray-700">Kotlin</span>
+                        </label>
+                    </div>
+                    <div>
+                        <input type="text" id="custom-lang-interest" placeholder="Add your own language (e.g., Dart, Lua)"
+                            class="input-field w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-red-500 text-sm bg-gray-50">
+                        <p class="text-xs text-gray-400 mt-1">💡 Type custom languages separated by commas</p>
+                    </div>
                 </div>
 
                 <button type="submit" id="register-btn"
@@ -213,6 +269,26 @@
         spinner.classList.remove('hidden');
 
         try {
+            // Collect development interests (checked + custom)
+            const devInterests = Array.from(document.querySelectorAll('input[name="dev-interests"]:checked')).map(el => el.value);
+            const customDevInput = document.getElementById('custom-dev-interest').value.trim();
+            if (customDevInput) {
+                customDevInput.split(',').forEach(item => {
+                    const trimmed = item.trim();
+                    if (trimmed) devInterests.push(trimmed);
+                });
+            }
+
+            // Collect language interests (checked + custom)
+            const langInterests = Array.from(document.querySelectorAll('input[name="lang-interests"]:checked')).map(el => el.value);
+            const customLangInput = document.getElementById('custom-lang-interest').value.trim();
+            if (customLangInput) {
+                customLangInput.split(',').forEach(item => {
+                    const trimmed = item.trim();
+                    if (trimmed) langInterests.push(trimmed);
+                });
+            }
+
             const res = await fetch('/api/register', {
                 method:  'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -221,7 +297,8 @@
                     name:     document.getElementById('reg-name').value.trim(),
                     email:    document.getElementById('reg-email').value.trim().toLowerCase(),
                     password,
-                    interests: Array.from(document.querySelectorAll('input[name="interests"]:checked')).map(el => el.value)
+                    dev_interests: devInterests,
+                    lang_interests: langInterests
                 })
             });
             const data = await res.json();
