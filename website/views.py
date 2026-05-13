@@ -3,6 +3,7 @@ import random
 import smtplib
 import sys
 import logging
+import json
 from email.mime.text import MIMEText
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -27,6 +28,19 @@ def get_current_user():
     email = session.get('user_email', 'student@mmu.edu.my')
     user = User.query.filter_by(email=email).first()
     return user
+
+def parse_interests(interests_str):
+    """Parse interests from JSON or comma-separated format"""
+    if not interests_str:
+        return {'dev_interests': [], 'lang_interests': []}
+    
+    try:
+        # Try parsing as JSON first
+        return json.loads(interests_str)
+    except:
+        # Fallback to comma-separated format (legacy)
+        all_interests = [i.strip() for i in interests_str.split(',') if i.strip()]
+        return {'dev_interests': all_interests, 'lang_interests': []}
 
 # --- ADDED: Auto-Email Sending Function ---
 def send_otp_email(receiver_email, otp_code):
@@ -150,6 +164,12 @@ def my_projects():
 @views.route('/profile')
 def profile():
     return render_template("Profile.html")
+
+@views.route('/user/<int:user_id>')
+def view_user_profile(user_id):
+    """View another user's profile"""
+    user = User.query.get_or_404(user_id)
+    return render_template("User_Profile.html", profile_user=user, current_user=get_current_user())
 
 @views.route('/qna/delete/<int:question_id>')
 def qna_delete_page(question_id):
@@ -288,11 +308,13 @@ def delete_project(project_id):
 
 @views.route('/api/register', methods=['POST'])
 def api_register():
+    import json
     data     = request.get_json(silent=True) or {}
     email    = data.get('email', '').strip().lower()
     name     = data.get('name', '').strip()
     password = data.get('password', '')
-    interests = data.get('interests', [])
+    dev_interests = data.get('dev_interests', [])
+    lang_interests = data.get('lang_interests', [])
 
     if not email or not password or not name:
         return jsonify({'error': 'All fields are required'}), 400
@@ -303,8 +325,12 @@ def api_register():
 
     pw_hash = generate_password_hash(password)
     
-# --- MODIFIED: Generate OTP ---
+# --- MODIFIED: Generate OTP and store interests as JSON ---
     otp_code = f"{random.randint(0, 999999):06d}"
+    interests_json = json.dumps({
+        'dev_interests': dev_interests if dev_interests else [],
+        'lang_interests': lang_interests if lang_interests else []
+    })
     
     try:
         user = User(
@@ -312,7 +338,7 @@ def api_register():
             name=name, 
             password_hash=pw_hash, 
             otp=otp_code,
-            interests=','.join(interests) if interests else ''
+            interests=interests_json
         )
         db.session.add(user)
         db.session.commit()
@@ -393,22 +419,55 @@ def get_profile():
     badges = Badge.query.filter_by(user_id=user.id).all()
     
     avatar_url = f"/static/uploads/{user.avatar_path}" if user.avatar_path else ''
-    
-    interests_list = [i.strip() for i in user.interests.split(',') if i.strip()] if user.interests else []
+    interests_data = parse_interests(user.interests)
+    # Combine both interest types for frontend
+    combined_interests = interests_data.get('dev_interests', []) + interests_data.get('lang_interests', [])
 
     return jsonify({
-        'email':      user.email,
-        'name':       user.name,
-        'faculty':    user.faculty,
-        'bio':        user.bio or '',
-        'avatar_url': avatar_url,
-        'rank':       user.rank,
-        'karma':      user.karma,
-        'skills':     [s.skill for s in skills],
-        'badges':     [b.badge for b in badges],
-        'interests':  interests_list,
+        'id':             user.id,
+        'email':          user.email,
+        'name':           user.name,
+        'faculty':        user.faculty,
+        'bio':            user.bio or '',
+        'avatar_url':     avatar_url,
+        'rank':           user.rank,
+        'karma':          user.karma,
+        'skills':         [s.skill for s in skills],
+        'badges':         [b.badge for b in badges],
+        'interests':      combined_interests,
+        'dev_interests':  interests_data.get('dev_interests', []),
+        'lang_interests': interests_data.get('lang_interests', []),
     })
 
+
+@views.route('/api/user/<int:user_id>', methods=['GET'])
+def get_user_profile(user_id):
+    """Get any user's profile data"""
+    user = User.query.get_or_404(user_id)
+    
+    skills = Skill.query.filter_by(user_id=user.id).all()
+    badges = Badge.query.filter_by(user_id=user.id).all()
+    
+    avatar_url = f"/static/uploads/{user.avatar_path}" if user.avatar_path else ''
+    interests_data = parse_interests(user.interests)
+    # Combine both interest types for frontend
+    combined_interests = interests_data.get('dev_interests', []) + interests_data.get('lang_interests', [])
+
+    return jsonify({
+        'id':             user.id,
+        'email':          user.email,
+        'name':           user.name,
+        'faculty':        user.faculty,
+        'bio':            user.bio or '',
+        'avatar_url':     avatar_url,
+        'rank':           user.rank,
+        'karma':          user.karma,
+        'skills':         [s.skill for s in skills],
+        'badges':         [b.badge for b in badges],
+        'interests':      combined_interests,
+        'dev_interests':  interests_data.get('dev_interests', []),
+        'lang_interests': interests_data.get('lang_interests', []),
+    })
 
 @views.route('/api/profile', methods=['PUT'])
 def update_profile():
@@ -422,6 +481,10 @@ def update_profile():
     faculty = data.get('faculty')
     bio     = data.get('bio', '')
     skills  = data.get('skills', [])
+    # Handle combined interests from frontend
+    interests = data.get('interests', [])
+    dev_interests = data.get('dev_interests', interests)
+    lang_interests = data.get('lang_interests', [])
 
     user = User.query.filter_by(email=email).first()
     if not user:
@@ -441,9 +504,13 @@ def update_profile():
                 skill_obj = Skill(user_id=user.id, skill=skill.strip())
                 db.session.add(skill_obj)
 
-    interests = data.get('interests')
-    if interests is not None:
-        user.interests = ','.join([i.strip() for i in interests if i.strip()])
+    # Update interests as JSON
+    if dev_interests is not None or lang_interests is not None:
+        interests_json = json.dumps({
+            'dev_interests': dev_interests if dev_interests else [],
+            'lang_interests': lang_interests if lang_interests else []
+        })
+        user.interests = interests_json
 
     db.session.commit()
 
@@ -912,6 +979,7 @@ def get_question_comments(question_id):
 
     result = [{
         'id':          c.id,
+        'author_id':   c.user_id,
         'author_name': name,
         'body':        c.body,
         'parent_id':   c.parent_id,
@@ -1422,9 +1490,8 @@ def move_comment_type(project_id, comment_id):
         return jsonify({'error': 'Invalid comment type'}), 400
     
     comment.comment_type = new_type
-    # Reset label when moving to normal
-    if new_type == 'normal':
-        comment.label = None
+    # Label is preserved when moving to normal - it will be hidden in the UI
+    # When moving back to issue/suggestion, the label will be visible again
     
     db.session.commit()
     
@@ -1478,13 +1545,8 @@ def create_comment_label():
         'description': label.description,
     }), 201
 
-# ─────────────────────────────────────────────────────────────────────────
-# UNIFIED SUGGESTION SYSTEM - COMBINED MATCHING ALGORITHM
-# ─────────────────────────────────────────────────────────────────────────
-# This unified system handles both:
 # 1. AI Suggestions (home page) - based on user interests/skills
 # 2. Similar Projects (project page) - based on a reference project
-# ─────────────────────────────────────────────────────────────────────────
 
 def _calculate_unified_match_score(
     candidate_project,
@@ -1692,183 +1754,7 @@ def _calculate_unified_match_score(
     return int(score)
 
 
-def _calculate_match_score(user_interests, project_languages, project_description, user_skills=None, project_roles=None):
-    """
-    Calculate how well a project matches user interests with advanced precision scoring.
-    
-    Scoring factors:
-    1. Direct programming language matching (35 pts max) - NEW!
-    2. Direct interest keyword matching (30 pts max)
-    3. Language overlap with interests (20 pts max)
-    4. Description keyword alignment (10 pts max)
-    5. Skills-to-roles alignment bonus (5 pts max)
-    
-    Returns a score from 0-100 for precise project recommendations.
-    """
-    
-    # Programming language mapping - maps languages to development areas
-    PROGRAMMING_LANGUAGES = {
-        'python': ['python', 'py'],
-        'javascript': ['javascript', 'js'],
-        'typescript': ['typescript', 'ts'],
-        'java': ['java'],
-        'c++': ['c++', 'cpp'],
-        'c#': ['c#', 'csharp', '.net', 'dotnet'],
-        'php': ['php'],
-        'ruby': ['ruby', 'rails'],
-        'go': ['go', 'golang'],
-        'rust': ['rust'],
-        'kotlin': ['kotlin'],
-        'swift': ['swift'],
-        'sql': ['sql', 'plsql', 'mysql', 'postgres', 'postgresql'],
-        'html': ['html', 'html5'],
-        'css': ['css', 'scss', 'sass', 'less'],
-        'react': ['react', 'reactjs', 'react.js'],
-        'vue': ['vue', 'vuejs', 'vue.js'],
-        'angular': ['angular', 'angularjs'],
-        'nodejs': ['nodejs', 'node.js', 'node'],
-        'django': ['django'],
-        'flask': ['flask'],
-        'spring': ['spring', 'springboot', 'spring boot'],
-        'docker': ['docker'],
-        'kubernetes': ['kubernetes', 'k8s'],
-        'terraform': ['terraform'],
-    }
-    
-    # Comprehensive keyword mapping for interests
-    interest_keywords = {
-        'web development': ['web', 'frontend', 'backend', 'react', 'vue', 'django', 'flask', 'nodejs', 'node.js', 'express', 'html', 'css', 'javascript', 'typescript', 'html5', 'responsive', 'api', 'rest', 'graphql'],
-        'mobile development': ['mobile', 'ios', 'android', 'flutter', 'react native', 'swift', 'kotlin', 'app', 'native', 'cross-platform', 'xamarin'],
-        'ai/ml': ['ai', 'ml', 'machine learning', 'deep learning', 'tensorflow', 'pytorch', 'nlp', 'cv', 'neural', 'neural network', 'model', 'algorithm', 'prediction', 'classifier', 'regression'],
-        'data science': ['data', 'science', 'analytics', 'pandas', 'numpy', 'data analysis', 'visualization', 'dashboard', 'bi', 'warehouse', 'etl', 'spark', 'hadoop'],
-        'devops': ['devops', 'docker', 'kubernetes', 'ci/cd', 'jenkins', 'automation', 'infrastructure', 'deployment', 'pipeline', 'monitoring', 'logging', 'terraform'],
-        'cloud': ['cloud', 'aws', 'azure', 'gcp', 'google cloud', 'serverless', 'cloud computing', 'lambda', 'ec2', 'rds', 'storage', 'distributed'],
-        'blockchain': ['blockchain', 'crypto', 'cryptocurrency', 'web3', 'ethereum', 'smart contract', 'solidity', 'dapp', 'defi', 'nft', 'web3.js'],
-        'iot': ['iot', 'embedded', 'arduino', 'raspberry', 'sensor', 'microcontroller', 'hardware', 'firmware', 'real-time', 'edge'],
-        'python': ['python', 'django', 'flask', 'pandas', 'numpy', 'scikit', 'jupyter', 'pipenv', 'poetry', 'asyncio', 'fastapi'],
-        'java': ['java', 'spring', 'springboot', 'android', 'maven', 'gradle', 'jvm', 'microservices', 'orm', 'hibernate'],
-        'c++': ['c++', 'cpp', 'gaming', 'graphics', 'performance', 'linux', 'embedded', 'real-time', 'unreal', 'opencv'],
-        'c#': ['c#', 'csharp', '.net', 'dotnet', 'unity', 'windows', 'blazor', 'aspnet', 'asp.net', 'entity framework'],
-        'javascript': ['javascript', 'js', 'nodejs', 'node.js', 'react', 'vue', 'angular', 'typescript', 'web'],
-        'database': ['database', 'sql', 'mongodb', 'postgres', 'postgresql', 'mysql', 'redis', 'cassandra', 'elastic', 'nosql', 'db'],
-        'design': ['design', 'ui', 'ux', 'figma', 'adobe', 'photoshop', 'wireframe', 'prototype', 'usability', 'sketch', 'accessibility'],
-        'security': ['security', 'encryption', 'cryptography', 'penetration', 'authentication', 'authorization', 'oauth', 'jwt', 'ssl', 'tls'],
-    }
-    
-    score = 0
-    
-    # Convert to lowercase
-    user_interests_lower = [i.lower() for i in user_interests]
-    project_langs_lower = (project_languages or '').lower()
-    project_desc_lower = (project_description or '').lower()
-    
-    # Parse project languages into set
-    project_langs_set = set(l.strip().lower() for l in project_langs_lower.split(',') if l.strip())
-    
-    # --- Factor 1: Direct Programming Language Matching (35 pts max) ---
-    # This is NEW and prioritizes exact language matches
-    language_match_bonus = 0
-    
-    # Check if any user interest is a programming language
-    for interest in user_interests_lower:
-        # Get all variants of this language
-        if interest in PROGRAMMING_LANGUAGES:
-            lang_variants = PROGRAMMING_LANGUAGES[interest]
-            # Check if project uses this language
-            for variant in lang_variants:
-                if variant in project_langs_lower:
-                    language_match_bonus += 12  # 12 pts per language match
-        
-        # Also check if interest is in project languages directly
-        if interest in project_langs_lower:
-            language_match_bonus += 15  # 15 pts for exact interest match
-    
-    # Also check all programming languages against user interests
-    for lang_name, lang_variants in PROGRAMMING_LANGUAGES.items():
-        for variant in lang_variants:
-            if variant in project_langs_lower:
-                # Check if this language matches any user interest
-                if lang_name in user_interests_lower:
-                    language_match_bonus += 8  # Already counted above
-                elif lang_name.lower() in ' '.join(user_interests_lower):
-                    language_match_bonus += 6
-    
-    language_match_bonus = min(language_match_bonus, 35)
-    score += language_match_bonus
-    
-    # --- Factor 2: Direct Interest Keyword Matching (30 pts max) ---
-    interest_keyword_hits = set()
-    for interest in user_interests_lower:
-        keywords = interest_keywords.get(interest, [])
-        for keyword in keywords:
-            if keyword in project_desc_lower or keyword in project_langs_lower:
-                interest_keyword_hits.add(keyword)
-    
-    # Award points for unique keyword matches (2 pts each, max 30)
-    interest_match_score = min(len(interest_keyword_hits) * 2, 30)
-    score += interest_match_score
-    
-    # --- Factor 3: Language Overlap with Interest Keywords (20 pts max) ---
-    language_keyword_score = 0
-    for interest in user_interests_lower:
-        keywords = interest_keywords.get(interest, [])
-        for keyword in keywords:
-            # Check if any keyword matches a project language
-            for proj_lang in project_langs_set:
-                if keyword in proj_lang or proj_lang in keyword:
-                    language_keyword_score += 6
-    
-    language_keyword_score = min(language_keyword_score, 20)
-    score += language_keyword_score
-    
-    # --- Factor 4: Description Quality & Keyword Density (10 pts max) ---
-    STOPWORDS = {
-        'the', 'a', 'an', 'and', 'or', 'in', 'on', 'is', 'to', 'for', 'of', 'with',
-        'that', 'this', 'it', 'as', 'are', 'was', 'be', 'from', 'at', 'by', 'we',
-        'our', 'your', 'not', 'has', 'have', 'will', 'can', 'i', 'its', 'using',
-        'used', 'use', 'based', 'built', 'build', 'project', 'help', 'need', 'team',
-    }
-    
-    if project_desc_lower:
-        desc_words = set(word for word in project_desc_lower.split() if word not in STOPWORDS and len(word) > 2)
-        
-        # Count keywords from interests that appear in description
-        desc_keyword_matches = 0
-        for interest in user_interests_lower:
-            keywords = interest_keywords.get(interest, [])
-            for keyword in keywords:
-                keyword_words = set(keyword.split())
-                if keyword_words & desc_words:
-                    desc_keyword_matches += 1
-        
-        desc_match_score = min(desc_keyword_matches * 2, 10)
-        score += desc_match_score
-    
-    # --- Factor 5: Skills-to-Roles Alignment Bonus (5 pts max) ---
-    if user_skills and project_roles:
-        user_skills_lower = [s.lower() for s in (user_skills or [])]
-        roles_needed = (project_roles or '').lower()
-        
-        skills_in_roles = 0
-        for skill in user_skills_lower:
-            if skill in roles_needed:
-                skills_in_roles += 1
-        
-        skills_bonus = min(skills_in_roles * 2, 5)
-        score += skills_bonus
-    
-    # Normalize and ensure score is between 0-100
-    score = min(100, max(0, score))
-    
-    # Apply a precision boost for high-relevance matches
-    if score > 70:
-        # Already high quality, keep as is
-        pass
-    elif score < 30:
-        # Filter out very low matches
-        score = max(score, 10)  # Minimum 10% for showing
-    
-    return int(score)
+
 
 
 @views.route('/api/ai-suggestions', methods=['GET'])
@@ -1886,8 +1772,9 @@ def get_ai_suggestions():
     if not user:
         return jsonify({'error': 'User not found'}), 404
     
-    # Parse user interests
-    user_interests = [i.strip() for i in user.interests.split(',') if i.strip()] if user.interests else []
+    # Parse user interests using the shared function
+    interests_data = parse_interests(user.interests)
+    user_interests = interests_data.get('dev_interests', []) + interests_data.get('lang_interests', [])
     
     if not user_interests:
         return jsonify({
