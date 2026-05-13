@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ profile_user.name }} | MMU OSSD</title>
+    <meta name="description" content="User profile on MMU Open Source Student Directory">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+
+        body { font-family: 'Inter', sans-serif; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in { animation: fadeIn 0.35s ease both; }
+
+        /* ── Animated Hamburger Button ─────────────────────────── */
+        .hamburger {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            border-radius: 8px;
+            padding: 6px;
+            gap: 5px;
+            transition: background 0.2s ease;
+            position: relative;
+        }
+        .hamburger:hover {
+            background: rgba(255,255,255,0.15);
+        }
+        .hamburger:focus-visible {
+            outline: 2px solid rgba(255,255,255,0.6);
+            outline-offset: 2px;
+        }
+        .hamburger .bar {
+            display: block;
+            width: 22px;
+            height: 2.5px;
+            border-radius: 99px;
+            background: #fff;
+            transition: transform 0.35s cubic-bezier(0.23, 1, 0.32, 1),
+                        opacity   0.25s ease,
+                        width     0.3s ease;
+            transform-origin: center;
+        }
+        /* Open state — morph into X */
+        .hamburger.is-open .bar:nth-child(1) {
+            transform: translateY(7.5px) rotate(45deg);
+        }
+        .hamburger.is-open .bar:nth-child(2) {
+            opacity: 0;
+            width: 0;
+        }
+        .hamburger.is-open .bar:nth-child(3) {
+            transform: translateY(-7.5px) rotate(-45deg);
+        }
+
+        /* ── Mobile menu slide-down animation ──────────────────── */
+        #mobile-menu {
+            max-height: 0;
+            overflow: hidden;
+            opacity: 0;
+            transition: max-height 0.38s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.28s ease;
+        }
+        #mobile-menu.menu-open {
+            max-height: 500px;
+            opacity: 1;
+        }
+        #mobile-menu a, #mobile-menu button, #mobile-menu div {
+            transform: translateY(-6px);
+            opacity: 0;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+        }
+        #mobile-menu.menu-open a, #mobile-menu.menu-open button, #mobile-menu.menu-open div {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        #mobile-menu a:nth-child(1)  { transition-delay: 0.05s; }
+        #mobile-menu a:nth-child(2)  { transition-delay: 0.09s; }
+        #mobile-menu a:nth-child(3)  { transition-delay: 0.13s; }
+        #mobile-menu a:nth-child(4)  { transition-delay: 0.17s; }
+        #mobile-menu a:nth-child(5)  { transition-delay: 0.21s; }
+        #mobile-menu button          { transition-delay: 0.25s; }
+        #mobile-menu #nav-email-mobile { transition-delay: 0.29s; }
+    </style>
+</head>
+
+<body class="bg-gray-50 text-gray-900">
+
+    <nav class="bg-red-700 text-white shadow-md sticky top-0 z-50">
+        <div class="container mx-auto px-6 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <button id="menu-btn" class="hamburger" aria-label="Toggle menu" aria-expanded="false">
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                </button>
+                <a href="{{ url_for('views.home') }}" class="hover:opacity-80 transition flex items-center gap-4">
+                    <i class="fas fa-arrow-left text-xl"></i>
+                    <h1 class="text-2xl font-extrabold tracking-tighter">
+                        MMU <span class="font-light text-red-200">OSSD</span>
+                    </h1>
+                </a>
+            </div>
+            <div class="hidden md:flex space-x-8 items-center font-medium">
+                <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
+                <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
+                <a href="{{ url_for('views.qna_page') }}" class="hover:text-red-200 transition">Q&A</a>
+                <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
+                <a href="{{ url_for('views.profile') }}" class="bg-red-800 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-500/50 cursor-pointer hover:bg-red-900 transition">
+                    <span id="nav-email" class="text-sm">{{ session.get('user_email', 'Guest') }}</span>
+                    <i class="fas fa-user-circle text-lg"></i>
+                </a>
+                <button id="logout-btn"
+                    class="bg-white text-red-700 hover:bg-red-50 text-xs font-bold px-3 py-2 rounded-xl transition">
+                    <i class="fas fa-sign-out-alt mr-1"></i>Logout
+                </button>
+            </div>
+        </div>
+
+        <div id="mobile-menu" class="bg-red-800 border-t border-red-600 shadow-inner">
+            <div class="px-6 py-4 flex flex-col space-y-4 font-semibold">
+                <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
+                <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
+                <a href="{{ url_for('views.qna_page') }}" class="hover:text-red-200 transition">Q&A</a>
+                <a href="{{ url_for('views.profile') }}" class="hover:text-red-200 transition">My Profile</a>
+                <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
+                <a href="{{ url_for('views.list_project') }}" class="hover:text-red-200 transition">List Your Project</a>
+                <button id="logout-btn-mobile" class="text-left text-red-200 hover:text-white transition text-sm">
+                    <i class="fas fa-sign-out-alt mr-1"></i> Logout
+                </button>
+                <div class="pt-2 border-t border-red-700 text-xs font-light opacity-80" id="nav-email-mobile">
+                    {{ session.get('user_email', 'Guest') }}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto px-6 py-12 fade-in">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
+
+            <div class="space-y-6">
+                <div class="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 text-center">
+                    <div class="relative w-24 h-24 mx-auto mb-4">
+                        <div id="avatar-initials" class="w-24 h-24 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-3xl font-black">
+                            {{ profile_user.name[0] | upper }}
+                        </div>
+                        <img id="avatar-img" src="{% if profile_user.avatar_path %}/static/uploads/{{ profile_user.avatar_path }}{% endif %}" alt="Profile photo" class="{% if not profile_user.avatar_path %}hidden{% endif %} w-24 h-24 rounded-full object-cover absolute inset-0">
+                    </div>
+
+                    <h2 class="text-2xl font-black">{{ profile_user.name }}</h2>
+                    <p class="text-gray-400 text-sm">{{ profile_user.faculty }}</p>
+                    <p class="text-gray-500 text-xs mt-2 flex items-center justify-center gap-2">
+                        <i class="fas fa-envelope text-gray-400"></i>
+                        <span>{{ profile_user.email }}</span>
+                    </p>
+                    {% if profile_user.bio %}
+                    <p class="text-gray-500 text-sm mt-3 italic">{{ profile_user.bio }}</p>
+                    {% endif %}
+
+                    <div class="mt-6 pt-6 border-t border-gray-50 grid grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-xl font-black text-red-600">{{ profile_user.rank }}</p>
+                            <p class="text-[10px] uppercase font-bold text-gray-400">Rank</p>
+                        </div>
+                        <div>
+                            <p class="text-xl font-black text-red-600">{{ profile_user.karma }}</p>
+                            <p class="text-[10px] uppercase font-bold text-gray-400">Karma</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-gray-900 p-6 rounded-3xl text-white">
+                    <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Badges</h3>
+                    <div class="flex gap-3">
+                        {% for badge in profile_user.badges %}
+                            <i class="fas fa-badge text-yellow-400 text-2xl" title="{{ badge.badge }}"></i>
+                        {% endfor %}
+                        {% if not profile_user.badges %}
+                            <p class="text-xs text-gray-500 italic">No badges yet</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-2 space-y-8">
+                <section class="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Skills &amp; Tech Stack</h3>
+                    <div id="display-skills" class="flex flex-wrap gap-2">
+                        {% if profile_user.skills %}
+                            {% for skill in profile_user.skills %}
+                                <span class="bg-gray-100 px-4 py-2 rounded-xl text-sm font-semibold text-gray-700">{{ skill.skill }}</span>
+                            {% endfor %}
+                        {% else %}
+                            <span class="bg-gray-100 px-4 py-2 rounded-xl text-sm font-semibold text-gray-400 italic">No skills listed</span>
+                        {% endif %}
+                    </div>
+                </section>
+
+                <!-- Project Interests Section -->
+                <section class="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Project Interests</h3>
+                    <div id="display-interests" class="flex flex-wrap gap-2">
+                        {% if profile_user.interests %}
+                            {% for interest in profile_user.interests.split(',') %}
+                                {% if interest.strip() %}
+                                    <span class="bg-red-100 px-4 py-2 rounded-xl text-sm font-semibold text-red-700">{{ interest.strip() }}</span>
+                                {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            <span class="bg-gray-100 px-4 py-2 rounded-xl text-sm font-semibold text-gray-400 italic">No interests set</span>
+                        {% endif %}
+                    </div>
+                </section>
+
+                <section class="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6">Projects</h3>
+                    <div id="projects-list" class="space-y-4">
+                        {% if profile_user.projects %}
+                            {% for project in profile_user.projects %}
+                            <a href="{{ url_for('views.project_page', project_id=project.id) }}" class="block">
+                                <div class="flex items-center justify-between p-4 border border-gray-100 rounded-2xl hover:bg-red-50 hover:border-red-200 transition cursor-pointer">
+                                    <div>
+                                        <h4 class="font-bold text-gray-800">{{ project.project_name }}</h4>
+                                        <p class="text-xs text-gray-400 mt-1">{{ project.status }} • {{ project.contributors }} Contributors</p>
+                                    </div>
+                                    <i class="fas fa-chevron-right text-gray-300"></i>
+                                </div>
+                            </a>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-gray-400 text-sm italic text-center py-4">This user hasn't listed any projects yet.</div>
+                        {% endif %}
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API = '/api';
+
+        // ── Smooth Mobile Menu Toggle ───────────────────────────────────────────
+        const menuBtn    = document.getElementById('menu-btn');
+        const mobileMenu = document.getElementById('mobile-menu');
+
+        function openMenu() {
+            mobileMenu.classList.add('menu-open');
+            menuBtn.classList.add('is-open');
+            menuBtn.setAttribute('aria-expanded', 'true');
+        }
+
+        function closeMenu() {
+            mobileMenu.classList.remove('menu-open');
+            menuBtn.classList.remove('is-open');
+            menuBtn.setAttribute('aria-expanded', 'false');
+        }
+
+        menuBtn.addEventListener('click', () => {
+            mobileMenu.classList.contains('menu-open') ? closeMenu() : openMenu();
+        });
+
+        mobileMenu.querySelectorAll('a, button').forEach(el => {
+            el.addEventListener('click', closeMenu);
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!menuBtn.contains(e.target) && !mobileMenu.contains(e.target)) {
+                closeMenu();
+            }
+        });
+
+        async function logout() {
+            await fetch(`${API}/logout`, { method: 'POST' });
+            window.location.href = '/login';
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('logout-btn').addEventListener('click', logout);
+            document.getElementById('logout-btn-mobile').addEventListener('click', logout);
+        });
+    </script>
+</body>
+</html>
