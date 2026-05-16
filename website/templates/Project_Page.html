@@ -315,28 +315,33 @@
 
         <div class="space-y-8">
             <div class="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm">
-                <h4 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Project Lead</h4>
-                <div class="flex items-center gap-4 mb-6">
-                    <div class="w-14 h-14 rounded-full bg-red-100 border-2 border-red-200 flex items-center justify-center text-red-600 font-bold text-xl">
-                        {{ project.user.name[0] | upper if project.user else 'U' }}
-                    </div>
-                    <div>
-                        <div class="font-bold text-gray-900 text-lg">{{ project.user.name if project.user else 'Anonymous User' }}</div>
-                        <div class="text-sm text-gray-500">{{ project.user.faculty if project.user else 'MMU Student' }}</div>
+                <h4 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-6">Team Structure</h4>
+                
+                <!-- Project Lead Section -->
+                <div class="mb-6 pb-6 border-b border-gray-200">
+                    <h5 class="text-xs font-semibold text-gray-600 mb-3 pb-2">
+                        <i class="fas fa-crown text-yellow-500 mr-2"></i>Project Lead
+                    </h5>
+                    <div class="flex items-center gap-4 justify-between">
+                        <div class="flex items-center gap-4 flex-1">
+                            <div class="w-12 h-12 rounded-full bg-red-100 border-2 border-red-200 flex items-center justify-center text-red-600 font-bold text-lg flex-shrink-0">
+                                {{ project.user.name[0] | upper if project.user else 'U' }}
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <div class="font-bold text-gray-900">{{ project.user.name if project.user else 'Anonymous User' }}</div>
+                                <div class="text-xs text-gray-500">{{ project.user.faculty if project.user else 'MMU Student' }}</div>
+                            </div>
+                        </div>
+                        <a href="mailto:{{ project.user.email if project.user else '' }}" class="text-xs font-bold text-white bg-red-600 hover:bg-red-700 px-3 py-2 rounded-lg transition whitespace-nowrap flex items-center gap-1">
+                            <i class="far fa-envelope"></i> Contact
+                        </a>
                     </div>
                 </div>
                 
-                <a href="mailto:{{ project.user.email if project.user else '' }}" class="block text-center text-sm font-bold text-red-600 hover:text-red-700 bg-red-50 py-3 rounded-xl transition">
-                    <i class="far fa-envelope mr-2"></i> Contact Lead
-                </a>
-            </div>
-            <div class="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm mt-8">
-                <h4 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Team Members</h4>
-            
-                <!-- Current Team Section -->
-                <div class="mb-6">
+                <!-- Team Members Section -->
+                <div>
                     <h5 class="text-xs font-semibold text-gray-600 mb-3 pb-2 border-b border-gray-200">
-                        <i class="fas fa-users text-blue-500 mr-2"></i>Current Team
+                        <i class="fas fa-users text-blue-500 mr-2"></i>Team Members
                     </h5>
                     <div class="space-y-2" id="members-list">
                         {% for member in project.members %}
@@ -355,45 +360,14 @@
                         </div>
                         {% endfor %}
                     </div>
-                    
-                    <!-- Leave Team Section (for members only) -->
-                    <div id="leave-team-section" style="display: none;" class="mt-4 pt-4 border-t border-gray-200">
-                        <h5 class="text-xs font-semibold text-gray-600 mb-3 pb-2">
-                            <i class="fas fa-sign-out-alt text-orange-500 mr-2"></i>Leave Project
-                        </h5>
-                        
-                        <!-- Show status if there's a pending request -->
-                        <div id="leave-status-box" style="display: none;" class="mb-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                            <div class="text-xs font-semibold text-orange-700 mb-1">📋 Pending Approval</div>
-                            <div class="text-xs text-orange-600"><span id="leave-status-reason"></span></div>
-                            <div class="text-xs text-orange-500 mt-1">Submitted: <span id="leave-status-date"></span></div>
-                        </div>
-                        
-                        <!-- Leave request form (hidden if already has pending request) -->
-                        <div id="leave-form-container">
-                            <textarea id="leave-reason-input" placeholder="Please tell us why you're leaving the project..." 
-                                class="w-full p-3 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-orange-400 resize-none" rows="3"></textarea>
-                            <div class="flex gap-2 mt-2">
-                                <button onclick="submitLeaveRequest(projectId)" class="flex-1 bg-orange-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-orange-700 transition">
-                                    <i class="fas fa-paper-plane mr-1"></i>Request to Leave
-                                </button>
-                                <button onclick="cancelLeaveForm()" class="flex-1 bg-gray-200 text-gray-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-gray-300 transition">
-                                    Cancel
-                                </button>
-                            </div>
-                            <p class="text-xs text-gray-500 mt-2">
-                                <i class="fas fa-info-circle mr-1"></i>Project owner will need to approve your request to leave.
-                            </p>
-                        </div>
-                    </div>
                 </div>
 
                 <!-- Member History Section -->
-                <div class="mb-6" id="history-section" style="display: none;">
+                <div class="mt-6" id="history-section" style="display: none;">
                     <h5 class="text-xs font-semibold text-gray-600 mb-3 pb-2 border-b border-gray-200">
-                        <i class="fas fa-history text-purple-500 mr-2"></i>Member Activity History
+                        <i class="fas fa-history text-purple-500 mr-2"></i>Team Member Activity
                     </h5>
-                    <div class="space-y-2 max-h-48 overflow-y-auto" id="member-history-list">
+                    <div class="space-y-2 max-h-96 overflow-y-auto" id="member-history-list">
                         <div class="text-center text-gray-400 text-xs py-4">
                             <i class="fas fa-spinner fa-spin mr-1"></i> Loading history...
                         </div>
@@ -401,7 +375,7 @@
                 </div>
 
                 <!-- Pending Join Requests Section (Only for Project Owner) -->
-                <div class="mb-6" id="pending-requests-section" style="display: none;">
+                <div class="mt-6" id="pending-requests-section" style="display: none;">
                     <h5 class="text-xs font-semibold text-gray-600 mb-3 pb-2 border-b border-gray-200">
                         <i class="fas fa-hourglass-half text-yellow-500 mr-2"></i>Pending Join Requests
                     </h5>
@@ -414,7 +388,7 @@
                 </div>
 
                 <!-- Pending Leave Requests Section (Only for Project Owner) -->
-                <div class="mb-6" id="pending-leave-requests-section" style="display: none;">
+                <div class="mt-6" id="pending-leave-requests-section" style="display: none;">
                     <h5 class="text-xs font-semibold text-gray-600 mb-3 pb-2 border-b border-gray-200">
                         <i class="fas fa-door-open text-red-500 mr-2"></i>Pending Leave Requests
                     </h5>
@@ -427,33 +401,50 @@
                 </div>
 
                 <!-- Project Stats -->
-                <div class="grid grid-cols-3 gap-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg mb-6">
+                <div class="grid grid-cols-2 gap-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg mb-6 mt-6">
                     <div class="text-center">
                         <div class="text-lg font-bold text-blue-700">{{ project.members|length }}</div>
                         <div class="text-xs text-gray-600">Team Size</div>
                     </div>
-                    <div class="text-center border-l border-r border-gray-200">
+                    <div class="text-center">
                         <div class="text-lg font-bold text-indigo-700">{{ project.status }}</div>
                         <div class="text-xs text-gray-600">Status</div>
                     </div>
-                    <div class="text-center">
-                        <div class="text-lg font-bold text-purple-700">{{ project.roles_needed if project.roles_needed else '—' }}</div>
-                        <div class="text-xs text-gray-600">Roles Needed</div>
-                    </div>
                 </div>
 
-            <div class="border-t border-gray-100 pt-4 mt-4">
-                <label class="text-xs font-bold text-gray-500 mb-2 block">Invite Member by Email</label>
-                <div class="flex gap-2">
-                    <input type="email" id="new-member-email" placeholder="example@mmu.edu.my" 
-                        class="bg-gray-50 border border-gray-200 text-sm rounded-xl px-3 py-2 w-full focus:outline-none focus:border-red-400">
-                    <button onclick="addMember(projectId)"
-                            class="bg-red-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-red-700 transition">
-                        Add
-                    </button>
+                <div class="border-t border-gray-100 pt-4 mt-4">
+                    <label class="text-xs font-bold text-gray-500 mb-2 block">Invite Member by Email</label>
+                    <div class="flex gap-2">
+                        <input type="email" id="new-member-email" placeholder="example@mmu.edu.my" 
+                            class="bg-gray-50 border border-gray-200 text-sm rounded-xl px-3 py-2 w-full focus:outline-none focus:border-red-400">
+                        <button onclick="addMember(projectId)"
+                                class="bg-red-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-red-700 transition">
+                            Add
+                        </button>
+                    </div>
+                    <p id="add-member-msg" class="text-xs mt-2 hidden"></p>
                 </div>
-                <p id="add-member-msg" class="text-xs mt-2 hidden"></p>
-            </div>
+
+                <!-- Leave Team Section (for members only) -->
+                <div id="leave-team-section" style="display: none;" class="mt-6 pt-6 border-t border-gray-200">
+                    <h5 class="text-xs font-semibold text-gray-600 mb-3 pb-2">
+                        <i class="fas fa-sign-out-alt text-orange-500 mr-2"></i>Leave Project
+                    </h5>
+                    
+                    <!-- Leave message form -->
+                    <div id="leave-form-container">
+                        <textarea id="leave-reason-input" placeholder="Leave a message about why you're leaving (optional)..." 
+                            class="w-full p-3 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-orange-400 resize-none" rows="3"></textarea>
+                        <div class="mt-2">
+                            <button onclick="submitLeaveRequest(projectId)" class="w-full bg-orange-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-orange-700 transition">
+                                <i class="fas fa-sign-out-alt mr-1"></i>Leave a Message & Exit
+                            </button>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-2">
+                            <i class="fas fa-info-circle mr-1"></i>You can exit anytime. Your message will be visible to the team.
+                        </p>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -1148,30 +1139,9 @@ async function leaveTeam(projectId) {
 // ──────────────────────────────────────────────────────────────────────
 
 async function loadMyLeaveStatus() {
-    if (!currentUserId) return;
-    
-    try {
-        const res = await fetch(`${API}/project/${projectId}/my-leave-status`);
-        if (!res.ok) return;
-        const data = await res.json();
-        
-        if (data.status) {
-            // User has a leave request
-            const leaveStatusBox = document.getElementById('leave-status-box');
-            const leaveFormContainer = document.getElementById('leave-form-container');
-            
-            if (leaveStatusBox && leaveFormContainer) {
-                leaveStatusBox.style.display = 'block';
-                leaveFormContainer.style.display = 'none';
-                
-                document.getElementById('leave-status-reason').textContent = data.reason;
-                const date = new Date(data.created_at).toLocaleDateString();
-                document.getElementById('leave-status-date').textContent = date;
-            }
-        }
-    } catch (err) {
-        console.error('Error loading leave status:', err);
-    }
+    // This function is no longer needed since we're not using approval
+    // Member history will show the activity instead
+    return;
 }
 
 async function loadLeaveRequests() {
@@ -1238,35 +1208,29 @@ function renderLeaveRequests(requests) {
 async function submitLeaveRequest(projectId) {
     const reason = document.getElementById('leave-reason-input').value.trim();
     
-    if (!reason) {
-        alert('Please provide a reason for leaving');
-        return;
-    }
-    
-    if (reason.length < 10) {
-        alert('Reason must be at least 10 characters');
+    // Message is optional now
+    if (!confirm('Are you sure you want to leave this project?')) {
         return;
     }
     
     try {
-        const res = await fetch(`${API}/project/${projectId}/leave-request`, {
+        const res = await fetch(`${API}/project/${projectId}/leave-project`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reason })
+            body: JSON.stringify({ reason: reason || '' })
         });
         
         const data = await res.json();
         
         if (res.ok) {
-            alert('Your leave request has been submitted! Waiting for project owner approval.');
-            document.getElementById('leave-reason-input').value = '';
-            await loadMyLeaveStatus();
+            alert('You have left the project successfully!');
+            window.location.reload();
         } else {
-            alert(data.error || 'Failed to submit leave request');
+            alert(data.error || 'Failed to leave project');
         }
     } catch (err) {
-        console.error('Error submitting leave request:', err);
-        alert('Failed to submit leave request');
+        console.error('Error leaving project:', err);
+        alert('Failed to leave project');
     }
 }
 

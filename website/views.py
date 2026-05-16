@@ -1130,6 +1130,16 @@ def add_member(project_id):
 
     # Add the user to the project's members list
     project.members.append(user_to_add)
+    
+    # Create member history record
+    history = MemberHistory(
+        user_id=user_to_add.id,
+        project_id=project_id,
+        action='joined',
+        reason=None
+    )
+    
+    db.session.add(history)
     db.session.commit()
 
     return jsonify({"success": "Member added successfully!", "user_name": user_to_add.name})
@@ -1162,7 +1172,9 @@ def request_join_project(project_id):
         if existing_request.status == 'pending':
             return jsonify({"error": "You have already sent a join request"}), 400
         elif existing_request.status == 'rejected':
-            return jsonify({"error": "Your join request was rejected"}), 400
+            # Delete the old rejected request and allow user to submit a new one
+            db.session.delete(existing_request)
+            db.session.commit()
     
     # Create new join request
     join_request = JoinRequest(
@@ -1229,6 +1241,15 @@ def accept_join_request(project_id, request_id):
     user_to_add = User.query.get_or_404(join_request.user_id)
     if user_to_add not in project.members:
         project.members.append(user_to_add)
+        
+        # Create member history record
+        history = MemberHistory(
+            user_id=user_to_add.id,
+            project_id=project_id,
+            action='joined',
+            reason=None
+        )
+        db.session.add(history)
     
     # Update request status
     join_request.status = 'accepted'
@@ -1267,6 +1288,53 @@ def reject_join_request(project_id, request_id):
 # ─────────────────────────────────────────────────────────────────────────
 # Team Member Leave Request API
 # ─────────────────────────────────────────────────────────────────────────
+
+@views.route('/api/project/<int:project_id>/leave-project', methods=['POST'])
+def leave_project_immediately(project_id):
+    """Team member immediately leaves the project with optional message"""
+    err = require_login()
+    if err:
+        return err
+    
+    project = Project.query.get_or_404(project_id)
+    current_user = get_current_user()
+    
+    # Check if user is a team member
+    if current_user not in project.members:
+        return jsonify({'error': 'You are not a member of this project'}), 403
+    
+    data = request.get_json(silent=True) or {}
+    reason = data.get('reason', '').strip()
+    
+    try:
+        # Remove user from project members
+        project.members.remove(current_user)
+        
+        # Clean up old join requests so user can rejoin later
+        # Delete all previous join requests (rejected or accepted)
+        old_requests = JoinRequest.query.filter_by(
+            user_id=current_user.id,
+            project_id=project_id
+        ).all()
+        for old_req in old_requests:
+            db.session.delete(old_req)
+        
+        # Create member history record
+        history = MemberHistory(
+            user_id=current_user.id,
+            project_id=project_id,
+            action='left',
+            reason=reason if reason else None
+        )
+        
+        db.session.add(history)
+        db.session.commit()
+        
+        return jsonify({'success': 'You have left the project successfully'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
 
 @views.route('/api/project/<int:project_id>/leave-request', methods=['POST'])
 def request_leave_team(project_id):
@@ -2263,30 +2331,33 @@ def get_members_with_status(project_id):
 
 @views.route('/api/project/<int:project_id>/member-history', methods=['GET'])
 def get_member_history(project_id):
-    """Get member join/leave history for a project"""
+    """Get member join/leave history for a project (viewable by all team members)"""
     project = Project.query.get_or_404(project_id)
     
-    # Get current user to check if they're the owner
+    # Get current user
     current_user = get_current_user()
-    if not current_user or current_user.id != project.user_id:
-        return jsonify({'error': 'Only project owner can view member history'}), 403
     
-    history = MemberHistory.query.filter_by(project_id=project_id).order_by(MemberHistory.timestamp.desc()).all()
-    
-    history_data = []
-    for h in history:
-        user = User.query.get(h.user_id)
-        history_data.append({
-            'id': h.id,
-            'user_id': h.user_id,
-            'user_name': user.name if user else 'Unknown',
-            'user_email': user.email if user else 'Unknown',
-            'action': h.action,  # 'joined' or 'left'
-            'timestamp': h.timestamp.isoformat(),
-            'reason': h.reason
-        })
-    
-    return jsonify({'success': True, 'history': history_data})
+    # Allow project owner and team members to view history
+    # (Remove the restriction that only owner can view)
+    if current_user and (current_user.id == project.user_id or current_user in project.members):
+        history = MemberHistory.query.filter_by(project_id=project_id).order_by(MemberHistory.timestamp.desc()).all()
+        
+        history_data = []
+        for h in history:
+            user = User.query.get(h.user_id)
+            history_data.append({
+                'id': h.id,
+                'user_id': h.user_id,
+                'user_name': user.name if user else 'Unknown',
+                'user_email': user.email if user else 'Unknown',
+                'action': h.action,  # 'joined' or 'left'
+                'timestamp': h.timestamp.isoformat(),
+                'reason': h.reason
+            })
+        
+        return jsonify({'success': True, 'history': history_data})
+    else:
+        return jsonify({'error': 'You do not have permission to view member history'}), 403
 
 
 @views.route('/api/update-last-seen', methods=['POST'])
