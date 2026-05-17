@@ -9,7 +9,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 import uuid
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify, session
-from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, QuestionCommentImage, QuestionImage, JoinRequest
+from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, QuestionCommentImage, QuestionImage, JoinRequest, ProjectMember
 
 views = Blueprint('views', __name__)
 
@@ -192,7 +192,23 @@ def qna_page():
 @views.route('/project/<int:project_id>')
 def project_page(project_id):
     project = Project.query.get_or_404(project_id)
-    return render_template("Project_Page.html", project=project, current_user=get_current_user())
+    current_user = get_current_user()
+    
+    if project.views is None:
+        project.views = 0
+    project.views += 1
+    db.session.commit()
+
+    current_user_role = None
+    if current_user:
+        if project.user_id == current_user.id:
+            current_user_role = 'owner'
+        else:
+            member_record = ProjectMember.query.filter_by(project_id=project.id, user_id=current_user.id).first()
+            if member_record:
+                current_user_role = member_record.role
+
+    return render_template("Project_Page.html", project=project, current_user=current_user, current_user_role=current_user_role)
 
 @views.route('/upload-success')
 def upload_success():
@@ -251,21 +267,27 @@ def edit_project(project_id):
 
     project = Project.query.get_or_404(project_id)
 
-    is_owner = (project.user_id == current_user.id)
-    is_member = (current_user in project.members)
+    current_user_role = None
+    if project.user_id == current_user.id:
+        current_user_role = 'owner'
+    else:
+        member_record = ProjectMember.query.filter_by(project_id=project.id, user_id=current_user.id).first()
+        if member_record:
+            current_user_role = member_record.role
 
-    if not (is_owner or is_member):
-        flash("Permission Denied: Only project owners and members can edit this project.", "error")
+    if current_user_role not in ['owner', 'admin']:
+        flash("Permission Denied: Only project owners and admins can edit this project.", "error")
         return redirect(url_for('views.project_page', project_id=project.id))
 
     if request.method == 'POST':
-        if is_owner:
+        if current_user_role == 'owner':
             project.project_name = request.form.get('project_name')
             project.repo_url = request.form.get('repo_url')
 
         project.languages = request.form.get('languages')
         project.roles_needed = request.form.get('roles_needed')
         project.description = request.form.get('description')
+        project.status = request.form.get('status')
 
         images_to_delete = request.form.getlist('delete_images')
         for img_id in images_to_delete:
@@ -291,7 +313,7 @@ def edit_project(project_id):
         db.session.commit()
         return redirect(url_for('views.project_page', project_id=project.id))
 
-    return render_template("Edit_Project.html", project=project, current_user=current_user)
+    return render_template("Edit_Project.html", project=project, current_user=current_user, current_user_role=current_user_role)
 
 @views.route('/delete-project/<int:project_id>', methods=['POST'])
 def delete_project(project_id):
