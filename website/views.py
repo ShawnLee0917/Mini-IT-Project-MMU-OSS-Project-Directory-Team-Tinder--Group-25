@@ -2192,10 +2192,90 @@ def get_ai_suggestions():
             'contributors': project.contributors or 0,
             'languages': project.languages,
             'roles_needed': project.roles_needed,
-            'match_score': match_score,
             'match_reason': match_reason,
-            'created_at': project.created_at.isoformat(),
         })
+    
+    return jsonify(result)
+
+
+# --- API Endpoint: Get user profile by ID ---
+@views.route('/api/user/<int:user_id>/profile', methods=['GET'])
+def get_user_profile(user_id):
+    """Get public profile information for a specific user"""
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    skills = Skill.query.filter_by(user_id=user.id).all()
+    badges = Badge.query.filter_by(user_id=user.id).all()
+    
+    avatar_url = f"/static/uploads/{user.avatar_path}" if user.avatar_path else ''
+    interests_list = [i.strip() for i in user.interests.split(',') if i.strip()] if user.interests else []
+
+    return jsonify({
+        'id': user.id,
+        'email': user.email,
+        'name': user.name,
+        'faculty': user.faculty,
+        'bio': user.bio or '',
+        'avatar_url': avatar_url,
+        'rank': user.rank,
+        'karma': user.karma,
+        'skills': [s.skill for s in skills],
+        'badges': [b.badge for b in badges],
+        'interests': interests_list,
+    })
+
+
+# --- API Endpoint: Get user's projects by ID ---
+@views.route('/api/user/<int:user_id>/projects', methods=['GET'])
+def get_user_projects(user_id):
+    """Get all projects created and joined by a specific user"""
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    # Get projects created by user
+    owned_projects = Project.query.filter_by(user_id=user.id).order_by(
+        Project.created_at.desc()
+    ).all()
+    
+    # Get projects joined by user
+    joined_projects = user.joined_projects
+    
+    result = {
+        'owned_projects': [{
+            'id': p.id,
+            'project_name': p.project_name,
+            'description': p.description,
+            'status': p.status,
+            'contributors': p.contributors,
+            'created_at': p.created_at.isoformat(),
+            'roles_needed': p.roles_needed,
+        } for p in owned_projects],
+        'joined_projects': [{
+            'id': p.id,
+            'project_name': p.project_name,
+            'description': p.description,
+            'status': p.status,
+            'contributors': p.contributors,
+            'created_at': p.created_at.isoformat(),
+            'roles_needed': p.roles_needed,
+        } for p in joined_projects],
+    }
+    
+    return jsonify(result)
+
+
+# --- Route: View user profile page ---
+@views.route('/user/<int:user_id>')
+def view_user_profile(user_id):
+    """Display a user's profile page"""
+    user = User.query.get(user_id)
+    if not user:
+        return redirect(url_for('views.home'))
+    
+    return render_template("Profile.html", view_user_id=user_id)
     
     return jsonify({
         'success': True,
