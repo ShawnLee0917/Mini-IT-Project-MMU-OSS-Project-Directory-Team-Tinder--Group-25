@@ -1,3 +1,4 @@
+from werkzeug import datastructures
 import os
 import random
 import smtplib
@@ -9,7 +10,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 import uuid
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify, session
-from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, QuestionCommentImage, QuestionImage, JoinRequest
+from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, QuestionCommentImage, QuestionImage, JoinRequest, ProjectCommentImage, UserSettings
 
 views = Blueprint('views', __name__)
 
@@ -212,15 +213,14 @@ def list_project():
             flash("Please login first!", "error")
             return redirect(url_for('views.home'))
 
-        new_project = Project(
-            user_id=current_user.id,
-            project_name=name, 
-            repo_url=repo, 
-            languages=langs, 
-            roles_needed=roles, 
-            description=desc,
-            status='Active'
-        )
+        new_project = Project()
+        new_project.user_id = current_user.id
+        new_project.project_name = name 
+        new_project.repo_url = repo 
+        new_project.languages = langs 
+        new_project.roles_needed = roles 
+        new_project.description = desc
+        new_project.status = 'Active'
 
         db.session.add(new_project)
         db.session.commit()
@@ -234,7 +234,9 @@ def list_project():
                 file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
                 file.save(file_path)
 
-                new_image = ProjectImage(filename=filename, project_id=new_project.id)
+                new_image = ProjectImage()
+                new_image.filename = filename
+                new_image.project_id = new_project.id
                 db.session.add(new_image)
 
         db.session.commit()
@@ -285,7 +287,9 @@ def edit_project(project_id):
                 file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], new_filename)
                 file.save(file_path)
                 
-                new_image = ProjectImage(filename=new_filename, project_id=project.id)
+                new_image = ProjectImage()
+                new_image.filename = new_filename
+                new_image.project_id = project.id
                 db.session.add(new_image)
 
         db.session.commit()
@@ -333,13 +337,12 @@ def api_register():
     })
     
     try:
-        user = User(
-            email=email, 
-            name=name, 
-            password_hash=pw_hash, 
-            otp=otp_code,
-            interests=interests_json
-        )
+        user = User()
+        user.email = email
+        user.name = name
+        user.password_hash = pw_hash
+        user.otp = otp_code
+        user.interests = interests_json
         db.session.add(user)
         db.session.commit()
         
@@ -501,7 +504,9 @@ def update_profile():
         Skill.query.filter_by(user_id=user.id).delete()
         for skill in skills:
             if skill.strip():
-                skill_obj = Skill(user_id=user.id, skill=skill.strip())
+                skill_obj = Skill()
+                skill_obj.user_id = user.id
+                skill_obj.skill = skill.strip()
                 db.session.add(skill_obj)
 
     # Update interests as JSON
@@ -541,6 +546,116 @@ def upload_avatar():
     db.session.commit()
 
     return jsonify({'success': True, 'avatar_url': f'/static/uploads/{filename}'})
+
+
+# ── Settings API ────────────────────────────────────────────────────────
+
+@views.route('/api/settings', methods=['GET'])
+def get_settings():
+    """Retrieve user settings"""
+    err = require_login()
+    if err:
+        return err
+    
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    # Get or create user settings
+    settings = user.settings
+    if not settings:
+        settings = UserSettings()
+        settings.user_id = user.id
+        db.session.add(settings)
+        db.session.commit()
+    
+    return jsonify({
+        'privacy': {
+            'profile_visibility': settings.profile_visibility,
+            'email_visibility': settings.email_visibility,
+            'show_rank': settings.show_rank,
+            'show_karma': settings.show_karma,
+        },
+        'notifications': {
+            'qna_answers': settings.notify_qna_new_answers,
+            'project_comments': settings.notify_project_comments,
+            'profile_views': settings.notify_profile_views,
+            'project_invites': settings.notify_project_invites,
+            'suggestions': settings.notify_new_suggestions,
+            'newsletter': settings.notify_newsletter,
+        },
+        'display': {
+            'theme': settings.theme,
+        },
+        'other': {
+            'direct_messages': settings.allow_direct_messages,
+            'auto_accept': settings.auto_accept_collaborations,
+        }
+    })
+
+
+@views.route('/api/settings', methods=['PUT'])
+def update_settings():
+    """Update user settings"""
+    err = require_login()
+    if err:
+        return err
+    
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    # Get or create user settings
+    settings = user.settings
+    if not settings:
+        settings = UserSettings()
+        settings.user_id = user.id
+        db.session.add(settings)
+        db.session.flush()
+    
+    data = request.get_json(silent=True) or {}
+    
+    # Update privacy settings
+    privacy = data.get('privacy', {})
+    if 'profile_visibility' in privacy:
+        settings.profile_visibility = privacy['profile_visibility']
+    if 'email_visibility' in privacy:
+        settings.email_visibility = privacy['email_visibility']
+    if 'show_rank' in privacy:
+        settings.show_rank = privacy['show_rank']
+    if 'show_karma' in privacy:
+        settings.show_karma = privacy['show_karma']
+    
+    # Update notification settings
+    notifications = data.get('notifications', {})
+    if 'qna_answers' in notifications:
+        settings.notify_qna_new_answers = notifications['qna_answers']
+    if 'project_comments' in notifications:
+        settings.notify_project_comments = notifications['project_comments']
+    if 'profile_views' in notifications:
+        settings.notify_profile_views = notifications['profile_views']
+    if 'project_invites' in notifications:
+        settings.notify_project_invites = notifications['project_invites']
+    if 'suggestions' in notifications:
+        settings.notify_new_suggestions = notifications['suggestions']
+    if 'newsletter' in notifications:
+        settings.notify_newsletter = notifications['newsletter']
+    
+    # Update display settings
+    display = data.get('display', {})
+    if 'theme' in display:
+        settings.theme = display['theme']
+    
+    # Update other settings
+    other = data.get('other', {})
+    if 'direct_messages' in other:
+        settings.allow_direct_messages = other['direct_messages']
+    if 'auto_accept' in other:
+        settings.auto_accept_collaborations = other['auto_accept']
+    
+    db.session.commit()
+    
+    return jsonify({'success': True, 'message': 'Settings updated successfully'})
 
 
 # Comments API
@@ -584,7 +699,9 @@ def post_comment():
     if not user:
         return jsonify({'error': 'User not found'}), 404
     
-    comment = Comment(user_id=user.id, comment=comment_text)
+    comment = Comment()
+    comment.user_id = user.id
+    comment.comment = comment_text
     db.session.add(comment)
     db.session.commit()
     
@@ -706,7 +823,10 @@ def accept_suggestion(project_id):
     
     # Create suggestion record
     try:
-        suggestion = Suggestion(user_id=user.id, project_id=project_id, match_score=100)
+        suggestion = Suggestion()
+        suggestion.user_id = user.id
+        suggestion.project_id = project_id
+        suggestion.match_score = 100
         db.session.add(suggestion)
         db.session.commit()
     except Exception:
@@ -793,7 +913,10 @@ def post_question():
         return jsonify({'error': 'Body too long (max 5000 chars)'}), 400
 
     user = User.query.filter_by(email=session['user_email']).first()
-    q = Question(user_id=user.id, title=title, body=body)
+    q = Question()
+    q.user_id = user.id
+    q.title = title
+    q.body = body
 
     # Handle optional multiple images
     if 'images' in request.files:
@@ -803,7 +926,8 @@ def post_question():
                 ext = file.filename.rsplit('.', 1)[1].lower()
                 filename = f"q_{uuid.uuid4().hex}.{ext}"
                 file.save(os.path.join(UPLOAD_FOLDER, filename))
-                img = QuestionImage(image_path=filename)
+                img = QuestionImage()
+                img.image_path = filename
                 q.images.append(img)
 
     db.session.add(q)
@@ -873,7 +997,8 @@ def edit_question(question_id):
                 ext = file.filename.rsplit('.', 1)[1].lower()
                 filename = f"q_{uuid.uuid4().hex}.{ext}"
                 file.save(os.path.join(UPLOAD_FOLDER, filename))
-                img = QuestionImage(image_path=filename)
+                img = QuestionImage()
+                img.image_path = filename
                 q.images.append(img)
 
     db.session.commit()
@@ -901,7 +1026,7 @@ def delete_question_image(image_id):
 
 
 @views.route('/api/comment-images/<int:image_id>', methods=['DELETE'])
-def delete_comment_image(image_id):
+def delete_qna_comment_image(image_id):
     err = require_login()
     if err:
         return err
@@ -934,7 +1059,10 @@ def toggle_like(question_id):
         db.session.delete(existing)
         liked = False
     else:
-        db.session.add(QuestionLike(user_id=user.id, question_id=question_id))
+        ql = QuestionLike()
+        ql.user_id = user.id
+        ql.question_id = question_id
+        db.session.add(ql)
         liked = True
 
     db.session.commit()
@@ -956,7 +1084,10 @@ def toggle_favorite(question_id):
         db.session.delete(existing)
         faved = False
     else:
-        db.session.add(QuestionFavorite(user_id=user.id, question_id=question_id))
+        qf = QuestionFavorite()
+        qf.user_id = user.id
+        qf.question_id = question_id
+        db.session.add(qf)
         faved = True
 
     db.session.commit()
@@ -1026,7 +1157,11 @@ def post_question_comment(question_id):
             parent_id = None
 
     user = User.query.filter_by(email=session['user_email']).first()
-    c = QuestionComment(user_id=user.id, question_id=question_id, body=body, parent_id=parent_id)
+    c = QuestionComment()
+    c.user_id = user.id
+    c.question_id = question_id
+    c.body = body
+    c.parent_id = parent_id
     
     # Handle optional multiple images
     if 'images' in request.files:
@@ -1036,7 +1171,8 @@ def post_question_comment(question_id):
                 ext = file.filename.rsplit('.', 1)[1].lower()
                 filename = f"c_{uuid.uuid4().hex}.{ext}"
                 file.save(os.path.join(UPLOAD_FOLDER, filename))
-                img = QuestionCommentImage(image_path=filename)
+                img = QuestionCommentImage()
+                img.image_path = filename
                 c.images.append(img)
     
     db.session.add(c)
@@ -1056,20 +1192,19 @@ def delete_question_comment(question_id, comment_id):
 
     user = User.query.filter_by(email=session['user_email']).first()
     c = QuestionComment.query.get(comment_id)
+    
     if not c or c.question_id != question_id:
         return jsonify({'error': 'Comment not found'}), 404
-    if c.user_id != user.id:
+        
+    q = Question.query.get(question_id)
+    is_q_owner = (q and q.user_id == user.id)
+    
+    if c.user_id != user.id and not is_q_owner:
         return jsonify({'error': 'Not authorised'}), 403
 
     db.session.delete(c)
     db.session.commit()
     return jsonify({'success': True})
-
-@views.route('/delete-question/<int:id>')
-def delete_confirm(id):
-    question = Question.query.get_or_404(id) # Or your database logic
-    return render_template("delete_question.html", question=question)
-
 
 @views.route('/api/questions/<int:question_id>/comments/<int:comment_id>', methods=['PUT'])
 def edit_question_comment(question_id, comment_id):
@@ -1106,7 +1241,8 @@ def edit_question_comment(question_id, comment_id):
                 ext = file.filename.rsplit('.', 1)[1].lower()
                 filename = f"c_{uuid.uuid4().hex}.{ext}"
                 file.save(os.path.join(UPLOAD_FOLDER, filename))
-                img = QuestionCommentImage(image_path=filename)
+                img = QuestionCommentImage()
+                img.image_path = filename
                 c.images.append(img)
     
     db.session.commit()
@@ -1228,11 +1364,10 @@ def request_join_project(project_id):
             return jsonify({"error": "Your join request was rejected"}), 400
     
     # Create new join request
-    join_request = JoinRequest(
-        user_id=current_user.id,
-        project_id=project_id,
-        status='pending'
-    )
+    join_request = JoinRequest()
+    join_request.user_id = current_user.id
+    join_request.project_id = project_id
+    join_request.status = 'pending'
     db.session.add(join_request)
     db.session.commit()
     
@@ -1352,12 +1487,13 @@ def get_project_comments(project_id):
         'user_role': c.user_role,
         'created_at': c.created_at.isoformat(),
         'updated_at': c.updated_at.isoformat(),
+        'images': [{'id': img.id, 'url': f'/static/uploads/{img.image_path}'} for img in c.images],
     } for c in comments])
 
 
 @views.route('/api/project/<int:project_id>/comments', methods=['POST'])
 def create_project_comment(project_id):
-    """Create a new comment on a project"""
+    """Create a new comment on a project (supports multipart for image uploads)"""
     err = require_login()
     if err:
         return err
@@ -1365,10 +1501,16 @@ def create_project_comment(project_id):
     project = Project.query.get_or_404(project_id)
     current_user = get_current_user()
     
-    data = request.get_json(silent=True) or {}
-    content = data.get('content', '').strip()
-    comment_type = data.get('comment_type', 'normal')  # 'normal', 'issue', 'suggestion'
-    label = data.get('label', None)
+    # Support both multipart (with images) and plain JSON
+    if request.content_type and 'multipart' in request.content_type:
+        content = request.form.get('content', '').strip()
+        comment_type = request.form.get('comment_type', 'normal')
+        label = request.form.get('label', None)
+    else:
+        data = request.get_json(silent=True) or {}
+        content = data.get('content', '').strip()
+        comment_type = data.get('comment_type', 'normal')
+        label = data.get('label', None)
     
     if not content:
         return jsonify({'error': 'Comment content is required'}), 400
@@ -1383,16 +1525,30 @@ def create_project_comment(project_id):
     elif current_user in project.members:
         user_role = 'team-member'
     
-    comment = ProjectComment(
-        project_id=project_id,
-        user_id=current_user.id,
-        content=content,
-        comment_type=comment_type,
-        label=label if user_role == 'owner' else None,  # Only owner can set labels
-        user_role=user_role
-    )
+    comment = ProjectComment()
+    comment.project_id = project_id
+    comment.user_id = current_user.id
+    comment.content = content
+    comment.comment_type = comment_type
+    comment.label = label if user_role == 'owner' else None
+    comment.user_role = user_role
     
     db.session.add(comment)
+    db.session.flush()  # Get comment.id before committing
+    
+    # Handle multiple image uploads
+    if 'images' in request.files:
+        files = request.files.getlist('images')
+        for file in files:
+            if file and file.filename != '' and allowed_file(file.filename):
+                ext = os.path.splitext(file.filename)[1]
+                filename = str(uuid.uuid4()) + ext
+                file.save(os.path.join(UPLOAD_FOLDER, filename))
+                img = ProjectCommentImage()
+                img.comment_id = comment.id
+                img.image_path = filename
+                db.session.add(img)
+    
     db.session.commit()
     
     return jsonify({
@@ -1405,12 +1561,13 @@ def create_project_comment(project_id):
         'label': comment.label,
         'user_role': comment.user_role,
         'created_at': comment.created_at.isoformat(),
+        'images': [{'id': img.id, 'url': f'/static/uploads/{img.image_path}'} for img in comment.images],
     }), 201
 
 
 @views.route('/api/project/<int:project_id>/comments/<int:comment_id>', methods=['DELETE'])
 def delete_project_comment(project_id, comment_id):
-    """Delete a comment (owner only)"""
+    """Delete a comment (comment author OR project owner)"""
     err = require_login()
     if err:
         return err
@@ -1419,17 +1576,121 @@ def delete_project_comment(project_id, comment_id):
     comment = ProjectComment.query.get_or_404(comment_id)
     current_user = get_current_user()
     
-    # Only owner can delete comments
-    if current_user.id != project.user_id:
-        return jsonify({'error': 'Only project owner can delete comments'}), 403
-    
     if comment.project_id != project_id:
         return jsonify({'error': 'Comment not found in this project'}), 404
+    
+    # Allow: comment author OR project owner
+    if current_user.id != comment.user_id and current_user.id != project.user_id:
+        return jsonify({'error': 'You do not have permission to delete this comment'}), 403
+    
+    # Delete associated images from disk
+    for img in comment.images:
+        file_path = os.path.join(UPLOAD_FOLDER, img.image_path)
+        if os.path.exists(file_path):
+            os.remove(file_path)
     
     db.session.delete(comment)
     db.session.commit()
     
     return jsonify({'success': 'Comment deleted'})
+
+
+@views.route('/api/project/<int:project_id>/comments/<int:comment_id>', methods=['PUT'])
+def edit_project_comment(project_id, comment_id):
+    """Edit a comment (comment author only)"""
+    err = require_login()
+    if err:
+        return err
+    
+    comment = ProjectComment.query.get_or_404(comment_id)
+    current_user = get_current_user()
+    
+    if comment.project_id != project_id:
+        return jsonify({'error': 'Comment not found in this project'}), 404
+    
+    if current_user.id != comment.user_id:
+        return jsonify({'error': 'You can only edit your own comments'}), 403
+    
+    data = request.get_json(silent=True) or {}
+    new_content = data.get('content', '').strip()
+    
+    if not new_content:
+        return jsonify({'error': 'Comment content cannot be empty'}), 400
+    
+    comment.content = new_content
+    db.session.commit()
+    
+    return jsonify({
+        'id': comment.id,
+        'content': comment.content,
+        'updated_at': comment.updated_at.isoformat(),
+    })
+
+
+@views.route('/api/project/<int:project_id>/comments/<int:comment_id>/images/<int:image_id>', methods=['DELETE'])
+def delete_comment_image(project_id, comment_id, image_id):
+    """Delete a single image from a comment (comment author only)"""
+    err = require_login()
+    if err:
+        return err
+
+    comment = ProjectComment.query.get_or_404(comment_id)
+    current_user = get_current_user()
+
+    if comment.project_id != project_id:
+        return jsonify({'error': 'Comment not found in this project'}), 404
+
+    if current_user.id != comment.user_id:
+        return jsonify({'error': 'You can only edit your own comments'}), 403
+
+    img = ProjectCommentImage.query.get_or_404(image_id)
+    if img.comment_id != comment_id:
+        return jsonify({'error': 'Image not found in this comment'}), 404
+
+    file_path = os.path.join(UPLOAD_FOLDER, img.image_path)
+    if os.path.exists(file_path):
+        os.remove(file_path)
+
+    db.session.delete(img)
+    db.session.commit()
+    return jsonify({'success': 'Image deleted'})
+
+
+@views.route('/api/project/<int:project_id>/comments/<int:comment_id>/images', methods=['POST'])
+def add_comment_images(project_id, comment_id):
+    """Add new images to an existing comment (comment author only)"""
+    err = require_login()
+    if err:
+        return err
+
+    comment = ProjectComment.query.get_or_404(comment_id)
+    current_user = get_current_user()
+
+    if comment.project_id != project_id:
+        return jsonify({'error': 'Comment not found in this project'}), 404
+
+    if current_user.id != comment.user_id:
+        return jsonify({'error': 'You can only edit your own comments'}), 403
+
+    if 'images' not in request.files:
+        return jsonify({'error': 'No images provided'}), 400
+
+    added = []
+    files = request.files.getlist('images')
+    for file in files:
+        if file and file.filename != '' and allowed_file(file.filename):
+            ext = os.path.splitext(file.filename)[1]
+            filename = str(uuid.uuid4()) + ext
+            file.save(os.path.join(UPLOAD_FOLDER, filename))
+            img = ProjectCommentImage()
+            img.comment_id = comment.id
+            img.image_path = filename
+            db.session.add(img)
+            db.session.flush()
+            added.append({'id': img.id, 'url': f'/static/uploads/{filename}'})
+
+    db.session.commit()
+    return jsonify({'success': True, 'images': added})
 
 
 @views.route('/api/project/<int:project_id>/comments/<int:comment_id>/label', methods=['PUT'])
@@ -1534,7 +1795,10 @@ def create_comment_label():
     if existing:
         return jsonify({'error': 'Label already exists'}), 400
     
-    label = CommentLabel(name=name, color=color, description=description)
+    label = CommentLabel()
+    label.name = name
+    label.color = color
+    label.description = description
     db.session.add(label)
     db.session.commit()
     
