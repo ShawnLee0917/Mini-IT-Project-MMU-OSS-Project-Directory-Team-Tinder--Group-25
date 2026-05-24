@@ -33,6 +33,38 @@ class User(db.Model):
     question_likes = db.relationship('QuestionLike', backref='user', lazy=True, cascade='all, delete-orphan')
     question_favorites = db.relationship('QuestionFavorite', backref='user', lazy=True, cascade='all, delete-orphan')
     question_comments = db.relationship('QuestionComment', backref='user', lazy=True, cascade='all, delete-orphan')
+    settings = db.relationship('UserSettings', backref='user', uselist=False, cascade='all, delete-orphan')
+
+
+class UserSettings(db.Model):
+    __tablename__ = 'user_settings'
+    
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, unique=True)
+    
+    # Privacy settings
+    profile_visibility = db.Column(db.String(20), nullable=False, default='public')  # 'public', 'private', 'friends'
+    email_visibility = db.Column(db.Boolean, default=False)
+    show_rank = db.Column(db.Boolean, default=True)
+    show_karma = db.Column(db.Boolean, default=True)
+    
+    # Notification settings
+    notify_qna_new_answers = db.Column(db.Boolean, default=True)
+    notify_project_comments = db.Column(db.Boolean, default=True)
+    notify_profile_views = db.Column(db.Boolean, default=False)
+    notify_project_invites = db.Column(db.Boolean, default=True)
+    notify_new_suggestions = db.Column(db.Boolean, default=True)
+    notify_newsletter = db.Column(db.Boolean, default=False)
+    
+    # Display preferences
+    theme = db.Column(db.String(20), nullable=False, default='light')  # 'light', 'dark'
+    
+    # Other preferences
+    allow_direct_messages = db.Column(db.Boolean, default=True)
+    auto_accept_collaborations = db.Column(db.Boolean, default=False)
+    
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class Skill(db.Model):
@@ -155,8 +187,18 @@ class ProjectComment(db.Model):
     # Relationships
     author = db.relationship('User', backref='project_comments')
     project = db.relationship('Project', backref='project_comments')
+    images = db.relationship('ProjectCommentImage', backref='comment', lazy=True, cascade='all, delete-orphan')
     
     __table_args__ = (db.Index('idx_project_comments', 'project_id', 'created_at'),)
+
+
+class ProjectCommentImage(db.Model):
+    """Images attached to project comments"""
+    __tablename__ = 'project_comment_images'
+
+    id         = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    comment_id = db.Column(db.Integer, db.ForeignKey('project_comments.id', ondelete='CASCADE'), nullable=False)
+    image_path = db.Column(db.String(255), nullable=False)
 
 
 # ---------------------------------------------------------------------------
