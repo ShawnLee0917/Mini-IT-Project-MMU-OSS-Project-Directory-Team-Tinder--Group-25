@@ -159,7 +159,8 @@ def my_projects():
 
     own_projects = Project.query.filter_by(user_id=current_user.id).order_by(Project.created_at.desc()).all()
     
-    joined_projects = current_user.joined_projects
+    memberships = current_user.project_memberships.all()
+    joined_projects = [membership.project for membership in memberships]
     
     # Update current user's last_seen timestamp
     current_user.last_seen = datetime.now(timezone.utc)
@@ -2714,3 +2715,29 @@ def save_interest():
         'message': 'Interests updated successfully',
         'interests': interests
     })
+@views.route('/hottest')
+def hottest_projects():
+    
+    trending_projects = Project.query.filter(
+        Project.status != 'Archived'
+    ).order_by(
+        Project.views.desc().nulls_last(), 
+        Project.created_at.desc()
+    ).limit(10).all()
+    
+    projects_data = []
+    for p in trending_projects:
+        comment_count = ProjectComment.query.filter_by(project_id=p.id).count()
+        
+        primary_lang = p.languages.split(',')[0].strip() if p.languages else 'N/A'
+        
+        projects_data.append({
+            'id': p.id,
+            'title': p.project_name,          
+            'description': p.description,
+            'language': primary_lang,
+            'views': p.views or 0,            
+            'comments': comment_count 
+        })
+        
+    return render_template("trending.html", projects=projects_data)
