@@ -118,7 +118,7 @@
         <div class="hidden md:flex space-x-8 items-center font-medium">
             <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
             <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
-            <a href="{{ url_for('views.qna_page') }}" class="hover:text-red-200 transition">Q&A</a>
+            <a href="{{ url_for('views.hottest_projects') }}" class="text-white transition">Hottest Projects</a>
             <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
             <a href="{{ url_for('views.profile') }}" class="bg-red-800 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-500/50 cursor-pointer hover:bg-red-900 transition">
                 <span id="nav-email" class="text-sm">{{ session.get('user_email', 'Guest') }}</span>
@@ -152,7 +152,7 @@
     <div class="max-w-3xl mx-auto">
         
         <div class="mb-12 text-center md:text-left">
-            <h2 class="text-4xl font-black text-gray-900 mb-2">Preserve Your Legacy</h2>
+            <h2 class="text-4xl font-black text-gray-900 mb-2">Create Your Project</h2>
             <p class="text-gray-500 font-medium">Fill in the details below to find the next generation of maintainers for your project.</p>
         </div>
 

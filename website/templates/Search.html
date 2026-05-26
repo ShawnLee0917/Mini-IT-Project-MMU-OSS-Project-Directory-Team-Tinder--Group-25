@@ -121,7 +121,7 @@
         <div class="hidden md:flex space-x-8 items-center font-medium">
             <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
             <a href="{{ url_for('views.search') }}" class="text-red-200 border-b-2 border-red-200">Search</a>
-            <a href="{{ url_for('views.qna_page') }}" class="hover:text-red-200 transition">Q&A</a>
+            <a href="{{ url_for('views.hottest_projects') }}" class="text-white transition">Hottest Projects</a>
             <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
             <a href="{{ url_for('views.profile') }}" class="bg-red-800 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-500/50 cursor-pointer hover:bg-red-900 transition">
                 <span id="nav-email" class="text-sm">{{ session.get('user_email', 'Guest') }}</span>
@@ -299,20 +299,27 @@
 
 <!-- Hidden template for projects -->
 <template id="project-template">
-    <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition">
+    <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition flex flex-col h-full">
         <div class="flex justify-between items-start mb-2">
             <h3 class="text-xl font-bold text-gray-900 project-name"></h3>
             <span class="text-xs font-bold bg-green-100 text-green-700 px-3 py-1 rounded-full uppercase tracking-wider project-status"></span>
         </div>
-        <p class="text-sm text-gray-500 mb-4 line-clamp-2 project-description"></p>
+        <p class="text-sm text-gray-500 mb-4 line-clamp-2 project-description flex-grow"></p>
         
-        <div class="flex items-center justify-between border-t border-gray-50 pt-4">
+        <div class="flex items-center justify-between border-t border-gray-50 pt-4 mt-auto">
             <div class="flex flex-wrap gap-2 project-languages">
             </div>
-            <a class="text-red-600 text-sm font-bold hover:text-red-700 transition whitespace-nowrap ml-4 project-link">
-                View Project →
-            </a>
-        </div>
+            
+            <div class="flex items-center gap-4 ml-4">
+                <div class="flex items-center gap-1.5 text-gray-400 text-sm font-semibold" title="Total Views">
+                    <i class="fas fa-eye"></i>
+                    <span class="project-views">0</span>
+                </div>
+                <a class="text-red-600 text-sm font-bold hover:text-red-700 transition whitespace-nowrap project-link">
+                    View Project →
+                </a>
+            </div>
+            </div>
     </div>
 </template>
 
@@ -427,7 +434,7 @@
         return text.replace(/[&<>"']/g, m => map[m]);
     }
 
-    function renderProjects(projects) {
+function renderProjects(projects) {
         const container = document.getElementById('projects-container');
         const projectTemplate = document.getElementById('project-template');
         const emptyTemplate = document.getElementById('empty-template');
@@ -443,8 +450,28 @@
 
         projects.forEach(project => {
             const clone = projectTemplate.content.cloneNode(true);
+            const statusBadge = clone.querySelector('.project-status'); 
+            
             clone.querySelector('.project-name').textContent = escapeHtml(project.project_name);
-            clone.querySelector('.project-status').textContent = project.status;
+
+            clone.querySelector('.project-views').textContent = project.views || 0;
+            
+            statusBadge.textContent = project.status;
+            
+            let statusClasses = 'text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider project-status ';
+            
+            if (project.status === 'Active') {
+                statusClasses += 'bg-green-100 text-green-700';
+            } else if (project.status === 'Seeking Maintainer') {
+                statusClasses += 'bg-yellow-100 text-yellow-700';
+            } else if (project.status === 'Finished') {
+                statusClasses += 'bg-gray-100 text-gray-600';
+            } else {
+                statusClasses += 'bg-blue-100 text-blue-700';
+            }
+            
+            statusBadge.className = statusClasses; 
+
             clone.querySelector('.project-description').textContent = escapeHtml(project.description);
             
             const languagesDiv = clone.querySelector('.project-languages');
@@ -502,7 +529,11 @@
 
     // Event listeners for search and filters
     document.getElementById('search-btn').addEventListener('click', filterProjects);
-    document.getElementById('search-input').addEventListener('keyup', filterProjects);
+    document.getElementById('search-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            filterProjects();
+        }
+    });  
     
     document.querySelectorAll('.status-filter').forEach(el => {
         el.addEventListener('change', filterProjects);

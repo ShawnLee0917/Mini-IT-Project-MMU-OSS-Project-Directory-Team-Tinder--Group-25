@@ -253,7 +253,7 @@ class QuestionCommentImage(db.Model):
     image_path = db.Column(db.String(255), nullable=False)
 
 # ---------------------------------------------------------------------------
-# Community Post Model (For the Timeline Feed)
+# Community Post Model (For the Timeline Feed) - Upgraded with Q&A features
 # ---------------------------------------------------------------------------
 class CommunityPost(db.Model):
     __tablename__ = 'community_posts'
@@ -271,9 +271,26 @@ class CommunityPost(db.Model):
     author = db.relationship('User', backref=db.backref('community_posts', lazy=True, cascade='all, delete-orphan'))
     attached_project = db.relationship('Project')
     
-    # ADDED: Relationships for Likes and Comments
     likes = db.relationship('CommunityPostLike', backref='post', lazy=True, cascade='all, delete-orphan')
     comments = db.relationship('CommunityPostComment', backref='post', lazy=True, cascade='all, delete-orphan')
+    images = db.relationship('CommunityPostImage', backref='post', lazy=True, cascade='all, delete-orphan')
+    favorites = db.relationship('CommunityPostFavorite', backref='post', lazy=True, cascade='all, delete-orphan')
+
+
+class CommunityPostImage(db.Model):
+    __tablename__ = 'community_post_images'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    post_id = db.Column(db.Integer, db.ForeignKey('community_posts.id', ondelete='CASCADE'), nullable=False)
+    image_path = db.Column(db.String(255), nullable=False)
+
+
+class CommunityPostFavorite(db.Model):
+    __tablename__ = 'community_post_favorites'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    post_id = db.Column(db.Integer, db.ForeignKey('community_posts.id', ondelete='CASCADE'), nullable=False)
+    
+    __table_args__ = (db.UniqueConstraint('user_id', 'post_id', name='unique_user_cpost_fav'),)
 
 
 # --- Likes for Community Posts ---
@@ -293,7 +310,18 @@ class CommunityPostComment(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     post_id = db.Column(db.Integer, db.ForeignKey('community_posts.id', ondelete='CASCADE'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    
+    parent_id = db.Column(db.Integer, db.ForeignKey('community_post_comments.id', ondelete='CASCADE'), nullable=True)
+    
     content = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     
     author = db.relationship('User')
+    images = db.relationship('CommunityPostCommentImage', backref='comment', lazy=True, cascade='all, delete-orphan')
+
+
+class CommunityPostCommentImage(db.Model):
+    __tablename__ = 'community_post_comment_images'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    comment_id = db.Column(db.Integer, db.ForeignKey('community_post_comments.id', ondelete='CASCADE'), nullable=False)
+    image_path = db.Column(db.String(255), nullable=False)

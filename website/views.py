@@ -9,7 +9,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 import uuid
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify, session
-from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, QuestionCommentImage, QuestionImage, JoinRequest, ProjectMember
+from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, QuestionCommentImage, QuestionImage, JoinRequest, ProjectMember, CommunityPostComment, CommunityPost, CommunityPostLike, CommunityPostImage, CommunityPostFavorite, CommunityPostCommentImage
 
 views = Blueprint('views', __name__)
 
@@ -157,7 +157,8 @@ def my_projects():
 
     own_projects = Project.query.filter_by(user_id=current_user.id).order_by(Project.created_at.desc()).all()
     
-    joined_projects = current_user.joined_projects
+    memberships = current_user.project_memberships.all()
+    joined_projects = [membership.project for membership in memberships]
 
     return render_template("My_Projects.html", own_projects=own_projects, joined_projects=joined_projects)
 
@@ -655,6 +656,7 @@ def get_all_projects():
         'contributors': p.contributors,
         'languages': p.languages,
         'created_at': p.created_at.isoformat(),
+        'views': p.views or 0,
     } for p in projects])
 
 
@@ -1187,17 +1189,21 @@ def get_favorited_questions():
 
 
 
+# =====================================================================
+# API: Project Member Invitations 
+# =====================================================================
+
 @views.route('/api/project/<int:project_id>/add_member', methods=['POST'])
 def add_member(project_id):
+    """Owner invites a user via email. Sends an invitation instead of direct add."""
     err = require_login()
     if err: return err
     
     current_user = get_current_user()
     project = Project.query.get_or_404(project_id)
 
-    # Security check: Only the project lead (creator) can add members
     if project.user_id != current_user.id:
-        return jsonify({"error": "Unauthorized. Only the Project Lead can add members."}), 403
+        return jsonify({"error": "Unauthorized. Only the Project Lead can invite members."}), 403
 
     data = request.get_json(silent=True) or {}
     email_to_add = data.get('email', '').strip().lower()
@@ -1210,14 +1216,155 @@ def add_member(project_id):
     if not user_to_add:
         return jsonify({"error": "User with this email not found"}), 404
 
-    if user_to_add in project.members:
+    existing_member = ProjectMember.query.filter_by(project_id=project_id, user_id=user_to_add.id).first()
+    if existing_member:
         return jsonify({"error": "User is already a member of this project"}), 400
 
-    # Add the user to the project's members list
-    project.members.append(user_to_add)
+    existing_request = JoinRequest.query.filter_by(project_id=project_id, user_id=user_to_add.id).first()
+    
+    if existing_request:
+        if existing_request.status == 'invited':
+            return jsonify({"error": "An invitation has already been sent to this user."}), 400
+        elif existing_request.status == 'pending':
+            existing_request.status = 'accepted'
+            new_member = ProjectMember(project_id=project_id, user_id=user_to_add.id, role='member')
+            db.session.add(new_member)
+            db.session.commit()
+            return jsonify({"success": f"{user_to_add.name} had already applied to join. They are now added!", "user_name": user_to_add.name})
+        elif existing_request.status == 'rejected':
+            existing_request.status = 'invited'
+            db.session.commit()
+            return jsonify({"success": f"Invitation sent to {user_to_add.name}!", "user_name": user_to_add.name})
+
+    new_invite = JoinRequest(user_id=user_to_add.id, project_id=project_id, status='invited')
+    db.session.add(new_invite)
+    
     db.session.commit()
 
-    return jsonify({"success": "Member added successfully!", "user_name": user_to_add.name})
+    return jsonify({"success": f"Invitation sent to {user_to_add.name}! Waiting for their approval.", "user_name": user_to_add.name})
+
+
+@views.route('/api/my-invitations', methods=['GET'])
+def get_my_invitations():
+    """Get all pending invitations for the current logged-in user"""
+    err = require_login()
+    if err: return err
+    
+    current_user = get_current_user()
+    
+    invitations = JoinRequest.query.filter_by(
+        user_id=current_user.id, 
+        status='invited'
+    ).order_by(JoinRequest.created_at.desc()).all()
+    
+    return jsonify([{
+        'id': inv.id,
+        'project_id': inv.project_id,
+        'project_name': inv.project.project_name,
+        'owner_name': inv.project.user.name, 
+        'created_at': inv.created_at.isoformat()
+    } for inv in invitations])
+
+
+@views.route('/api/invitations/<int:request_id>/<action>', methods=['POST'])
+def respond_to_invitation(request_id, action):
+    """Accept or reject a project invitation"""
+    err = require_login()
+    if err: return err
+    
+    current_user = get_current_user()
+    invitation = JoinRequest.query.get_or_404(request_id)
+    
+    if invitation.user_id != current_user.id:
+        return jsonify({'error': 'Unauthorized'}), 403
+        
+    if invitation.status != 'invited':
+        return jsonify({'error': 'This invitation is no longer valid'}), 400
+        
+    if action == 'accept':
+        invitation.status = 'accepted'
+        existing = ProjectMember.query.filter_by(project_id=invitation.project_id, user_id=current_user.id).first()
+        if not existing:
+            new_member = ProjectMember(project_id=invitation.project_id, user_id=current_user.id, role='member')
+            db.session.add(new_member)
+        msg = 'Invitation accepted! You joined the project.'
+    elif action == 'reject':
+        invitation.status = 'rejected'
+        msg = 'Invitation declined.'
+    else:
+        return jsonify({'error': 'Invalid action'}), 400
+        
+    db.session.commit()
+    return jsonify({'success': msg})
+
+@views.route('/api/project/<int:project_id>/member/<int:user_id>/role', methods=['PUT'])
+def update_member_role(project_id, user_id):
+    """Change member role (Only Owner can execute this)"""
+    err = require_login()
+    if err: return err
+    
+    project = Project.query.get_or_404(project_id)
+    current_user = get_current_user()
+    
+    if project.user_id != current_user.id:
+        return jsonify({"error": "Unauthorized. Only the Project Lead can manage roles."}), 403
+        
+    member_record = ProjectMember.query.filter_by(project_id=project_id, user_id=user_id).first()
+    if not member_record:
+        return jsonify({"error": "Member not found in this project."}), 404
+        
+    data = request.get_json(silent=True) or {}
+    new_role = data.get('role')
+    
+    if new_role not in ['admin', 'member']:
+        return jsonify({"error": "Invalid role specified."}), 400
+        
+    member_record.role = new_role
+    
+    db.session.commit()
+    
+    return jsonify({"success": True, "message": f"Role updated to {new_role}"}), 200
+
+@views.route('/api/project/<int:project_id>/member/<int:user_id>', methods=['DELETE'])
+def remove_or_leave_member(project_id, user_id):
+    err = require_login()
+    if err: return err
+    
+    project = Project.query.get_or_404(project_id)
+    current_user = get_current_user()
+    
+    current_user_role = None
+    if project.user_id == current_user.id:
+        current_user_role = 'owner'
+    else:
+        member_record = ProjectMember.query.filter_by(project_id=project.id, user_id=current_user.id).first()
+        if member_record:
+            current_user_role = member_record.role
+
+    target_member = ProjectMember.query.filter_by(project_id=project_id, user_id=user_id).first()
+    if not target_member:
+        return jsonify({"error": "Member not found in this project."}), 404
+    if current_user.id == user_id:
+        if current_user_role == 'owner':
+            return jsonify({"error": "Project owner cannot leave the project. Please transfer ownership first."}), 400
+            
+    else:
+        if current_user_role not in ['owner', 'admin']:
+            return jsonify({"error": "Unauthorized. Only project owners and admins can remove members."}), 403
+            
+        if current_user_role == 'admin':
+            if user_id == project.user_id:
+                return jsonify({"error": "Admins cannot remove the project owner."}), 403
+            if target_member.role == 'admin':
+                return jsonify({"error": "Admins cannot remove other admins."}), 403
+
+    try:
+        db.session.delete(target_member)
+        db.session.commit()
+        return jsonify({"success": True, "message": "Member removed successfully"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Database error: {str(e)}"}), 500
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -1233,9 +1380,14 @@ def request_join_project(project_id):
     current_user = get_current_user()
     project = Project.query.get_or_404(project_id)
     
-    # Check if user is already a member
-    if current_user in project.members:
+    # 检查是否已经是成员
+    existing_member = ProjectMember.query.filter_by(project_id=project_id, user_id=current_user.id).first()
+    if existing_member:
         return jsonify({"error": "You are already a member of this project"}), 400
+        
+    # 防止创建者自己申请加入
+    if project.user_id == current_user.id:
+        return jsonify({"error": "You are the project owner."}), 400
     
     # Check if request already exists
     existing_request = JoinRequest.query.filter_by(
@@ -1248,19 +1400,20 @@ def request_join_project(project_id):
             return jsonify({"error": "You have already sent a join request"}), 400
         elif existing_request.status == 'rejected':
             return jsonify({"error": "Your join request was rejected"}), 400
+        elif existing_request.status == 'accepted':
+            existing_request.status = 'pending'
+            db.session.commit()
+            return jsonify({"success": "Join request sent successfully!"}), 200
+    else:
+        join_request = JoinRequest(
+            user_id=current_user.id,
+            project_id=project_id,
+            status='pending'
+        )
+        db.session.add(join_request)
+        db.session.commit()
+        return jsonify({"success": "Join request sent successfully!"}), 201
     
-    # Create new join request
-    join_request = JoinRequest(
-        user_id=current_user.id,
-        project_id=project_id,
-        status='pending'
-    )
-    db.session.add(join_request)
-    db.session.commit()
-    
-    return jsonify({"success": "Join request sent successfully!"}), 201
-
-
 @views.route('/api/project/<int:project_id>/join-requests', methods=['GET'])
 def get_join_requests(project_id):
     """Get all join requests for a project (only for project lead)"""
@@ -1310,17 +1463,18 @@ def accept_join_request(project_id, request_id):
     if join_request.status != 'pending':
         return jsonify({"error": f"Request is already {join_request.status}"}), 400
     
-    # Add user to project members
     user_to_add = User.query.get_or_404(join_request.user_id)
-    if user_to_add not in project.members:
-        project.members.append(user_to_add)
+    
+    existing_member = ProjectMember.query.filter_by(project_id=project_id, user_id=user_to_add.id).first()
+    if not existing_member:
+        new_member = ProjectMember(project_id=project_id, user_id=user_to_add.id, role='member')
+        db.session.add(new_member)
     
     # Update request status
     join_request.status = 'accepted'
     db.session.commit()
     
     return jsonify({"success": "Join request accepted!", "user_name": user_to_add.name})
-
 
 @views.route('/api/project/<int:project_id>/join-requests/<int:request_id>/reject', methods=['POST'])
 def reject_join_request(project_id, request_id):
@@ -1348,7 +1502,7 @@ def reject_join_request(project_id, request_id):
     
     return jsonify({"success": "Join request rejected!"})
 
-
+ 
 # ─────────────────────────────────────────────────────────────────────────
 # Project Comments API
 # ─────────────────────────────────────────────────────────────────────────
@@ -1398,13 +1552,15 @@ def create_project_comment(project_id):
     if comment_type not in ['normal', 'issue', 'suggestion']:
         return jsonify({'error': 'Invalid comment type'}), 400
     
-    # Determine user role
+# Determine user role
     user_role = 'user'
     if current_user.id == project.user_id:
         user_role = 'owner'
-    elif current_user in project.members:
-        user_role = 'team-member'
-    
+    else:
+        is_member = ProjectMember.query.filter_by(project_id=project_id, user_id=current_user.id).first()
+        if is_member:
+            user_role = 'team-member'    
+            
     comment = ProjectComment(
         project_id=project_id,
         user_id=current_user.id,
@@ -1972,3 +2128,267 @@ def save_interest():
         'message': 'Interests updated successfully',
         'interests': interests
     })
+
+# =====================================================================
+# API: Community Timeline Posts 
+# =====================================================================
+
+@views.route('/api/community_posts', methods=['GET'])
+def get_community_posts():
+    """Fetch posts with filters, multi-images, favorites, and nested comments support"""
+    current_user = get_current_user()
+    current_user_id = current_user.id if current_user else None
+    
+    # Receive filters from frontend, e.g., ?filter=all, questions, discussions, liked, saved
+    filter_type = request.args.get('filter', 'all')
+    
+    query = CommunityPost.query
+
+    # Apply category filters
+    if filter_type == 'questions':
+        query = query.filter_by(category='Question')
+    elif filter_type == 'discussions':
+        query = query.filter_by(category='Discussion')
+    elif filter_type == 'posts':
+        query = query.filter_by(category='Posts')
+    elif filter_type == 'liked' and current_user_id:
+        query = query.join(CommunityPostLike).filter(CommunityPostLike.user_id == current_user_id)
+    elif filter_type == 'saved' and current_user_id:
+        query = query.join(CommunityPostFavorite).filter(CommunityPostFavorite.user_id == current_user_id)
+
+    posts = query.order_by(CommunityPost.created_at.desc()).limit(30).all()
+    
+    result = []
+    for p in posts:
+        proj_data = None
+        if p.attached_project:
+            proj_data = {'id': p.attached_project.id, 'name': p.attached_project.project_name}
+            
+        # Interaction status statistics
+        like_count = len(p.likes)
+        fav_count = len(p.favorites)
+        comment_count = len(p.comments)
+        
+        user_liked = False
+        user_faved = False
+        if current_user_id:
+            user_liked = any(like.user_id == current_user_id for like in p.likes)
+            user_faved = any(fav.user_id == current_user_id for fav in p.favorites)
+            
+        # Compatible with legacy single image and new multiple images
+        image_urls = [f"/static/uploads/{img.image_path}" for img in p.images]
+        if p.image_path and f"/static/uploads/{p.image_path}" not in image_urls:
+            image_urls.insert(0, f"/static/uploads/{p.image_path}")
+            
+        result.append({
+            'id': p.id,
+            'user_name': p.author.name if p.author else 'Unknown',
+            'is_owner': current_user_id == p.user_id,
+            'content': p.content,
+            'category': p.category,
+            'created_at': p.created_at.isoformat(),
+            'image_urls': image_urls, # [Modified] Converted to list format to support multi-image rendering
+            'link_url': p.link_url,
+            'attached_project': proj_data,
+            'like_count': like_count,
+            'fav_count': fav_count,
+            'comment_count': comment_count,
+            'user_liked': user_liked,
+            'user_faved': user_faved
+        })
+    return jsonify(result)
+
+@views.route('/api/community_posts', methods=['POST'])
+def create_community_post():
+    """Create a new post with multiple image support"""
+    err = require_login()
+    if err: return err
+    
+    current_user = get_current_user()
+    content = request.form.get('content', '').strip()
+    category = request.form.get('category', 'Posts')
+    link_url = request.form.get('link_url', '').strip()
+    attached_project_id = request.form.get('attached_project_id')
+    
+    if not content: return jsonify({'error': 'Post content cannot be empty'}), 400
+        
+    post = CommunityPost(user_id=current_user.id, content=content, category=category)
+    if link_url: post.link_url = link_url
+        
+    if attached_project_id and attached_project_id.isdigit():
+        proj = Project.query.get(int(attached_project_id))
+        if proj: post.attached_project_id = proj.id
+            
+    # [Modified] Support multiple images upload (using getlist('images'))
+    if 'images' in request.files:
+        files = request.files.getlist('images')
+        for file in files:
+            if file and file.filename and allowed_file(file.filename):
+                ext = file.filename.rsplit('.', 1)[1].lower()
+                filename = f"post_{uuid.uuid4().hex}.{ext}"
+                file.save(os.path.join(UPLOAD_FOLDER, filename))
+                
+                # Create image relationship record
+                img_record = CommunityPostImage(image_path=filename)
+                post.images.append(img_record)
+
+    db.session.add(post)
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'Posted successfully'})
+
+@views.route('/api/community_posts/<int:post_id>', methods=['DELETE'])
+def delete_community_post(post_id):
+    """Delete post feature (Only the author can delete)"""
+    err = require_login()
+    if err: return err
+    
+    current_user = get_current_user()
+    post = CommunityPost.query.get_or_404(post_id)
+    
+    if post.user_id != current_user.id:
+        return jsonify({'error': 'Unauthorized'}), 403
+        
+    db.session.delete(post)
+    db.session.commit()
+    return jsonify({'success': True})
+
+@views.route('/api/community_posts/<int:post_id>/like', methods=['POST'])
+def toggle_community_post_like(post_id):
+    err = require_login()
+    if err: return err
+    current_user = get_current_user()
+    
+    existing_like = CommunityPostLike.query.filter_by(user_id=current_user.id, post_id=post_id).first()
+    if existing_like:
+        db.session.delete(existing_like)
+        liked = False
+    else:
+        new_like = CommunityPostLike(user_id=current_user.id, post_id=post_id)
+        db.session.add(new_like)
+        liked = True
+        
+    db.session.commit()
+    count = CommunityPostLike.query.filter_by(post_id=post_id).count()
+    return jsonify({'success': True, 'liked': liked, 'like_count': count})
+
+@views.route('/api/community_posts/<int:post_id>/favorite', methods=['POST'])
+def toggle_community_post_favorite(post_id):
+    """Save/Favorite post feature (My Saved)"""
+    err = require_login()
+    if err: return err
+    current_user = get_current_user()
+    
+    existing_fav = CommunityPostFavorite.query.filter_by(user_id=current_user.id, post_id=post_id).first()
+    if existing_fav:
+        db.session.delete(existing_fav)
+        faved = False
+    else:
+        new_fav = CommunityPostFavorite(user_id=current_user.id, post_id=post_id)
+        db.session.add(new_fav)
+        faved = True
+        
+    db.session.commit()
+    count = CommunityPostFavorite.query.filter_by(post_id=post_id).count()
+    return jsonify({'success': True, 'faved': faved, 'fav_count': count})
+
+@views.route('/api/community_posts/<int:post_id>/comments', methods=['GET', 'POST'])
+def manage_community_post_comments(post_id):
+    """Manage nested comments for a post"""
+    err = require_login()
+    if err: return err
+    
+    current_user = get_current_user()
+    
+    if request.method == 'GET':
+        # [Modified] Include parent_id when fetching comments
+        comments = CommunityPostComment.query.filter_by(post_id=post_id).order_by(CommunityPostComment.created_at.asc()).all()
+        result = [{
+            'id': c.id,
+            'user_name': c.author.name,
+            'is_owner': c.user_id == current_user.id,
+            'content': c.content,
+            'parent_id': c.parent_id,
+            'created_at': c.created_at.isoformat(),
+            'image_urls': [f"/static/uploads/{img.image_path}" for img in c.images]
+        } for c in comments]
+        return jsonify(result)
+        
+    if request.method == 'POST':
+        # [Modified] Support nested replies (parent_id) and comments with images
+        if request.content_type and 'multipart' in request.content_type:
+            content = request.form.get('content', '').strip()
+            parent_id = request.form.get('parent_id')
+        else:
+            data = request.get_json(silent=True) or {}
+            content = data.get('content', '').strip()
+            parent_id = data.get('parent_id')
+        
+        if not content: return jsonify({'error': 'Comment cannot be empty'}), 400
+        
+        # Validate if parent_id is valid
+        if parent_id and str(parent_id).isdigit():
+            parent_id = int(parent_id)
+        else:
+            parent_id = None
+            
+        comment = CommunityPostComment(post_id=post_id, user_id=current_user.id, content=content, parent_id=parent_id)
+        
+        # Handle images inside comments
+        if 'images' in request.files:
+            files = request.files.getlist('images')
+            for file in files:
+                if file and file.filename and allowed_file(file.filename):
+                    ext = file.filename.rsplit('.', 1)[1].lower()
+                    filename = f"c_{uuid.uuid4().hex}.{ext}"
+                    file.save(os.path.join(UPLOAD_FOLDER, filename))
+                    img = CommunityPostCommentImage(image_path=filename)
+                    comment.images.append(img)
+                    
+        db.session.add(comment)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Comment added'})
+
+@views.route('/api/community_posts/<int:post_id>/comments/<int:comment_id>', methods=['DELETE'])
+def delete_community_post_comment(post_id, comment_id):
+    """Delete comment feature"""
+    err = require_login()
+    if err: return err
+    
+    current_user = get_current_user()
+    c = CommunityPostComment.query.get_or_404(comment_id)
+    
+    if c.post_id != post_id:
+        return jsonify({'error': 'Mismatch'}), 400
+    if c.user_id != current_user.id:
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    db.session.delete(c)
+    db.session.commit()
+    return jsonify({'success': True})    
+
+@views.route('/hottest')
+def hottest_projects():
+    
+    trending_projects = Project.query.filter(
+        Project.status != 'Archived'
+    ).order_by(
+        Project.views.desc().nulls_last(), 
+        Project.created_at.desc()
+    ).limit(10).all()
+    
+    projects_data = []
+    for p in trending_projects:
+        comment_count = ProjectComment.query.filter_by(project_id=p.id).count()
+        
+        primary_lang = p.languages.split(',')[0].strip() if p.languages else 'N/A'
+        
+        projects_data.append({
+            'id': p.id,
+            'title': p.project_name,          
+            'description': p.description,
+            'language': primary_lang,
+            'views': p.views or 0,            
+            'comments': comment_count 
+        })
+        
+    return render_template("trending.html", projects=projects_data)

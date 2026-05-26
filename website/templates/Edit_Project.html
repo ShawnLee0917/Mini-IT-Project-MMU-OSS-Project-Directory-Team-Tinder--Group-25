@@ -87,20 +87,38 @@
                                         class="w-full bg-gray-100 border-2 border-gray-200 text-gray-500 rounded-xl px-4 py-3 cursor-not-allowed font-medium">
                                 {% endif %}
                             </div>
-                            <div>
-                                <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Repository URL</label>
-                                <div class="relative">
-                                    <i class="fab fa-github absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg"></i>
-                                    {% if project.user_id == current_user.id %}
-                                        <input type="url" name="repo_url" value="{{ project.repo_url }}"
-                                            class="w-full bg-gray-50 border-2 border-gray-100 rounded-xl pl-12 pr-4 py-3 focus:border-red-500 focus:bg-white outline-none transition font-medium">
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Repository URL</label>
+                                    <div class="relative">
+                                        <i class="fab fa-github absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg"></i>
+                                        {% if project.user_id == current_user.id %}
+                                            <input type="url" name="repo_url" value="{{ project.repo_url }}"
+                                                class="w-full bg-gray-50 border-2 border-gray-100 rounded-xl pl-12 pr-4 py-3 focus:border-red-500 focus:bg-white outline-none transition font-medium">
+                                        {% else %}
+                                            <input type="url" value="{{ project.repo_url }}" readonly
+                                                class="w-full bg-gray-100 border-2 border-gray-200 text-gray-500 rounded-xl pl-12 pr-4 py-3 cursor-not-allowed font-medium">
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Project Status</label>
+                                    
+                                    {% if current_user_role in ['owner', 'admin'] %}
+                                        <select name="status" class="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 focus:border-red-500 focus:bg-white outline-none transition font-medium appearance-none">
+                                            <option value="Active" {% if project.status == 'Active' %}selected{% endif %}>Active</option>
+                                            <option value="Seeking Maintainer" {% if project.status == 'Seeking Maintainer' %}selected{% endif %}>Seeking Maintainer</option>
+                                            <option value="Finished" {% if project.status == 'Finished' %}selected{% endif %}>Finished</option>
+                                        </select>
                                     {% else %}
-                                        <input type="url" value="{{ project.repo_url }}" readonly
-                                            class="w-full bg-gray-100 border-2 border-gray-200 text-gray-500 rounded-xl pl-12 pr-4 py-3 cursor-not-allowed font-medium">
+                                        <input type="text" value="{{ project.status }}" readonly
+                                            class="w-full bg-gray-100 border-2 border-gray-200 text-gray-500 rounded-xl px-4 py-3 cursor-not-allowed font-medium">
                                     {% endif %}
                                 </div>
                             </div>
-                        </div>
+                            </div>
                     </section>
 
                     <hr class="border-gray-100">
