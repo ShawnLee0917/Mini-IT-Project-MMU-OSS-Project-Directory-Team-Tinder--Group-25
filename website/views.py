@@ -1756,10 +1756,6 @@ def delete_project_comment(project_id, comment_id):
     comment = ProjectComment.query.get_or_404(comment_id)
     current_user = get_current_user()
     
-    # Only owner can delete comments 
-    if current_user.id != project.user_id:
-        return jsonify({'error': 'Only project owner can delete comments'}), 403
-    
     if comment.project_id != project_id:
         return jsonify({'error': 'Comment not found in this project'}), 404
     
