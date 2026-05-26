@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Successful | MMU OSSD</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        
+        /* Custom animation for the success checkmark */
+        @keyframes popIn {
+            0% { transform: scale(0); opacity: 0; }
+            80% { transform: scale(1.15); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-pop-in {
+            animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center p-6 text-gray-900">
+
+    <div class="bg-white rounded-3xl shadow-xl shadow-gray-200/50 border border-gray-100 max-w-md w-full p-10 text-center">
+        
+        <div class="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 animate-pop-in">
+            <i class="fas fa-check text-5xl text-green-500"></i>
+        </div>
+
+        <h2 class="text-3xl font-black text-gray-900 mb-3">Upload Successful!</h2>
+        <p class="text-gray-500 font-medium mb-8 leading-relaxed">
+            Your project details and screenshots have been securely saved to the database.
+        </p>
+
+        <div class="space-y-4">
+            <a href="{{ url_for('views.my_projects') }}" class="block w-full bg-red-600 text-white px-6 py-4 rounded-2xl font-bold hover:bg-red-700 transform hover:-translate-y-1 transition shadow-lg shadow-red-200">
+                View My Projects
+            </a>
+            
+            <a href="{{ url_for('views.home') }}" class="block w-full bg-white text-gray-500 px-6 py-4 rounded-2xl font-bold hover:bg-gray-50 hover:text-gray-900 border-2 border-gray-100 transition">
+                Return to Home
+            </a>
+        </div>
+
+    </div>
+
+</body>
+</html>

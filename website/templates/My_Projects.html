@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Teams | MMU OSSD</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+
+        /* ── Animated Hamburger Button ─────────────────────────── */
+        .hamburger {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            border-radius: 8px;
+            padding: 6px;
+            gap: 5px;
+            transition: background 0.2s ease;
+            position: relative;
+        }
+        .hamburger:hover {
+            background: rgba(255,255,255,0.15);
+        }
+        .hamburger:focus-visible {
+            outline: 2px solid rgba(255,255,255,0.6);
+            outline-offset: 2px;
+        }
+        .hamburger .bar {
+            display: block;
+            width: 22px;
+            height: 2.5px;
+            border-radius: 99px;
+            background: #fff;
+            transition: transform 0.35s cubic-bezier(0.23, 1, 0.32, 1),
+                        opacity   0.25s ease,
+                        width     0.3s ease;
+            transform-origin: center;
+        }
+        /* Open state — morph into X */
+        .hamburger.is-open .bar:nth-child(1) {
+            transform: translateY(7.5px) rotate(45deg);
+        }
+        .hamburger.is-open .bar:nth-child(2) {
+            opacity: 0;
+            width: 0;
+        }
+        .hamburger.is-open .bar:nth-child(3) {
+            transform: translateY(-7.5px) rotate(-45deg);
+        }
+
+        /* ── Mobile menu slide-down animation ──────────────────── */
+        #mobile-menu {
+            max-height: 0;
+            overflow: hidden;
+            opacity: 0;
+            transition:
+                max-height 0.38s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity    0.28s ease;
+        }
+        #mobile-menu.menu-open {
+            max-height: 500px;   /* tall enough for all links */
+            opacity: 1;
+        }
+        /* Stagger each link sliding in */
+        #mobile-menu a,
+        #mobile-menu button,
+        #mobile-menu div {
+            transform: translateY(-6px);
+            opacity: 0;
+            transition:
+                transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity   0.3s ease;
+        }
+        #mobile-menu.menu-open a,
+        #mobile-menu.menu-open button,
+        #mobile-menu.menu-open div {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        /* Delay each item slightly for a cascade effect */
+        #mobile-menu a:nth-child(1)  { transition-delay: 0.05s; }
+        #mobile-menu a:nth-child(2)  { transition-delay: 0.09s; }
+        #mobile-menu a:nth-child(3)  { transition-delay: 0.13s; }
+        #mobile-menu a:nth-child(4)  { transition-delay: 0.17s; }
+        #mobile-menu a:nth-child(5)  { transition-delay: 0.21s; }
+        #mobile-menu button          { transition-delay: 0.25s; }
+        #mobile-menu #nav-email-mobile { transition-delay: 0.29s; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+
+<nav class="bg-red-700 text-white shadow-md sticky top-0 z-50">
+    <div class="container mx-auto px-6 py-3 flex items-center justify-between">
+        
+        <div class="flex items-center gap-4">
+            <button id="menu-btn" class="hamburger" aria-label="Toggle menu" aria-expanded="false">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </button>
+            <a href="{{ url_for('views.home') }}" class="hover:opacity-80 transition flex items-center gap-4">
+                <i class="fas fa-arrow-left text-xl"></i>
+                <h1 class="text-2xl font-extrabold tracking-tighter">
+                    MMU <span class="font-light text-red-200">OSSD</span>
+                </h1>
+            </a>
+        </div>
+
+        <div class="hidden md:flex space-x-8 items-center font-medium">
+            <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
+            <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
+            <a href="{{ url_for('views.hottest_projects') }}" class="text-white transition">Hottest Projects</a>
+            <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
+            <a href="{{ url_for('views.profile') }}" class="bg-red-800 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-500/50 cursor-pointer hover:bg-red-900 transition">
+                <span id="nav-email" class="text-sm">{{ session.get('user_email', 'Guest') }}</span>
+                <i class="fas fa-user-circle text-lg"></i>
+            </a>
+            <button id="logout-btn"
+                class="bg-white text-red-700 hover:bg-red-50 text-xs font-bold px-3 py-2 rounded-xl transition">
+                <i class="fas fa-sign-out-alt mr-1"></i>Logout
+            </button>
+        </div>
+    </div>
+
+    <div id="mobile-menu" class="bg-red-800 border-t border-red-600 shadow-inner">
+        <div class="px-6 py-4 flex flex-col space-y-4 font-semibold">
+            <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
+            <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
+            <a href="{{ url_for('views.qna_page') }}" class="hover:text-red-200 transition">Q&A</a>
+            <a href="{{ url_for('views.profile') }}" class="hover:text-red-200 transition">My Profile</a>
+            <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
+            <a href="{{ url_for('views.list_project') }}" class="hover:text-red-200 transition">List Your Project</a>
+            <button id="logout-btn-mobile" class="text-left text-red-200 hover:text-white transition text-sm">
+                <i class="fas fa-sign-out-alt mr-1"></i> Logout
+            </button>
+            <div class="pt-2 border-t border-red-700 text-xs font-light opacity-80" id="nav-email-mobile">{{ session.get('user_email', 'Guest') }}</div>
+        </div>
+    </div>
+</nav>
+
+<header class="bg-white border-b py-12">
+    <div class="container mx-auto px-6">
+        <h2 class="text-4xl font-black text-gray-900 leading-tight">My Engineering Squads</h2>
+        <p class="text-gray-500 mt-2 text-lg">Manage your project handovers and active collaborations.</p>
+    </div>
+</header>
+
+<main class="container mx-auto px-6 py-10">
+    
+    <section class="mb-12">
+        <div class="flex items-center mb-8">
+            <h3 class="text-xs font-bold text-red-600 uppercase tracking-[0.2em] whitespace-nowrap">
+                Projects I Own (Handovers)
+            </h3>
+            <div class="h-px bg-gray-200 flex-grow ml-4"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            {% for project in own_projects %}
+            <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition flex flex-col">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h4 class="text-xl font-bold text-gray-800">{{ project.project_name }}</h4>
+                        <span class="text-xs font-medium bg-green-100 text-green-700 px-2 py-1 rounded mt-2 inline-block">{{ project.status }}</span>
+                    </div>
+                    <i class="fas fa-crown text-yellow-500" title="Project Lead"></i>
+                </div>
+                
+                <p class="text-gray-600 text-sm mb-6 flex-grow">{{ project.description }}</p>
+                
+                <div class="flex items-center justify-between pt-4 border-t border-gray-50 mt-auto">
+                    <div class="flex -space-x-2">
+                        <div class="w-8 h-8 rounded-full bg-red-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-red-600">
+                            {{ project.languages.split(',')[0][:3] | upper if project.languages else 'N/A' }}
+                        </div>
+                    </div>
+                    <a href="{{ url_for('views.project_page', project_id=project.id) }}" class="text-sm font-bold text-red-600 hover:text-red-700">
+                        VIEW DETAILS →
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+
+            <a href="{{ url_for('views.list_project') }}" class="border-2 border-dashed border-gray-300 rounded-2xl flex flex-col items-center justify-center p-6 hover:border-red-400 hover:bg-red-50 transition group min-h-[200px]">
+                <i class="fas fa-plus-circle text-3xl text-gray-300 group-hover:text-red-500 mb-2"></i>
+                <span class="font-bold text-gray-400 group-hover:text-red-600 text-sm uppercase tracking-widest">List New Project</span>
+            </a>
+            
+        </div>
+    </section>
+
+    <section class="mt-12">
+        <div class="flex items-center mb-6">
+            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-[0.2em]">
+                Contributing To
+            </h3>
+            <div class="h-px bg-gray-200 flex-grow ml-4"></div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            
+            {% if joined_projects and joined_projects|length > 0 %}
+                {% for project in joined_projects %}
+                <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition flex flex-col justify-between h-full">
+                    <div>
+                        <h4 class="text-lg font-bold text-gray-900 mb-1">{{ project.project_name }}</h4>
+                        <p class="text-xs text-gray-500 mb-4">Led by: @{{ project.user.name }}</p>
+                        
+                        <div class="flex flex-wrap gap-2 mb-6">
+                            {% if project.languages %}
+                                {% for lang in project.languages.split(',') %}
+                                <span class="text-[10px] font-bold bg-blue-50 text-blue-600 px-2 py-1 rounded uppercase">
+                                    {{ lang.strip() }}
+                                </span>
+                                {% endfor %}
+                            {% else %}
+                                <span class="text-[10px] font-bold bg-gray-50 text-gray-500 px-2 py-1 rounded uppercase">
+                                    N/A
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <a href="{{ url_for('views.project_page', project_id=project.id) }}" class="block w-full text-center bg-gray-50 text-gray-700 hover:bg-gray-100 py-3 rounded-xl text-xs font-bold transition mt-auto">
+                        VIEW PROJECT
+                    </a>
+                </div>
+                {% endfor %}
+                
+            {% else %}
+                <div class="col-span-full py-16 text-center text-gray-400 text-sm font-medium border-2 border-dashed border-gray-100 rounded-2xl bg-gray-50/50">
+                    You haven't joined any other teams yet.
+                </div>
+            {% endif %}
+            
+        </div>
+    </section>
+</main>
+
+<script>
+    const IS_FILE = window.location.protocol === 'file:';
+    const API = '/api';
+
+    // ── Mobile menu smooth toggle ─────────────────────────────────────────────
+    const menuBtn    = document.getElementById('menu-btn');
+    const mobileMenu = document.getElementById('mobile-menu');
+
+    function openMenu() {
+        mobileMenu.classList.add('menu-open');
+        menuBtn.classList.add('is-open');
+        menuBtn.setAttribute('aria-expanded', 'true');
+    }
+
+    function closeMenu() {
+        mobileMenu.classList.remove('menu-open');
+        menuBtn.classList.remove('is-open');
+        menuBtn.setAttribute('aria-expanded', 'false');
+    }
+
+    menuBtn.addEventListener('click', () => {
+        mobileMenu.classList.contains('menu-open') ? closeMenu() : openMenu();
+    });
+
+    // Auto-close when a link or button inside the menu is clicked
+    mobileMenu.querySelectorAll('a, button').forEach(el => {
+        el.addEventListener('click', closeMenu);
+    });
+
+    // Close on outside click
+    document.addEventListener('click', (e) => {
+        if (!menuBtn.contains(e.target) && !mobileMenu.contains(e.target)) {
+            closeMenu();
+        }
+    });
+
+    async function logout() {
+        try {
+            await fetch(`${API}/logout`, { method: 'POST' });
+        } catch (err) {
+            console.error('Logout error:', err);
+        }
+        window.location.href = '/login';
+    }
+
+    document.getElementById('logout-btn').addEventListener('click', logout);
+    document.getElementById('logout-btn-mobile').addEventListener('click', logout);
+</script>
+
+</body>
+</html>

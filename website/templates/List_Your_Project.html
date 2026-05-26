@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>List Your Project | MMU OSSD</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+
+        /* ── Animated Hamburger Button ─────────────────────────── */
+        .hamburger {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            border-radius: 8px;
+            padding: 6px;
+            gap: 5px;
+            transition: background 0.2s ease;
+            position: relative;
+        }
+        .hamburger:hover {
+            background: rgba(255,255,255,0.15);
+        }
+        .hamburger:focus-visible {
+            outline: 2px solid rgba(255,255,255,0.6);
+            outline-offset: 2px;
+        }
+        .hamburger .bar {
+            display: block;
+            width: 22px;
+            height: 2.5px;
+            border-radius: 99px;
+            background: #fff;
+            transition: transform 0.35s cubic-bezier(0.23, 1, 0.32, 1),
+                        opacity   0.25s ease,
+                        width     0.3s ease;
+            transform-origin: center;
+        }
+        /* Open state — morph into X */
+        .hamburger.is-open .bar:nth-child(1) {
+            transform: translateY(7.5px) rotate(45deg);
+        }
+        .hamburger.is-open .bar:nth-child(2) {
+            opacity: 0;
+            width: 0;
+        }
+        .hamburger.is-open .bar:nth-child(3) {
+            transform: translateY(-7.5px) rotate(-45deg);
+        }
+
+        /* ── Mobile menu slide-down animation ──────────────────── */
+        #mobile-menu {
+            max-height: 0;
+            overflow: hidden;
+            opacity: 0;
+            transition:
+                max-height 0.38s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity    0.28s ease;
+        }
+        #mobile-menu.menu-open {
+            max-height: 500px;   /* tall enough for all links */
+            opacity: 1;
+        }
+        /* Stagger each link sliding in */
+        #mobile-menu a,
+        #mobile-menu button,
+        #mobile-menu div {
+            transform: translateY(-6px);
+            opacity: 0;
+            transition:
+                transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity   0.3s ease;
+        }
+        #mobile-menu.menu-open a,
+        #mobile-menu.menu-open button,
+        #mobile-menu.menu-open div {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        /* Delay each item slightly for a cascade effect */
+        #mobile-menu a:nth-child(1)  { transition-delay: 0.05s; }
+        #mobile-menu a:nth-child(2)  { transition-delay: 0.09s; }
+        #mobile-menu a:nth-child(3)  { transition-delay: 0.13s; }
+        #mobile-menu a:nth-child(4)  { transition-delay: 0.17s; }
+        #mobile-menu a:nth-child(5)  { transition-delay: 0.21s; }
+        #mobile-menu button          { transition-delay: 0.25s; }
+        #mobile-menu #nav-email-mobile { transition-delay: 0.29s; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+
+<nav class="bg-red-700 text-white shadow-md sticky top-0 z-50">
+    <div class="container mx-auto px-6 py-3 flex items-center justify-between">
+        
+        <div class="flex items-center gap-4">
+            <button id="menu-btn" class="hamburger" aria-label="Toggle menu" aria-expanded="false">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </button>
+            <a href="{{ url_for('views.home') }}" class="hover:opacity-80 transition flex items-center gap-4">
+                <i class="fas fa-arrow-left text-xl"></i>
+                <h1 class="text-2xl font-extrabold tracking-tighter">
+                    MMU <span class="font-light text-red-200">OSSD</span>
+                </h1>
+            </a>
+        </div>
+
+        <div class="hidden md:flex space-x-8 items-center font-medium">
+            <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
+            <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
+            <a href="{{ url_for('views.hottest_projects') }}" class="text-white transition">Hottest Projects</a>
+            <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
+            <a href="{{ url_for('views.profile') }}" class="bg-red-800 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-500/50 cursor-pointer hover:bg-red-900 transition">
+                <span id="nav-email" class="text-sm">{{ session.get('user_email', 'Guest') }}</span>
+                <i class="fas fa-user-circle text-lg"></i>
+            </a>
+            <button id="logout-btn"
+                class="bg-white text-red-700 hover:bg-red-50 text-xs font-bold px-3 py-2 rounded-xl transition">
+                <i class="fas fa-sign-out-alt mr-1"></i>Logout
+            </button>
+        </div>
+    </div>
+
+    <div id="mobile-menu" class="bg-red-800 border-t border-red-600 shadow-inner">
+        <div class="px-6 py-4 flex flex-col space-y-4 font-semibold">
+            <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
+            <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
+            <a href="{{ url_for('views.qna_page') }}" class="hover:text-red-200 transition">Q&A</a>
+            <a href="{{ url_for('views.profile') }}" class="hover:text-red-200 transition">My Profile</a>
+            <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
+            <a href="{{ url_for('views.list_project') }}" class="hover:text-red-200 transition">List Your Project</a>
+            <button id="logout-btn-mobile" class="text-left text-red-200 hover:text-white transition text-sm">
+                <i class="fas fa-sign-out-alt mr-1"></i> Logout
+            </button>
+            <div class="pt-2 border-t border-red-700 text-xs font-light opacity-80" id="nav-email-mobile">{{ session.get('user_email', 'Guest') }}</div>
+        </div>
+    </div>
+</nav>
+
+
+<main class="container mx-auto px-6 py-12">
+    <div class="max-w-3xl mx-auto">
+        
+        <div class="mb-12 text-center md:text-left">
+            <h2 class="text-4xl font-black text-gray-900 mb-2">Create Your Project</h2>
+            <p class="text-gray-500 font-medium">Fill in the details below to find the next generation of maintainers for your project.</p>
+        </div>
+
+        <div class="bg-white rounded-3xl shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
+            <form action="{{ url_for('views.list_project') }}" method="POST" enctype="multipart/form-data" class="p-8 space-y-8">
+                
+                <section class="space-y-6">
+                    <div class="flex items-center gap-3">
+                        <span class="bg-red-100 text-red-600 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">1</span>
+                        <h3 class="text-xl font-bold">Project Basics</h3>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 gap-6">
+                        <div>
+                            <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Project Name</label>
+                            <input type="text" name="project_name" placeholder="e.g. MMU Smart Shuttle Tracker" required
+                                class="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 focus:border-red-500 focus:bg-white outline-none transition font-medium">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Repository URL (GitHub/GitLab)</label>
+                            <div class="relative">
+                                <i class="fab fa-github absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg"></i>
+                                <input type="url" name="repo_url" placeholder="https://github.com/username/repo" required
+                                    class="w-full bg-gray-50 border-2 border-gray-100 rounded-xl pl-12 pr-4 py-3 focus:border-red-500 focus:bg-white outline-none transition font-medium">
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <hr class="border-gray-100">
+
+                <section class="space-y-6">
+                    <div class="flex items-center gap-3">
+                        <span class="bg-red-100 text-red-600 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">2</span>
+                        <h3 class="text-xl font-bold">The Stack & The Search</h3>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Primary Languages</label>
+                            <input type="text" name="languages" placeholder="Python, React, PostgreSQL" required
+                                class="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 focus:border-red-500 focus:bg-white outline-none transition font-medium">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Target Roles Needed</label>
+                            <select name="roles_needed" class="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 focus:border-red-500 focus:bg-white outline-none transition font-medium appearance-none">
+                                <option>Lead Maintainer</option>
+                                <option>Frontend Developer</option>
+                                <option>Backend Developer</option>
+                                <option>UI/UX Designer</option>
+                                <option>Documentation Writer</option>
+                            </select>
+                        </div>
+                    </div>
+                </section>
+
+                <hr class="border-gray-100">
+
+                <section class="space-y-6">
+                    <div class="flex items-center gap-3">
+                        <span class="bg-red-100 text-red-600 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">3</span>
+                        <h3 class="text-xl font-bold">Final Pitch</h3>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Short Description</label>
+                        <textarea name="description" rows="4" placeholder="What does it do? Why should someone take it over?" required
+                            class="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 focus:border-red-500 focus:bg-white outline-none transition font-medium"></textarea>
+                    </div>
+                </section>
+
+                <hr class="border-gray-100">
+
+                <section class="space-y-6">
+
+                    <div class="flex items-center gap-3">
+                        <span class="bg-red-100 text-red-600 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">4</span>
+                        <h3 class="text-xl font-bold">Upload Screenshots</h3>
+                    </div>
+
+                    <div class="mt-6">
+                        <label class="block cursor-pointer" id="drop-zone">
+                            <div id="drop-zone-content" class="h-40 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-gray-400 transition-all duration-300 hover:border-red-200 hover:bg-red-50 group">
+                                <i class="fas fa-cloud-upload-alt mb-2 text-2xl group-hover:text-red-400 transition"></i>
+                                <span class="text-[10px] font-bold uppercase tracking-widest mt-1">Drag & Drop or Click to Choose</span>
+                                <input type="file" name="screenshots" class="hidden" accept="image/*" id="imageInput" multiple>
+                                <p id="fileNameDisplay" class="text-xs mt-2 text-red-600 font-semibold"></p>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r-xl">
+                        <div class="flex items-center gap-3 text-yellow-800 font-bold mb-1">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <span class="text-sm">Maintenance Tip</span>
+                        </div>
+                        <p class="text-xs text-yellow-700 leading-relaxed">
+                            Ensure your README includes a <strong>takeover guide</strong>. New maintainers appreciate knowing where the "skeletons" are buried!
+                        </p>
+                    </div>
+                </section>
+
+                <div class="pt-6 flex flex-col md:flex-row gap-4">
+                    <button type="submit" class="flex-grow bg-red-600 text-white px-8 py-4 rounded-2xl font-black hover:bg-red-700 transform hover:-translate-y-1 transition shadow-xl shadow-red-200">
+                        PUBLISH TO DIRECTORY
+                    </button>
+                    <a href="{{ url_for('views.home') }}" class="px-8 py-4 text-center text-gray-500 font-bold hover:text-gray-800 transition">
+                        Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+
+        <p class="mt-8 text-center text-gray-400 text-sm italic">
+            By listing your project, you agree to respond to takeover requests within 7 business days.
+        </p>
+    </div>
+</main>
+
+<script>
+
+        const IS_FILE = window.location.protocol === 'file:';
+    const API = '/api';
+
+    // ── Mobile menu smooth toggle ─────────────────────────────────────────────
+    const menuBtn    = document.getElementById('menu-btn');
+    const mobileMenu = document.getElementById('mobile-menu');
+
+    function openMenu() {
+        mobileMenu.classList.add('menu-open');
+        menuBtn.classList.add('is-open');
+        menuBtn.setAttribute('aria-expanded', 'true');
+    }
+
+    function closeMenu() {
+        mobileMenu.classList.remove('menu-open');
+        menuBtn.classList.remove('is-open');
+        menuBtn.setAttribute('aria-expanded', 'false');
+    }
+
+    menuBtn.addEventListener('click', () => {
+        mobileMenu.classList.contains('menu-open') ? closeMenu() : openMenu();
+    });
+
+    // Auto-close when a link or button inside the menu is clicked
+    mobileMenu.querySelectorAll('a, button').forEach(el => {
+        el.addEventListener('click', closeMenu);
+    });
+
+    // Close on outside click
+    document.addEventListener('click', (e) => {
+        if (!menuBtn.contains(e.target) && !mobileMenu.contains(e.target)) {
+            closeMenu();
+        }
+    });
+
+        // ── Fetch full profile from Flask ──────────────────────────────────────────
+    async function initNav() {
+        if (IS_FILE) {
+            if (document.getElementById('nav-email')) document.getElementById('nav-email').textContent = '(offline)';
+            if (document.getElementById('nav-email-mobile')) document.getElementById('nav-email-mobile').textContent = '(offline)';
+            return;
+        }
+        try {
+            // Check authentication
+            const meRes = await fetch(`${API}/me`);
+            if (!meRes.ok) { window.location.href = '/login'; return; }
+            const meData = await meRes.json();
+            if (!meData.loggedIn) { window.location.href = '/login'; return; }
+            
+            // Load full profile
+            const profileRes = await fetch(`${API}/profile`);
+            if (!profileRes.ok) throw new Error('Failed to load profile');
+            const profile = await profileRes.json();
+            
+            if (document.getElementById('nav-email')) document.getElementById('nav-email').textContent = profile.email;
+            if (document.getElementById('nav-email-mobile')) document.getElementById('nav-email-mobile').textContent = profile.email;
+            
+            console.log('✓ Connected to Flask - User loaded:', profile.name);
+        } catch (err) {
+            console.error('Auth error:', err);
+            window.location.href = '/login';
+        }
+    }
+
+    const dropZone = document.getElementById('drop-zone');
+    const dropZoneContent = document.getElementById('drop-zone-content');
+    const fileInput = document.getElementById('imageInput');
+    const fileDisplay = document.getElementById('fileNameDisplay');
+
+    function updateFileDisplay(files) {
+        if (files && files.length > 0) {
+            fileDisplay.innerText = "Selected " + files.length + " file(s).";
+        } else {
+            fileDisplay.innerText = "";
+        }
+    }
+
+    if (dropZone && fileInput) {
+        fileInput.addEventListener('change', function() {
+            updateFileDisplay(this.files);
+        });
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault(); 
+            dropZoneContent.classList.remove('border-gray-200', 'bg-gray-50');
+            dropZoneContent.classList.add('border-red-400', 'bg-red-50');
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZoneContent.classList.remove('border-red-400', 'bg-red-50');
+            dropZoneContent.classList.add('border-gray-200', 'bg-gray-50');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            
+            dropZoneContent.classList.remove('border-red-400', 'bg-red-50');
+            dropZoneContent.classList.add('border-gray-200', 'bg-gray-50');
+
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                fileInput.files = e.dataTransfer.files;
+                updateFileDisplay(fileInput.files);
+            }
+        });
+    }
+</script>
+</body>
+</html>

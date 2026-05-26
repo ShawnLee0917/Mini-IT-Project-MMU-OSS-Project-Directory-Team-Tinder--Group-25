@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delete Question — MMU OSSD</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        
+        /* Mobile Menu Transitions */
+        .hamburger .bar { transition: all 0.3s ease; }
+        .hamburger.is-open .bar:nth-child(1) { transform: translateY(7.5px) rotate(45deg); }
+        .hamburger.is-open .bar:nth-child(2) { opacity: 0; }
+        .hamburger.is-open .bar:nth-child(3) { transform: translateY(-7.5px) rotate(-45deg); }
+        
+        #mobile-menu {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out, opacity 0.2s;
+            opacity: 0;
+        }
+        #mobile-menu.open {
+            max-height: 500px;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+    <nav class="bg-red-700 text-white shadow-md sticky top-0 z-50">
+        <div class="container mx-auto px-6 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <button id="menu-btn" class="hamburger p-2 hover:bg-red-800 rounded-lg">
+                    <span class="bar block w-6 h-0.5 bg-white mb-1"></span>
+                    <span class="bar block w-6 h-0.5 bg-white mb-1"></span>
+                    <span class="bar block w-6 h-0.5 bg-white"></span>
+                </button>
+                <a href="/" class="text-2xl font-extrabold tracking-tighter">
+                    MMU <span class="font-light text-red-200">OSSD</span>
+                </a>
+            </div>
+            <div class="hidden md:flex space-x-8 items-center font-medium">
+                <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
+                <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
+                <a href="{{ url_for('views.qna_page') }}" class="text-red-200 font-bold border-b-2 border-red-300 pb-0.5">Q&A</a>
+                <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
+                <a href="{{ url_for('views.profile') }}" class="bg-red-800 px-4 py-2 rounded-full flex items-center gap-2 border border-red-500/50 hover:bg-red-900 transition">
+                    <span id="nav-email" class="text-sm">Loading...</span><i class="fas fa-user-circle text-lg"></i>
+                </a>
+                <button id="logout-btn" class="bg-white text-red-700 text-xs font-bold px-3 py-2 rounded-xl hover:bg-red-50 transition">
+                    <i class="fas fa-sign-out-alt mr-1"></i>Logout
+                </button>
+            </div>
+        </div>
+        <div id="mobile-menu" class="bg-red-800 border-t border-red-600">
+            <div class="px-6 py-4 flex flex-col space-y-4 font-semibold text-white">
+                <a href="{{ url_for('views.home') }}">Home</a>
+                <a href="{{ url_for('views.search') }}">Search</a>
+                <a href="{{ url_for('views.qna_page') }}">Q&A</a>
+                <button id="logout-btn-mobile" class="text-left"><i class="fas fa-sign-out-alt mr-1"></i>Logout</button>
+                <div id="nav-email-mobile" class="text-xs opacity-70 border-t border-red-700 pt-2">...</div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto px-6 py-12">
+        <div class="max-w-2xl mx-auto">
+            <a href="{{ url_for('views.qna_page') }}" class="inline-flex items-center gap-2 text-red-600 hover:text-red-700 mb-8 font-semibold">
+                <i class="fas fa-arrow-left"></i>Back to Q&A
+            </a>
+
+            <div class="bg-white rounded-2xl shadow-md border border-red-100 p-8">
+                <div class="flex items-start gap-4 mb-6">
+                    <div class="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-black text-lg flex-shrink-0">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-3xl font-black text-gray-900">Delete Question?</h1>
+                        <p class="text-red-600 font-semibold mt-1">This action cannot be undone</p>
+                    </div>
+                </div>
+
+                <div class="bg-red-50 border border-red-200 rounded-xl p-6 mb-8">
+                    <h3 class="font-bold text-gray-800 mb-3 text-lg">Question to Delete:</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <p class="text-xs text-gray-500 font-semibold uppercase tracking-widest mb-1">Title</p>
+                            <p class="text-gray-900 font-semibold break-words">{{ question.title if question else 'No title available' }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500 font-semibold uppercase tracking-widest mb-1">Details</p>
+                            <p class="text-gray-700 leading-relaxed break-words">{{ question.body if question else 'No details available' }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex gap-4">
+                    <a href="{{ url_for('views.qna_page') }}" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 rounded-xl transition text-center">Cancel</a>
+                    <button id="confirm-delete-btn" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-2">
+                        <i class="fas fa-trash"></i>Permanently Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API = '/api';
+        // FIXED: Wrap in quotes and handle potential undefined
+        const questionId = "{{ question.id if question else '' }}";
+
+        const menuBtn = document.getElementById('menu-btn');
+        const mobileMenu = document.getElementById('mobile-menu');
+
+        menuBtn.addEventListener('click', () => {
+            const isOpen = mobileMenu.classList.toggle('open');
+            menuBtn.classList.toggle('is-open', isOpen);
+        });
+
+        async function logout() {
+            try {
+                await fetch(`${API}/logout`, { method: 'POST' });
+            } finally {
+                window.location.href = '/login';
+            }
+        }
+
+        document.getElementById('logout-btn').addEventListener('click', logout);
+        document.getElementById('logout-btn-mobile').addEventListener('click', logout);
+
+        async function initNav() {
+            try {
+                const r = await fetch(`${API}/me`);
+                const d = await r.json();
+                if (!r.ok || !d.loggedIn) {
+                    window.location.href = '/login';
+                    return;
+                }
+                const pr = await fetch(`${API}/profile`);
+                const p = await pr.json();
+                document.getElementById('nav-email').textContent = p.email || 'User';
+                document.getElementById('nav-email-mobile').textContent = p.email || 'User';
+            } catch (e) {
+                console.error("Nav init failed", e);
+            }
+        }
+
+        document.getElementById('confirm-delete-btn').addEventListener('click', async () => {
+            if (!questionId) return alert("Question ID not found.");
+            
+            const btn = document.getElementById('confirm-delete-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Deleting...';
+
+            try {
+                const r = await fetch(`${API}/questions/${questionId}`, { method: 'DELETE' });
+                if (r.ok) {
+                    window.location.href = "{{ url_for('views.qna_page') }}";
+                } else {
+                    throw new Error('Failed delete');
+                }
+            } catch (e) {
+                alert('Error deleting question. You may not have permission.');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-trash"></i> Permanently Delete';
+            }
+        });
+
+        initNav();
+    </script>
+</body>
+</html>
