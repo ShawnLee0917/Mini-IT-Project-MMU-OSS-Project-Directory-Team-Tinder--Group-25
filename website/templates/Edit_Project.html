@@ -13,6 +13,91 @@
         body {
             font-family: 'Inter', sans-serif;
         }
+
+        /* ── Animated Hamburger Button ─────────────────────────── */
+        .hamburger {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            border-radius: 8px;
+            padding: 6px;
+            gap: 5px;
+            transition: background 0.2s ease;
+            position: relative;
+        }
+        .hamburger:hover {
+            background: rgba(255,255,255,0.15);
+        }
+        .hamburger:focus-visible {
+            outline: 2px solid rgba(255,255,255,0.6);
+            outline-offset: 2px;
+        }
+        .hamburger .bar {
+            display: block;
+            width: 22px;
+            height: 2.5px;
+            border-radius: 99px;
+            background: #fff;
+            transition: transform 0.35s cubic-bezier(0.23, 1, 0.32, 1),
+                        opacity   0.25s ease,
+                        width     0.3s ease;
+            transform-origin: center;
+        }
+        /* Open state — morph into X */
+        .hamburger.is-open .bar:nth-child(1) {
+            transform: translateY(7.5px) rotate(45deg);
+        }
+        .hamburger.is-open .bar:nth-child(2) {
+            opacity: 0;
+            width: 0;
+        }
+        .hamburger.is-open .bar:nth-child(3) {
+            transform: translateY(-7.5px) rotate(-45deg);
+        }
+
+        /* ── Mobile menu slide-down animation ──────────────────── */
+        #mobile-menu {
+            max-height: 0;
+            overflow: hidden;
+            opacity: 0;
+            transition:
+                max-height 0.38s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity    0.28s ease;
+        }
+        #mobile-menu.menu-open {
+            max-height: 500px;   /* tall enough for all links */
+            opacity: 1;
+        }
+        /* Stagger each link sliding in */
+        #mobile-menu a,
+        #mobile-menu button,
+        #mobile-menu div {
+            transform: translateY(-6px);
+            opacity: 0;
+            transition:
+                transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity   0.3s ease;
+        }
+        #mobile-menu.menu-open a,
+        #mobile-menu.menu-open button,
+        #mobile-menu.menu-open div {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        /* Delay each item slightly for a cascade effect */
+        #mobile-menu a:nth-child(1)  { transition-delay: 0.05s; }
+        #mobile-menu a:nth-child(2)  { transition-delay: 0.09s; }
+        #mobile-menu a:nth-child(3)  { transition-delay: 0.13s; }
+        #mobile-menu a:nth-child(4)  { transition-delay: 0.17s; }
+        #mobile-menu a:nth-child(5)  { transition-delay: 0.21s; }
+        #mobile-menu button          { transition-delay: 0.25s; }
+        #mobile-menu #nav-email-mobile { transition-delay: 0.29s; }
     </style>
 </head>
 
@@ -21,8 +106,10 @@
     <nav class="bg-red-700 text-white shadow-md sticky top-0 z-50">
         <div class="container mx-auto px-6 py-3 flex items-center justify-between">
             <div class="flex items-center gap-4">
-                <button id="menu-btn" class="text-white focus:outline-none p-1 hover:bg-red-800 rounded transition">
-                    <i class="fas fa-bars text-xl"></i>
+                <button id="menu-btn" class="hamburger" aria-label="Toggle menu" aria-expanded="false">
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
                 </button>
                 <a href="{{ url_for('views.home') }}" class="hover:opacity-80 transition flex items-center gap-4">
                     <i class="fas fa-arrow-left text-xl"></i>
@@ -34,7 +121,7 @@
             <div class="hidden md:flex space-x-8 items-center font-medium">
                 <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
                 <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
-                <a href="{{ url_for('views.qna_page') }}" class="hover:text-red-200 transition">Q&A</a>
+                <a href="{{ url_for('views.hottest_projects') }}" class="text-white transition">Hottest Projects</a>
                 <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
                 <div class="bg-red-800 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-500/50">
                     <a href="{{ url_for('views.profile') }}" class="flex items-center space-x-2">
@@ -42,6 +129,17 @@
                         <i class="fas fa-user-circle text-lg"></i>
                     </a>
                 </div>
+            </div>
+        </div>
+
+        <div id="mobile-menu" class="bg-red-800 border-t border-red-600 shadow-inner">
+            <div class="px-6 py-4 flex flex-col space-y-4 font-semibold">
+                <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
+                <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
+                <a href="{{ url_for('views.qna_page') }}" class="hover:text-red-200 transition">Q&A</a>
+                <a href="{{ url_for('views.profile') }}" class="hover:text-red-200 transition">My Profile</a>
+                <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
+                <div class="pt-2 border-t border-red-700 text-xs font-light opacity-80" id="nav-email-mobile">{{ session.get('user_email', 'User') }}</div>
             </div>
         </div>
     </nav>
@@ -87,20 +185,38 @@
                                         class="w-full bg-gray-100 border-2 border-gray-200 text-gray-500 rounded-xl px-4 py-3 cursor-not-allowed font-medium">
                                 {% endif %}
                             </div>
-                            <div>
-                                <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Repository URL</label>
-                                <div class="relative">
-                                    <i class="fab fa-github absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg"></i>
-                                    {% if project.user_id == current_user.id %}
-                                        <input type="url" name="repo_url" value="{{ project.repo_url }}"
-                                            class="w-full bg-gray-50 border-2 border-gray-100 rounded-xl pl-12 pr-4 py-3 focus:border-red-500 focus:bg-white outline-none transition font-medium">
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Repository URL</label>
+                                    <div class="relative">
+                                        <i class="fab fa-github absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg"></i>
+                                        {% if project.user_id == current_user.id %}
+                                            <input type="url" name="repo_url" value="{{ project.repo_url }}"
+                                                class="w-full bg-gray-50 border-2 border-gray-100 rounded-xl pl-12 pr-4 py-3 focus:border-red-500 focus:bg-white outline-none transition font-medium">
+                                        {% else %}
+                                            <input type="url" value="{{ project.repo_url }}" readonly
+                                                class="w-full bg-gray-100 border-2 border-gray-200 text-gray-500 rounded-xl pl-12 pr-4 py-3 cursor-not-allowed font-medium">
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Project Status</label>
+                                    
+                                    {% if current_user_role in ['owner', 'admin'] %}
+                                        <select name="status" class="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 focus:border-red-500 focus:bg-white outline-none transition font-medium appearance-none">
+                                            <option value="Active" {% if project.status == 'Active' %}selected{% endif %}>Active</option>
+                                            <option value="Seeking Maintainer" {% if project.status == 'Seeking Maintainer' %}selected{% endif %}>Seeking Maintainer</option>
+                                            <option value="Finished" {% if project.status == 'Finished' %}selected{% endif %}>Finished</option>
+                                        </select>
                                     {% else %}
-                                        <input type="url" value="{{ project.repo_url }}" readonly
-                                            class="w-full bg-gray-100 border-2 border-gray-200 text-gray-500 rounded-xl pl-12 pr-4 py-3 cursor-not-allowed font-medium">
+                                        <input type="text" value="{{ project.status }}" readonly
+                                            class="w-full bg-gray-100 border-2 border-gray-200 text-gray-500 rounded-xl px-4 py-3 cursor-not-allowed font-medium">
                                     {% endif %}
                                 </div>
                             </div>
-                        </div>
+                            </div>
                     </section>
 
                     <hr class="border-gray-100">
@@ -244,15 +360,41 @@
     {% endif %}
 
     <script>
+        // ── Mobile menu smooth toggle ─────────────────────────────────────────────
         const menuBtn = document.getElementById('menu-btn');
         const mobileMenu = document.getElementById('mobile-menu');
 
+        function openMenu() {
+            mobileMenu.classList.add('menu-open');
+            menuBtn.classList.add('is-open');
+            menuBtn.setAttribute('aria-expanded', 'true');
+        }
+
+        function closeMenu() {
+            mobileMenu.classList.remove('menu-open');
+            menuBtn.classList.remove('is-open');
+            menuBtn.setAttribute('aria-expanded', 'false');
+        }
+
         if (menuBtn && mobileMenu) {
             menuBtn.addEventListener('click', () => {
-                mobileMenu.classList.toggle('hidden');
+                mobileMenu.classList.contains('menu-open') ? closeMenu() : openMenu();
+            });
+
+            // Auto-close when a link or button inside the menu is clicked
+            mobileMenu.querySelectorAll('a, button').forEach(el => {
+                el.addEventListener('click', closeMenu);
             });
         }
 
+        // Close on outside click
+        document.addEventListener('click', (e) => {
+            if (menuBtn && mobileMenu && !menuBtn.contains(e.target) && !mobileMenu.contains(e.target)) {
+                closeMenu();
+            }
+        });
+
+        // ── Image Drop Zone Logic ──────────────────────────────────────────────────
         const dropZone = document.getElementById('drop-zone');
         const dropZoneContent = document.getElementById('drop-zone-content');
         const fileInput = document.getElementById('editImageInput');
@@ -295,6 +437,7 @@
             });
         }
 
+        // ── Delete Modal Logic ─────────────────────────────────────────────────────
         function showDeleteModal() {
             document.getElementById('deleteModal').classList.remove('hidden');
         }
@@ -305,6 +448,25 @@
 
         function submitDeleteForm() {
             document.getElementById('deleteProjectForm').submit();
+        }
+
+        let formChanged = false;
+        const editForm = document.querySelector('form'); 
+
+        if (editForm) {
+            editForm.addEventListener('input', () => { formChanged = true; });
+            editForm.addEventListener('change', () => { formChanged = true; });
+
+            window.addEventListener('beforeunload', (e) => {
+                if (formChanged) {
+                    e.preventDefault(); 
+                    e.returnValue = ''; 
+                }
+            });
+
+            editForm.addEventListener('submit', () => {
+                formChanged = false;
+            });
         }
     </script>
 

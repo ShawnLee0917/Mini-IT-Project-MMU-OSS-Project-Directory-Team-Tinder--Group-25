@@ -21,9 +21,8 @@ def create_app():
 
     db.init_app(app)
 
-    from .views import views
-    from .models import (User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel,
-Question, QuestionLike, QuestionFavorite, QuestionComment, QuestionImage, QuestionCommentImage)
+    from . views import views
+    from . models import (User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, Question, QuestionLike, QuestionFavorite, QuestionComment, QuestionImage, QuestionCommentImage, JoinRequest)
 
     app.register_blueprint(views, url_prefix='/')
 
@@ -53,11 +52,7 @@ def _initialize_default_labels():
     for label_data in default_labels:
         existing = CommentLabel.query.filter_by(name=label_data['name']).first()
         if not existing:
-            label = CommentLabel(
-                name=label_data['name'],
-                color=label_data['color'],
-                description=label_data['description']
-            )
+            label = CommentLabel(**label_data)
             db.session.add(label)
     
     db.session.commit()
