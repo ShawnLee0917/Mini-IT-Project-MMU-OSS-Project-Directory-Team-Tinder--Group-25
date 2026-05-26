@@ -260,26 +260,16 @@ document.addEventListener('click',e=>{if(!menuBtn.contains(e.target)&&!mobileMen
 document.getElementById('logout-btn').addEventListener('click',logout);
 document.getElementById('logout-btn-mobile').addEventListener('click',logout);
 async function logout(){if(!IS_FILE)try{await fetch(`${API}/logout`,{method:'POST'});}catch(e){}window.location.href='/login';}
-let currentUserId = null;
 async function initNav(){
   if(IS_FILE){['nav-email','nav-email-mobile'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='(offline)';});return;}
   try{
     const r=await fetch(`${API}/me`);if(!r.ok){window.location.href='/login';return;}
     const d=await r.json();if(!d.loggedIn){window.location.href='/login';return;}
     const pr=await fetch(`${API}/profile`);const p=await pr.json();
-    currentUserId = p.id;
     document.getElementById('nav-email').textContent=p.email;
     document.getElementById('nav-email-mobile').textContent=p.email;
   }catch(e){window.location.href='/login';}
 }
-function viewUserProfile(userId){
-  if(!userId){console.error('Invalid user ID');return;}
-  if(userId==currentUserId){window.location.href='/profile';}else{window.location.href=`/user/${userId}`;}
-}
-document.addEventListener('click',e=>{
-  const profileLink=e.target.closest('.user-profile-link');
-  if(profileLink){const userId=profileLink.dataset.userId;if(userId)viewUserProfile(parseInt(userId));}
-});
 document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click',()=>{
     document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
@@ -393,9 +383,9 @@ function renderComments(list,comments,qid,card){
       const rImgs=(r.image_urls||[]).filter(u=>u);
       const rImgHtml=rImgs.length>0?`<div class="grid grid-cols-2 gap-2 mt-2">${rImgs.map(url=>`<img src="${url}" class="rounded-lg object-cover w-full h-20 bg-gray-100">`).join('')}</div>`:'';
       return `<div class="flex gap-2 bg-blue-50 rounded-xl p-3 ml-6 mt-2" data-cmt-card="${r.id}">
-        <div class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-black flex-shrink-0 mt-0.5 cursor-pointer hover:opacity-80 transition user-profile-link" data-user-id="${r.author_id}" title="Click to view profile">${(r.author_name||'?')[0].toUpperCase()}</div>
+        <div class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-black flex-shrink-0 mt-0.5">${(r.author_name||'?')[0].toUpperCase()}</div>
         <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2 justify-between"><div></div><div class="flex items-center gap-2"><span class="text-xs font-bold text-gray-700 cursor-pointer hover:text-blue-600 transition user-profile-link" data-user-id="${r.author_id}" title="Click to view profile">${esc(r.author_name)}</span><span class="text-xs text-gray-400">${ago(r.created_at)}</span></div><div class="flex gap-1">${rEdit}${rDel}</div></div>
+          <div class="flex items-center gap-2 justify-between"><div></div><div class="flex items-center gap-2"><span class="text-xs font-bold text-gray-700">${esc(r.author_name)}</span><span class="text-xs text-gray-400">${ago(r.created_at)}</span></div><div class="flex gap-1">${rEdit}${rDel}</div></div>
           <p class="text-xs text-gray-700 mt-1.5 break-words cmt-body">${esc(r.body)}</p>
           ${rImgHtml}
         </div>
@@ -403,10 +393,10 @@ function renderComments(list,comments,qid,card){
     }).join('');
     return `<div class="comment-item space-y-2">
       <div class="flex gap-3 bg-gray-50 rounded-xl p-3" data-cmt-card="${c.id}">
-        <div class="w-7 h-7 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-xs font-black flex-shrink-0 mt-0.5 cursor-pointer hover:opacity-80 transition user-profile-link" data-user-id="${c.author_id}" title="Click to view profile">${(c.author_name||'?')[0].toUpperCase()}</div>
+        <div class="w-7 h-7 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-xs font-black flex-shrink-0 mt-0.5">${(c.author_name||'?')[0].toUpperCase()}</div>
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 justify-between">
-            <div class="flex items-center gap-2"><span class="text-xs font-bold text-gray-700 cursor-pointer hover:text-red-600 transition user-profile-link" data-user-id="${c.author_id}" title="Click to view profile">${esc(c.author_name)}</span><span class="text-xs text-gray-400">${ago(c.created_at)}</span></div>
+            <div class="flex items-center gap-2"><span class="text-xs font-bold text-gray-700">${esc(c.author_name)}</span><span class="text-xs text-gray-400">${ago(c.created_at)}</span></div>
             <div class="flex items-center gap-1">${cEdit}<button class="btn-reply text-xs text-blue-500 hover:text-blue-700 font-semibold" data-pid="${c.id}">Reply</button>${cDel}</div>
           </div>
           <p class="text-sm text-gray-700 mt-1.5 break-words cmt-body">${esc(c.body)}</p>

@@ -45,7 +45,6 @@
                         width     0.3s ease;
             transform-origin: center;
         }
-        /* Open state — morph into X */
         .hamburger.is-open .bar:nth-child(1) {
             transform: translateY(7.5px) rotate(45deg);
         }
@@ -67,10 +66,9 @@
                 opacity    0.28s ease;
         }
         #mobile-menu.menu-open {
-            max-height: 500px;   /* tall enough for all links */
+            max-height: 500px;
             opacity: 1;
         }
-        /* Stagger each link sliding in */
         #mobile-menu a,
         #mobile-menu button,
         #mobile-menu div {
@@ -86,7 +84,6 @@
             transform: translateY(0);
             opacity: 1;
         }
-        /* Delay each item slightly for a cascade effect */
         #mobile-menu a:nth-child(1)  { transition-delay: 0.05s; }
         #mobile-menu a:nth-child(2)  { transition-delay: 0.09s; }
         #mobile-menu a:nth-child(3)  { transition-delay: 0.13s; }
@@ -94,6 +91,10 @@
         #mobile-menu a:nth-child(5)  { transition-delay: 0.21s; }
         #mobile-menu button          { transition-delay: 0.25s; }
         #mobile-menu #nav-email-mobile { transition-delay: 0.29s; }
+
+        /* Hide Scrollbar for filter tabs */
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-900">
@@ -113,13 +114,31 @@
             </h1>
         </div>
 
-        <div class="hidden md:flex space-x-8 items-center font-medium">
-            <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
-            <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
-            <a href="{{ url_for('views.qna_page') }}" class="hover:text-red-200 transition">Q&A</a>
-            <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
+        <div class="hidden md:flex space-x-6 items-center font-medium">
+            <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition text-sm">Home</a>
+            <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition text-sm">Search</a>
+            <a href="{{ url_for('views.hottest_projects') }}" class="hover:text-red-200 transition text-sm">Hottest Projects</a>
+            <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition text-sm">My Projects</a>
+            
+            <div class="relative ml-2 mr-2">
+                <button id="notif-btn" class="text-white hover:text-red-200 transition relative p-2 focus:outline-none">
+                    <i class="fas fa-bell text-xl"></i>
+                    <span id="notif-badge" class="absolute top-1 right-0 bg-yellow-400 text-red-900 text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center hidden">0</span>
+                </button>
+                
+                <div id="notif-dropdown" class="hidden absolute right-0 mt-4 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50">
+                    <div class="bg-gray-50 px-4 py-3 border-b border-gray-100 flex justify-between items-center">
+                        <h3 class="text-sm font-bold text-gray-800"><i class="fas fa-envelope-open-text text-red-500 mr-2"></i>Notification</h3>
+                        <span id="notif-count-text" class="text-xs text-gray-500 font-semibold bg-white px-2 py-0.5 rounded-full border">0</span>
+                    </div>
+                    <div id="notif-list" class="max-h-64 overflow-y-auto divide-y divide-gray-50 text-gray-800">
+                        <div class="p-4 text-center text-xs text-gray-400 italic">No new notifications.</div>
+                    </div>
+                </div>
+            </div>
+
             <a href="{{ url_for('views.profile') }}" class="bg-red-800 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-500/50 cursor-pointer hover:bg-red-900 transition">
-                <span id="nav-email" class="text-sm">…</span>
+                <span id="nav-email" class="text-xs">…</span>
                 <i class="fas fa-user-circle text-lg"></i>
             </a>
             <button id="logout-btn"
@@ -133,14 +152,20 @@
         <div class="px-6 py-4 flex flex-col space-y-4 font-semibold">
             <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
             <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
-            <a href="{{ url_for('views.qna_page') }}" class="hover:text-red-200 transition">Q&A</a>
-            <a href="{{ url_for('views.profile') }}" class="hover:text-red-200 transition">My Profile</a>
+            <a href="{{ url_for('views.hottest_projects') }}" class="hover:text-red-200 transition">Hottest Projects</a>
             <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
             <a href="{{ url_for('views.list_project') }}" class="hover:text-red-200 transition">List Your Project</a>
-            <button id="logout-btn-mobile" class="text-left text-red-200 hover:text-white transition text-sm">
+            <a href="{{ url_for('views.profile') }}" class="hover:text-red-200 transition">My Profile</a>
+            
+            <button onclick="document.getElementById('notif-btn').click()" class="text-left text-yellow-300 hover:text-white transition flex justify-between items-center" id="mobile-notif-row">
+                <span><i class="fas fa-bell mr-2"></i> Project Invitations</span>
+                <span id="mobile-notif-badge" class="bg-yellow-400 text-red-900 px-2 rounded-full text-xs hidden">0</span>
+            </button>
+
+            <button id="logout-btn-mobile" class="text-left text-red-200 hover:text-white transition text-sm border-t border-red-700 pt-4 mt-2">
                 <i class="fas fa-sign-out-alt mr-1"></i> Logout
             </button>
-            <div class="pt-2 border-t border-red-700 text-xs font-light opacity-80" id="nav-email-mobile">…</div>
+            <div class="text-xs font-light opacity-80" id="nav-email-mobile">…</div>
         </div>
     </div>
 </nav>
@@ -173,9 +198,81 @@
             <div class="h-px bg-gray-200 flex-grow ml-4 mr-20"></div>
         </div>
 
-        <div class="grid gap-6">
-            <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm italic text-gray-400">
-                No projects listed yet. Be the first to hand over the torch!
+        <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
+            <div class="flex gap-4">
+                <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-bold shrink-0">
+                    <span id="post-avatar-placeholder"><i class="fas fa-user"></i></span>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <textarea id="new-post-content" rows="3" placeholder="What's on your mind? Ask a question or share an experience..." 
+                        class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:border-red-400 focus:bg-white transition resize-none"></textarea>
+                    
+                    <div id="attachment-previews" class="hidden flex-col gap-3 mt-3 border-t border-gray-100 pt-3">
+                        
+                        <div id="preview-image-container" class="hidden">
+                            <div id="image-preview-grid" class="flex flex-wrap gap-2"></div>
+                            <button type="button" onclick="clearImages()" class="mt-2 text-xs text-red-500 hover:text-red-700 font-semibold"><i class="fas fa-trash mr-1"></i>Clear Images</button>
+                        </div>
+                        
+                        <div id="preview-link-container" class="hidden items-center gap-2">
+                            <div class="bg-purple-50 px-3 py-2 rounded-lg text-purple-500"><i class="fas fa-link"></i></div>
+                            <input type="url" id="post-link" placeholder="https://..." class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:border-purple-400 outline-none transition bg-gray-50 focus:bg-white">
+                            <button type="button" onclick="clearLink()" class="text-gray-400 hover:text-red-500 p-2 transition"><i class="fas fa-times"></i></button>
+                        </div>
+
+                        <div id="preview-project-container" class="hidden items-center gap-2">
+                            <div class="bg-blue-50 px-3 py-2 rounded-lg text-blue-500"><i class="fas fa-project-diagram"></i></div>
+                            <select id="post-project-select" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:border-blue-400 outline-none bg-gray-50 focus:bg-white transition">
+                                <option value="">Loading your projects...</option>
+                            </select>
+                            <button type="button" onclick="clearProject()" class="text-gray-400 hover:text-red-500 p-2 transition"><i class="fas fa-times"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between items-center mt-3 flex-wrap gap-3">
+                        <div class="flex items-center gap-1 sm:gap-2">
+                            <span class="text-xs font-bold text-gray-500 uppercase tracking-wider hidden sm:block">Type:</span>
+                            <select id="new-post-category" class="bg-white border border-gray-200 text-gray-600 text-xs font-semibold rounded-lg px-3 py-2 focus:outline-none focus:border-red-400 cursor-pointer shadow-sm">
+                                <option value="Posts">📝 Posts</option>                             
+                                <option value="Discussion">🗣️ Discussion</option>
+                                <option value="Question">❓ Question</option>
+                            </select>
+
+                            <div class="flex items-center gap-1 ml-1 sm:ml-2 sm:border-l sm:border-gray-200 sm:pl-3">
+                                <button type="button" onclick="toggleProjectSelect()" class="text-gray-400 hover:text-blue-500 transition p-2 rounded-full hover:bg-blue-50 focus:outline-none" title="Attach Project">
+                                    <i class="fas fa-project-diagram text-lg"></i>
+                                </button>
+                                
+                                <label class="text-gray-400 hover:text-green-500 transition p-2 rounded-full hover:bg-green-50 cursor-pointer mb-0 flex items-center" title="Upload Photo">
+                                    <i class="far fa-image text-lg"></i>
+                                    <input type="file" class="hidden" accept="image/*" id="post-image-upload" multiple>
+                                </label>
+                                
+                                <button type="button" onclick="toggleLinkInput()" class="text-gray-400 hover:text-purple-500 transition p-2 rounded-full hover:bg-purple-50 focus:outline-none" title="Add Link">
+                                    <i class="fas fa-link text-lg"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <button onclick="submitCommunityPost(this)" class="bg-red-600 hover:bg-red-700 text-white text-sm font-bold px-6 py-2 rounded-xl transition shadow-sm flex items-center gap-2 ml-auto">
+                            <i class="fas fa-paper-plane"></i> Post
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex gap-2 overflow-x-auto pb-1 hide-scrollbar">
+            <button onclick="changeFilter('all', this)" class="filter-btn border px-4 py-1.5 rounded-full text-sm font-bold transition whitespace-nowrap bg-red-600 text-white border-red-600">All Feed</button>
+            <button onclick="changeFilter('questions', this)" class="filter-btn border px-4 py-1.5 rounded-full text-sm font-bold transition whitespace-nowrap bg-white text-gray-600 border-gray-200 hover:text-red-600 hover:border-red-600">Questions</button>
+            <button onclick="changeFilter('discussions', this)" class="filter-btn border px-4 py-1.5 rounded-full text-sm font-bold transition whitespace-nowrap bg-white text-gray-600 border-gray-200 hover:text-red-600 hover:border-red-600">Discussions</button>
+            <button onclick="changeFilter('saved', this)" class="filter-btn border px-4 py-1.5 rounded-full text-sm font-bold transition whitespace-nowrap bg-white text-gray-600 border-gray-200 hover:text-red-600 hover:border-red-600"><i class="fas fa-star text-yellow-400 mr-1"></i>My Saved</button>
+        </div>
+
+        <div id="feed-container" class="space-y-4 mt-2">
+            <div class="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm text-gray-400 text-center flex flex-col items-center justify-center">
+                <i class="fas fa-circle-notch fa-spin text-3xl mb-3 text-red-500"></i>
+                <span class="text-sm font-medium">Loading community feed...</span>
             </div>
         </div>
     </div>
@@ -205,12 +302,11 @@
             <p class="text-sm text-red-100 mb-6 leading-relaxed">
                 The <span class="font-bold text-white">Smart Parking</span> project is looking for a <span class="underline decoration-white">Python dev</span>! You're a <span class="font-bold bg-white text-red-700 px-1 rounded">90% match</span>.
             </p>
-            <button class="w-full bg-white text-red-700 py-3 rounded-xl text-sm font-black shadow-lg hover:bg-red-50 transition active:scale-95">
-                APPLY TO TEAM
-            </button>
+            <a href="{{ url_for('views.search') }}" class="block w-full bg-white text-red-700 py-3 text-center rounded-xl text-sm font-black shadow-lg hover:bg-red-50 transition active:scale-95">
+                FIND TEAMS
+            </a>
         </div>
 
-        <!-- AI Suggested Projects -->
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div class="bg-gradient-to-r from-red-600 to-red-700 px-6 py-4 flex items-center justify-between">
                 <h3 class="font-black text-white text-base flex items-center gap-2">
@@ -230,8 +326,6 @@
             </div>
         </div>
 
-
-
         <div class="p-6">
             <h4 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Resources</h4>
             <ul class="space-y-3">
@@ -245,6 +339,7 @@
 <script>
     const IS_FILE = window.location.protocol === 'file:';
     const API = '/api';
+    let currentFilter = 'all'; 
 
     // ── Mobile menu smooth toggle ─────────────────────────────────────────────
     const menuBtn    = document.getElementById('menu-btn');
@@ -266,120 +361,573 @@
         mobileMenu.classList.contains('menu-open') ? closeMenu() : openMenu();
     });
 
-    // Auto-close when a link or button inside the menu is clicked
-    mobileMenu.querySelectorAll('a, button').forEach(el => {
+    mobileMenu.querySelectorAll('a, button:not(#notif-btn)').forEach(el => {
         el.addEventListener('click', closeMenu);
     });
 
-    // Close on outside click
+    // ── Dropdown and Outside Clicks ───────────────────────────────────────────
+    const notifBtn = document.getElementById('notif-btn');
+    const notifDropdown = document.getElementById('notif-dropdown');
+    
+    // Toggle notifications dropdown
+    notifBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        notifDropdown.classList.toggle('hidden');
+    });
+
+    // Close menus when clicking outside
     document.addEventListener('click', (e) => {
         if (!menuBtn.contains(e.target) && !mobileMenu.contains(e.target)) {
             closeMenu();
+        }
+        if (!notifBtn.contains(e.target) && !notifDropdown.contains(e.target)) {
+            notifDropdown.classList.add('hidden');
         }
     });
 
     // ── Toast notification ────────────────────────────────────────────────────
     function showNotif(msg, success = true) {
         const toast = document.createElement('div');
-        toast.className = `fixed bottom-6 right-6 px-6 py-3 rounded-2xl text-white text-sm font-semibold shadow-lg ${success ? 'bg-green-600' : 'bg-red-600'}`;
+        toast.className = `fixed bottom-6 right-6 px-6 py-3 rounded-2xl text-white text-sm font-semibold shadow-lg z-50 ${success ? 'bg-green-600' : 'bg-red-600'}`;
         toast.textContent = msg;
         document.body.appendChild(toast);
         setTimeout(() => toast.remove(), 3500);
     }
 
+    // ── [新增] Load & Manage Invitations ──────────────────────────────────────
+    async function loadInvitations() {
+        if (IS_FILE) return;
+        try {
+            const res = await fetch(`${API}/my-invitations`);
+            if (!res.ok) return;
+            const invs = await res.json();
+            
+            const badge = document.getElementById('notif-badge');
+            const mobileBadge = document.getElementById('mobile-notif-badge');
+            const countText = document.getElementById('notif-count-text');
+            const list = document.getElementById('notif-list');
+            
+            if (invs.length > 0) {
+                // Update Desktop Badges
+                badge.textContent = invs.length;
+                badge.classList.remove('hidden');
+                countText.textContent = `${invs.length} New`;
+                
+                // Update Mobile Badge
+                mobileBadge.textContent = invs.length;
+                mobileBadge.classList.remove('hidden');
+                
+                list.innerHTML = invs.map(inv => `
+                    <div class="p-4 hover:bg-gray-50 transition border-b border-gray-50 last:border-0">
+                        <p class="text-xs text-gray-800 mb-3 leading-relaxed">
+                            <span class="font-bold text-gray-900">${escapeHtml(inv.owner_name)}</span> invited you to join the team for <span class="font-bold text-red-600">${escapeHtml(inv.project_name)}</span>
+                        </p>
+                        <div class="flex gap-2">
+                            <button onclick="respondToInvitation(${inv.id}, 'accept')" class="flex-1 bg-green-500 hover:bg-green-600 text-white text-xs font-bold py-1.5 rounded-lg transition shadow-sm">Accept</button>
+                            <button onclick="respondToInvitation(${inv.id}, 'reject')" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold py-1.5 rounded-lg transition">Decline</button>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                // Hide badges if empty
+                badge.classList.add('hidden');
+                mobileBadge.classList.add('hidden');
+                countText.textContent = `0`;
+                list.innerHTML = '<div class="p-6 text-center text-xs text-gray-400 italic">No new invitations right now.</div>';
+            }
+        } catch (err) {
+            console.error('Failed to load invitations:', err);
+        }
+    }
+
+    async function respondToInvitation(requestId, action) {
+        try {
+            const res = await fetch(`${API}/invitations/${requestId}/${action}`, { method: 'POST' });
+            const data = await res.json();
+            if (res.ok) {
+                showNotif(data.success, true);
+                loadInvitations(); // Reload the list and badges instantly
+            } else {
+                showNotif(data.error || 'Action failed', false);
+            }
+        } catch (err) {
+            showNotif('Network error', false);
+        }
+    }
+
+
+    // ── Attachment Preview Logic ──────────────────────────────────────────────
+    let selectedImages = []; 
+
+    function toggleLinkInput() {
+        document.getElementById('attachment-previews').classList.remove('hidden');
+        document.getElementById('preview-link-container').classList.remove('hidden');
+        document.getElementById('preview-link-container').classList.add('flex');
+    }
+
+    function clearLink() {
+        document.getElementById('post-link').value = '';
+        document.getElementById('preview-link-container').classList.add('hidden');
+        document.getElementById('preview-link-container').classList.remove('flex');
+        checkPreviewsEmpty();
+    }
+
+    async function toggleProjectSelect() {
+        document.getElementById('attachment-previews').classList.remove('hidden');
+        document.getElementById('preview-project-container').classList.remove('hidden');
+        document.getElementById('preview-project-container').classList.add('flex');
+        
+        const select = document.getElementById('post-project-select');
+        if (select.options.length <= 1 && !IS_FILE) {
+            try {
+                const res = await fetch(`${API}/projects`);
+                if (res.ok) {
+                    const projects = await res.json();
+                    if (projects.length === 0) {
+                        select.innerHTML = '<option value="">You don\'t have any projects yet.</option>';
+                    } else {
+                        select.innerHTML = '<option value="">Select a project to attach...</option>' + 
+                            projects.map(p => `<option value="${p.id}">${escapeHtml(p.project_name)}</option>`).join('');
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+    }
+
+    function clearProject() {
+        document.getElementById('post-project-select').value = '';
+        document.getElementById('preview-project-container').classList.add('hidden');
+        document.getElementById('preview-project-container').classList.remove('flex');
+        checkPreviewsEmpty();
+    }
+
+    document.getElementById('post-image-upload').addEventListener('change', function(e) {
+        if (this.files && this.files.length > 0) {
+            Array.from(this.files).forEach(file => selectedImages.push(file));
+            this.value = ''; 
+            renderImagePreviewGrid();
+        }
+    });
+
+    function renderImagePreviewGrid() {
+        const container = document.getElementById('preview-image-container');
+        const grid = document.getElementById('image-preview-grid');
+        
+        if (selectedImages.length === 0) {
+            container.classList.add('hidden');
+            checkPreviewsEmpty();
+            return;
+        }
+        
+        document.getElementById('attachment-previews').classList.remove('hidden');
+        container.classList.remove('hidden');
+        
+        grid.innerHTML = '';
+        selectedImages.forEach((file, index) => {
+            const reader = new FileReader();
+            const div = document.createElement('div');
+            div.className = "relative group w-24 h-24";
+            reader.onload = e => {
+                div.innerHTML = `
+                    <img src="${e.target.result}" class="w-full h-full object-cover rounded-lg border shadow-sm">
+                    <button type="button" onclick="removeImage(${index})" class="absolute inset-0 bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition rounded-lg"><i class="fas fa-trash"></i></button>
+                `;
+            };
+            reader.readAsDataURL(file);
+            grid.appendChild(div);
+        });
+    }
+
+    function removeImage(index) {
+        selectedImages.splice(index, 1);
+        renderImagePreviewGrid();
+    }
+
+    function clearImages() {
+        selectedImages = [];
+        renderImagePreviewGrid();
+    }
+
+    function checkPreviewsEmpty() {
+        const linkHidden = document.getElementById('preview-link-container').classList.contains('hidden');
+        const projHidden = document.getElementById('preview-project-container').classList.contains('hidden');
+        const imgHidden = document.getElementById('preview-image-container').classList.contains('hidden');
+        
+        if (linkHidden && projHidden && imgHidden) {
+            document.getElementById('attachment-previews').classList.add('hidden');
+        }
+    }
+
+    // ── Feed Rendering & Filtering ────────────────────────────────────────────
+
+    function changeFilter(filter, btnElement) {
+        currentFilter = filter;
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.classList.remove('bg-red-600', 'text-white', 'border-red-600');
+            btn.classList.add('bg-white', 'text-gray-600', 'border-gray-200');
+        });
+        btnElement.classList.remove('bg-white', 'text-gray-600', 'border-gray-200');
+        btnElement.classList.add('bg-red-600', 'text-white', 'border-red-600');
+        loadFeed();
+    }
+
+    async function loadFeed() {
+        const container = document.getElementById('feed-container');
+        
+        if (IS_FILE) {
+            container.innerHTML = '<div class="text-center text-gray-400 py-10 bg-white border border-gray-100 rounded-2xl text-sm italic">(Feed disabled in offline mode)</div>';
+            return;
+        }
+
+        container.innerHTML = '<div class="text-center text-gray-400 py-10 bg-white border border-gray-100 rounded-2xl text-sm"><i class="fas fa-spinner fa-spin mr-2"></i>Loading...</div>';
+
+        try {
+            const res = await fetch(`${API}/community_posts?filter=${currentFilter}`);
+            if (!res.ok) throw new Error('Failed to fetch feed');
+            const posts = await res.json();
+            
+            if (posts.length === 0) {
+                container.innerHTML = `<div class="text-center text-gray-500 py-10 border border-gray-200 rounded-2xl bg-white text-sm italic">No posts found in this category.</div>`;
+                return;
+            }
+
+            container.innerHTML = posts.map(p => {
+                let badgeHTML = '';
+                if (p.category === 'Question') {
+                    badgeHTML = '<span class="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"><i class="fas fa-question-circle mr-1"></i>Question</span>';
+                } else if (p.category === 'Posts') {
+                    badgeHTML = '<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"><i class="fas fa-memo mr-1"></i>Posts</span>';
+                } else {
+                    badgeHTML = '<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"><i class="fas fa-comment-dots mr-1"></i>Discussion</span>';
+                }
+                
+                let imagesHTML = '';
+                if (p.image_urls && p.image_urls.length > 0) {
+                    const gridClass = p.image_urls.length === 1 ? "grid-cols-1" : p.image_urls.length === 2 ? "grid-cols-2" : "grid-cols-2 md:grid-cols-3";
+                    imagesHTML = `<div class="grid ${gridClass} gap-2 mt-3">` + 
+                        p.image_urls.map(url => `<img src="${url}" class="rounded-xl w-full h-48 object-cover border border-gray-100 shadow-sm">`).join('') + 
+                        `</div>`;
+                }
+
+                const deleteBtn = p.is_owner ? `<button onclick="deletePost(${p.id})" class="text-gray-300 hover:text-red-500 transition text-sm ml-2" title="Delete Post"><i class="fas fa-trash"></i></button>` : '';
+
+                return `
+                <div class="bg-white border border-gray-200 rounded-2xl p-5 hover:border-gray-300 transition shadow-sm group" id="post-${p.id}">
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-red-100 border border-red-200 flex items-center justify-center text-red-600 text-sm font-bold shrink-0 uppercase">
+                                ${p.user_name.charAt(0)}
+                            </div>
+                            <div>
+                                <div class="font-bold text-gray-900 text-sm flex items-center gap-2">
+                                    ${escapeHtml(p.user_name)} ${deleteBtn}
+                                </div>
+                                <div class="text-xs text-gray-400">${formatTime(p.created_at)}</div>
+                            </div>
+                        </div>
+                        ${badgeHTML}
+                    </div>
+                    
+                    <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">${escapeHtml(p.content)}</p>
+                    
+                    ${imagesHTML}
+                    
+                    ${p.attached_project ? `
+                        <a href="/project/${p.attached_project.id}" class="mt-3 flex items-center gap-2 text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-100 px-3 py-2 rounded-lg hover:bg-blue-100 transition w-max">
+                            <i class="fas fa-project-diagram text-blue-500"></i> ${escapeHtml(p.attached_project.name)}
+                        </a>` : ''}
+                    ${p.link_url ? `
+                        <a href="${p.link_url}" target="_blank" class="mt-3 flex items-center gap-2 text-sm font-medium text-purple-600 hover:text-purple-800 transition hover:underline w-max break-all">
+                            <i class="fas fa-link"></i> ${escapeHtml(p.link_url)}
+                        </a>` : ''}
+                    
+                    <div class="flex gap-6 border-t border-gray-100 pt-4 mt-4 select-none">
+                        <button onclick="toggleAction(${p.id}, 'like', this)" class="flex items-center gap-1.5 text-xs font-semibold ${p.user_liked ? 'text-red-600' : 'text-gray-500 hover:text-red-600'} transition">
+                            <i class="${p.user_liked ? 'fas fa-heart' : 'far fa-heart'} transition-transform duration-200"></i> 
+                            <span class="cnt">${p.like_count > 0 ? p.like_count : 'Like'}</span>
+                        </button>
+                        
+                        <button onclick="toggleCommentSection(${p.id})" class="flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-blue-600 transition">
+                            <i class="far fa-comment"></i> 
+                            <span id="comment-count-${p.id}">${p.comment_count > 0 ? p.comment_count + ' Comment' : 'Comment'}</span>
+                        </button>
+                        
+                        <button onclick="toggleAction(${p.id}, 'favorite', this)" class="flex items-center gap-1.5 text-xs font-semibold ${p.user_faved ? 'text-yellow-500' : 'text-gray-500 hover:text-yellow-500'} transition ml-auto" title="Save Post">
+                            <i class="${p.user_faved ? 'fas fa-star' : 'far fa-star'} transition-transform duration-200"></i>
+                            <span class="cnt">${p.fav_count > 0 ? p.fav_count : 'Save'}</span>
+                        </button>
+                    </div>
+
+                    <div id="comments-section-${p.id}" class="hidden mt-4 pt-4 border-t border-gray-100">
+                        <div id="comments-list-${p.id}" class="space-y-3 mb-3 max-h-64 overflow-y-auto pr-2">
+                            </div>
+                        
+                        <div class="flex gap-2 items-center mt-2">
+                            <div class="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-bold shrink-0 text-xs">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <input type="text" id="comment-input-${p.id}" class="flex-1 bg-gray-50 text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:bg-white focus:border-blue-400 transition" placeholder="Write a comment..." onkeydown="if(event.key === 'Enter') submitPostComment(${p.id})">
+                            <button onclick="submitPostComment(${p.id})" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm shrink-0">
+                                Post
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                `;
+            }).join('');
+
+        } catch (err) {
+            console.error(err);
+            container.innerHTML = `<div class="text-center text-red-500 py-10 bg-white border border-gray-200 rounded-2xl text-sm">Failed to load feed. Please try again later.</div>`;
+        }
+    }
+
+    async function toggleAction(postId, action, btnElement) {
+        btnElement.disabled = true;
+        try {
+            const res = await fetch(`${API}/community_posts/${postId}/${action}`, { method: 'POST' });
+            if (!res.ok) throw new Error(`Failed to ${action} post`);
+            
+            const data = await res.json();
+            const icon = btnElement.querySelector('i');
+            const countSpan = btnElement.querySelector('.cnt');
+            
+            const isLiked = action === 'like' && data.liked;
+            const isFaved = action === 'favorite' && data.faved;
+            const count = data[`${action}_count`];
+            
+            if (action === 'like') {
+                btnElement.className = `flex items-center gap-1.5 text-xs font-semibold ${isLiked ? 'text-red-600' : 'text-gray-500 hover:text-red-600'} transition`;
+                icon.className = `${isLiked ? 'fas fa-heart text-red-500 scale-125' : 'far fa-heart'} transition-transform duration-200`;
+                setTimeout(() => icon.classList.remove('scale-125'), 200);
+                countSpan.textContent = count > 0 ? count : 'Like';
+            } else {
+                btnElement.className = `flex items-center gap-1.5 text-xs font-semibold ${isFaved ? 'text-yellow-500' : 'text-gray-500 hover:text-yellow-500'} transition ml-auto`;
+                icon.className = `${isFaved ? 'fas fa-star text-yellow-500 scale-125' : 'far fa-star'} transition-transform duration-200`;
+                setTimeout(() => icon.classList.remove('scale-125'), 200);
+                countSpan.textContent = count > 0 ? count : 'Save';
+            }
+            
+        } catch (err) {
+            showNotif(`Failed to ${action} post`, false);
+        } finally {
+            btnElement.disabled = false;
+        }
+    }
+
+    async function deletePost(postId) {
+        if (!confirm('Are you sure you want to delete this post?')) return;
+        try {
+            const res = await fetch(`${API}/community_posts/${postId}`, { method: 'DELETE' });
+            if (res.ok) { 
+                document.getElementById(`post-${postId}`).remove(); 
+                showNotif('Post deleted'); 
+            }
+        } catch (err) { showNotif('Error deleting post', false); }
+    }
+
+
+    // ── Nested Comments Logic ────────────────────────────────────────────────
+    
+    async function toggleCommentSection(postId) {
+        const section = document.getElementById(`comments-section-${postId}`);
+        if (section.classList.contains('hidden')) {
+            section.classList.remove('hidden');
+            loadPostComments(postId); 
+        } else {
+            section.classList.add('hidden');
+        }
+    }
+
+    async function loadPostComments(postId) {
+        const listDiv = document.getElementById(`comments-list-${postId}`);
+        listDiv.innerHTML = '<div class="text-center text-xs text-gray-400 py-2"><i class="fas fa-spinner fa-spin"></i> Loading comments...</div>';
+        try {
+            const res = await fetch(`${API}/community_posts/${postId}/comments`);
+            const comments = await res.json();
+            
+            if (comments.length === 0) {
+                listDiv.innerHTML = '<div class="text-center text-xs text-gray-400 py-2">No comments yet. Be the first!</div>';
+                return;
+            }
+            
+            const parents = comments.filter(c => !c.parent_id);
+            const children = comments.filter(c => c.parent_id);
+            
+            listDiv.innerHTML = parents.map(p => {
+                const replies = children.filter(c => c.parent_id === p.id).map(r => `
+                    <div class="ml-8 mt-2 flex gap-2">
+                        <div class="bg-blue-50 px-3 py-2 rounded-xl rounded-tl-none border border-blue-100 flex-1">
+                            <div class="flex justify-between items-center mb-0.5">
+                                <span class="font-bold text-[10px] text-gray-800">${escapeHtml(r.user_name)}</span>
+                                ${r.is_owner ? `<button onclick="deleteComment(${postId}, ${r.id})" class="text-gray-400 hover:text-red-500 text-[10px]"><i class="fas fa-trash"></i></button>` : ''}
+                            </div>
+                            <p class="text-[11px] text-gray-600 break-words">${escapeHtml(r.content)}</p>
+                        </div>
+                    </div>
+                `).join('');
+                
+                return `
+                <div class="mb-3">
+                    <div class="flex gap-2">
+                        <div class="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-bold shrink-0 text-[10px]">
+                            ${p.user_name.charAt(0).toUpperCase()}
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="bg-gray-50 px-3 py-2 rounded-xl rounded-tl-none border border-gray-100">
+                                <div class="flex justify-between items-center mb-0.5">
+                                    <span class="font-bold text-[11px] text-gray-800">${escapeHtml(p.user_name)}</span>
+                                    ${p.is_owner ? `<button onclick="deleteComment(${postId}, ${p.id})" class="text-gray-400 hover:text-red-500 text-[10px]"><i class="fas fa-trash"></i></button>` : ''}
+                                </div>
+                                <p class="text-xs text-gray-700 break-words">${escapeHtml(p.content)}</p>
+                            </div>
+                            <div class="flex gap-3 mt-1 ml-1 items-center">
+                                <span class="text-[10px] text-gray-400">${formatTime(p.created_at)}</span>
+                                <button onclick="showReplyBox(${postId}, ${p.id})" class="text-[10px] font-bold text-gray-500 hover:text-blue-500 transition">Reply</button>
+                            </div>
+                        </div>
+                    </div>
+                    ${replies}
+                    
+                    <div id="reply-box-${p.id}" class="hidden ml-8 mt-2 flex gap-2">
+                        <input type="text" id="reply-input-${p.id}" class="flex-1 text-[11px] bg-white border border-gray-200 rounded-lg px-2 py-1.5 focus:border-blue-400 outline-none transition" placeholder="Reply to ${escapeHtml(p.user_name)}..." onkeydown="if(event.key==='Enter') submitPostComment(${postId}, ${p.id})">
+                        <button onclick="submitPostComment(${postId}, ${p.id})" class="text-[10px] bg-blue-500 hover:bg-blue-600 text-white px-3 rounded-lg font-bold transition">Reply</button>
+                    </div>
+                </div>`;
+            }).join('');
+            
+            listDiv.scrollTop = listDiv.scrollHeight;
+        } catch (err) {
+            listDiv.innerHTML = '<div class="text-center text-xs text-red-400 py-2">Failed to load comments.</div>';
+        }
+    }
+
+    function showReplyBox(postId, parentId) {
+        const box = document.getElementById(`reply-box-${parentId}`);
+        box.classList.toggle('hidden');
+        if (!box.classList.contains('hidden')) document.getElementById(`reply-input-${parentId}`).focus();
+    }
+
+    async function submitPostComment(postId, parentId = null) {
+        const input = parentId ? document.getElementById(`reply-input-${parentId}`) : document.getElementById(`comment-input-${postId}`);
+        const content = input.value.trim();
+        if (!content) return;
+        
+        try {
+            const res = await fetch(`${API}/community_posts/${postId}/comments`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content, parent_id: parentId })
+            });
+            if (res.ok) {
+                input.value = ''; 
+                await loadPostComments(postId); 
+                
+                const countSpan = document.getElementById(`comment-count-${postId}`);
+                let currentText = countSpan.textContent.replace('Comment', '').trim();
+                let currentCount = parseInt(currentText) || 0;
+                countSpan.textContent = `${currentCount + 1} Comment`;
+            }
+        } catch (err) {
+            showNotif('Failed to post comment', false);
+        }
+    }
+
+    async function deleteComment(postId, commentId) {
+        if(!confirm('Delete this comment?')) return;
+        try {
+            const res = await fetch(`${API}/community_posts/${postId}/comments/${commentId}`, { method: 'DELETE' });
+            if (res.ok) await loadPostComments(postId);
+        } catch (err) { showNotif('Error deleting comment', false); }
+    }
+
+
+    // ── Submit Community Post ───────────────────────────
+    async function submitCommunityPost(btnElement) {
+        const contentInput = document.getElementById('new-post-content');
+        const categoryInput = document.getElementById('new-post-category');
+        const linkInput = document.getElementById('post-link');
+        const projectSelect = document.getElementById('post-project-select');
+        
+        const content = contentInput.value.trim();
+        const category = categoryInput.value;
+        const linkUrl = linkInput ? linkInput.value.trim() : '';
+        const attachedProjectId = projectSelect ? projectSelect.value : '';
+        
+        if (!content) {
+            showNotif('Please write something before posting.', false);
+            return;
+        }
+        
+        const originalText = btnElement.innerHTML;
+        btnElement.disabled = true;
+        btnElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Posting...';
+        
+        const formData = new FormData();
+        formData.append('content', content);
+        formData.append('category', category);
+        if (linkUrl) formData.append('link_url', linkUrl);
+        if (attachedProjectId) formData.append('attached_project_id', attachedProjectId);
+        
+        selectedImages.forEach(file => formData.append('images', file));
+
+        try {
+            const res = await fetch(`${API}/community_posts`, {
+                method: 'POST',
+                body: formData 
+            });
+            
+            if (!res.ok) throw new Error('Failed to post');
+            
+            contentInput.value = '';
+            clearLink();
+            clearProject();
+            clearImages();
+            
+            showNotif('✓ Posted successfully!');
+            changeFilter('all', document.querySelector('.filter-btn')); 
+            
+        } catch (err) {
+            console.error(err);
+            showNotif('Failed to post. Please try again.', false);
+        } finally {
+            btnElement.disabled = false;
+            btnElement.innerHTML = originalText;
+        }
+    }
 
     // ── Load AI Suggestions ──────────────────────────────────────────────────
     async function loadAISuggestions() {
-        if (IS_FILE) {
-            document.getElementById('suggestions-list').innerHTML = '<div class="p-6 text-gray-400 text-sm italic text-center">(Suggestions disabled in offline mode)</div>';
-            return;
-        }
+        if (IS_FILE) return;
+        const list = document.getElementById('suggestions-list');
         try {
             const res = await fetch(`${API}/ai-suggestions`);
             if (!res.ok) throw new Error();
             const data = await res.json();
-            renderAISuggestions(data);
-        } catch (err) {
-            console.error('Failed to load AI suggestions:', err);
-            document.getElementById('suggestions-list').innerHTML =
-                '<div class="p-6 text-gray-400 text-sm italic text-center">Could not load suggestions.</div>';
-        }
-    }
-
-    function renderAISuggestions(data) {
-        const list = document.getElementById('suggestions-list');
-        const suggestions = data.suggestions || [];
-        const interests = data.user_interests || [];
-
-        if (!interests.length) {
-            list.innerHTML = `
-                <div class="p-6 text-center">
-                    <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                        <i class="fas fa-sliders-h text-red-600 text-xl"></i>
-                    </div>
-                    <p class="text-sm font-semibold text-gray-700 mb-1">No interests set yet</p>
-                    <p class="text-xs text-gray-400 mb-3">Tell us what you care about and we'll find matching projects.</p>
-                    <a href="/profile" class="inline-block bg-red-600 text-white text-xs font-bold px-4 py-2 rounded-lg hover:bg-red-700 transition">
-                        <i class="fas fa-plus mr-1"></i>Set Interests
-                    </a>
-                </div>`;
-            return;
-        }
-
-        if (!suggestions.length) {
-            list.innerHTML = `
-                <div class="p-6 text-center">
-                    <i class="fas fa-check-circle text-green-400 text-3xl mb-2"></i>
-                    <p class="text-sm font-semibold text-gray-600">You're all caught up!</p>
-                    <p class="text-xs text-gray-400 mt-1">No new matching projects to suggest right now.</p>
-                </div>`;
-            return;
-        }
-
-        list.innerHTML = suggestions.map(p => {
-            // Color-coded match score
-            let scoreColor, scoreBg, scoreIcon;
-            if (p.match_score >= 80) {
-                scoreColor = '#059669';  // Emerald
-                scoreBg = '#f0fdf4';
-                scoreIcon = '<i class="fas fa-star"></i>';
-            } else if (p.match_score >= 70) {
-                scoreColor = '#16a34a';  // Green
-                scoreBg = '#f0fdf4';
-                scoreIcon = '<i class="fas fa-check-circle"></i>';
-            } else if (p.match_score >= 50) {
-                scoreColor = '#d97706';  // Amber
-                scoreBg = '#fffbeb';
-                scoreIcon = '<i class="fas fa-circle"></i>';
-            } else {
-                scoreColor = '#dc2626';  // Red
-                scoreBg = '#fef2f2';
-                scoreIcon = '<i class="fas fa-circle"></i>';
+            
+            if (!data.user_interests || data.user_interests.length === 0) {
+                list.innerHTML = `<div class="p-6 text-center"><div class="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-3"><i class="fas fa-sliders-h text-red-500"></i></div><p class="text-xs text-gray-500 mb-2">Set your interests to get project matches!</p><a href="/profile" class="text-xs bg-red-100 text-red-700 px-3 py-1.5 rounded-full font-bold inline-block hover:bg-red-200 transition">Go to Profile</a></div>`;
+                return;
             }
-            
-            const langs = (p.languages || '').split(',').map(l => l.trim()).filter(Boolean).slice(0, 3);
-            const langTags = langs.map(l =>
-                `<span class="text-[10px] font-bold bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">${escapeHtml(l)}</span>`
-            ).join('');
-            
-            const desc = (p.description || '').slice(0, 75) + ((p.description || '').length > 75 ? '…' : '');
-            
-            return `
-            <a href="/project/${p.id}" class="block px-5 py-4 hover:bg-red-50 transition group">
-                <div class="flex items-start justify-between gap-3 mb-2">
-                    <span class="font-bold text-gray-800 text-sm group-hover:text-red-700 transition leading-tight flex-1 min-w-0">${escapeHtml(p.project_name)}</span>
-                </div>
-                
-                <div class="flex items-center gap-1 text-[10px] text-gray-500 mb-2">
-                    <i class="fas fa-user-circle text-gray-400"></i>
-                    <span>${escapeHtml(p.owner_name)}</span>
-                </div>
-                
-                <p class="text-xs text-gray-600 leading-relaxed mb-2">${escapeHtml(desc)}</p>
-                
-                <div class="flex flex-wrap gap-1 mb-2">${langTags}</div>
-            </a>`;
-        }).join('');
+            if (!data.suggestions || data.suggestions.length === 0) {
+                list.innerHTML = `<div class="p-6 text-center text-xs text-gray-400">No matching projects found right now.</div>`;
+                return;
+            }
+
+            list.innerHTML = data.suggestions.slice(0, 3).map(p => {
+                let scoreColor = p.match_score >= 80 ? 'text-green-600 bg-green-50' : 'text-blue-600 bg-blue-50';
+                return `
+                <a href="/project/${p.id}" class="block p-5 hover:bg-gray-50 transition border-b border-gray-50 last:border-0 group">
+                    <div class="flex justify-between items-start mb-1.5">
+                        <span class="font-bold text-sm text-gray-800 group-hover:text-red-600 transition line-clamp-1">${escapeHtml(p.project_name)}</span>
+                        <span class="text-[10px] font-bold ${scoreColor} px-2 py-0.5 rounded-full whitespace-nowrap">${p.match_score}% Match</span>
+                    </div>
+                    <p class="text-xs text-gray-500 line-clamp-2">${escapeHtml(p.description)}</p>
+                </a>
+            `}).join('');
+        } catch (err) { list.innerHTML = '<div class="p-6 text-xs text-red-500 text-center">Failed to load suggestions.</div>'; }
     }
 
     function formatTime(dateStr) {
@@ -407,13 +955,11 @@
             return;
         }
         try {
-            // Check authentication
             const meRes = await fetch(`${API}/me`);
             if (!meRes.ok) { window.location.href = '/login'; return; }
             const meData = await meRes.json();
             if (!meData.loggedIn) { window.location.href = '/login'; return; }
             
-            // Load full profile
             const profileRes = await fetch(`${API}/profile`);
             if (!profileRes.ok) throw new Error('Failed to load profile');
             const profile = await profileRes.json();
@@ -421,7 +967,8 @@
             if (document.getElementById('nav-email')) document.getElementById('nav-email').textContent = profile.email;
             if (document.getElementById('nav-email-mobile')) document.getElementById('nav-email-mobile').textContent = profile.email;
             
-            console.log('✓ Connected to Flask - User loaded:', profile.name);
+            await loadInvitations();
+
         } catch (err) {
             console.error('Auth error:', err);
             window.location.href = '/login';
@@ -442,7 +989,10 @@
     document.getElementById('logout-btn').addEventListener('click', logout);
     document.getElementById('logout-btn-mobile').addEventListener('click', logout);
 
-    initNav().then(() => loadAISuggestions());
+    initNav().then(() => {
+        loadFeed();
+        loadAISuggestions();
+    });
 </script>
 </body>
 </html>
