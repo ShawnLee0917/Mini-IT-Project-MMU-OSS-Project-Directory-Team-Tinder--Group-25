@@ -186,6 +186,10 @@
                     <button id="open-edit-modal-btn" class="mt-6 w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2 rounded-xl border border-gray-200 transition text-sm">
                         <i class="fas fa-pen mr-1"></i> Edit Profile
                     </button>
+
+                    <button id="open-settings-modal-btn" class="mt-3 w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2 rounded-xl border border-gray-200 transition text-sm">
+                        <i class="fas fa-cog mr-1"></i> Settings
+                    </button>
                 </div>
 
                 <div class="bg-gray-900 p-6 rounded-3xl text-white">
@@ -282,8 +286,184 @@
         </div>
     </div>
 
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center px-4">
+        <div class="bg-white rounded-3xl p-8 w-full max-w-2xl shadow-xl transform scale-100 transition-transform">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Settings</h2>
+                <button id="close-settings-btn" class="text-gray-400 hover:text-gray-700 transition">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="flex flex-col md:flex-row gap-6">
+                <!-- Settings Navigation -->
+                <div class="w-full md:w-1/3 flex flex-row md:flex-col gap-2 overflow-x-auto border-b md:border-b-0 md:border-r border-gray-100 pb-2 md:pb-0 md:pr-4">
+                    <button class="settings-tab-btn active text-left px-4 py-2 rounded-xl text-sm font-bold text-red-600 bg-red-50 transition" data-target="settings-privacy">Privacy</button>
+                    <button class="settings-tab-btn active text-left px-4 py-2 rounded-xl text-sm font-bold text-red-600 bg-red-50 transition" data-target="settings-account">Account</button>
+                    <button class="settings-tab-btn text-left px-4 py-2 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-50 transition" data-target="settings-notifications">Notifications</button>
+                    <button class="settings-tab-btn text-left px-4 py-2 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-50 transition" data-target="settings-display">Display</button>
+                    <button class="settings-tab-btn text-left px-4 py-2 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-50 transition" data-target="settings-other">Other</button>
+                </div>
+                
+                <!-- Settings Content -->
+                <div class="w-full md:w-2/3 h-64 overflow-y-auto pr-2">
+                    <form id="settings-form">
+                        <!-- Privacy -->
+                        <div id="settings-privacy" class="settings-section space-y-4">
+                            <h3 class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-3">Privacy</h3>
+                            
+                            <label class="flex items-center justify-between cursor-pointer group">
+                                <div>
+                                    <p class="text-sm font-bold text-gray-800">Public Profile</p>
+                                </div>
+                                <input type="checkbox" id="setting-profile-vis" class="sr-only peer">
+                                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500 relative"></div>
+                            </label>
+                        </div>
+                         
+                        <!-- Account -->
+                        <div id="settings-account" class="settings-section space-y-4">
+                            <h3 class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-3">Account</h3>
+
+                            <div>
+                                <label class="block text-sm font-bold text-gray-800 mb-1">Email Address</label>
+                                <input type="text" id="setting-email" required placeholder="student@mmu.edu.my" class="input-field w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-red-500 text-sm bg-gray-50">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-bold text-gray-800 mb-1">Reset Password</label>
+                                <input type="password" id="setting-password" required placeholder="••••••••" class="input-field w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-red-500 text-sm bg-gray-50">
+                                <label class="block text-sm font-bold text-gray-800 mb-1">Confirm Password</label>
+                                <input type="password" id="setting-confirm-password" required placeholder="••••••••" class="input-field w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-red-500 text-sm bg-gray-50">
+                            </div>
+                            <h4 class="text-sm font-bold text-red-600 uppercase tracking-widest mb-3">Delete Account</h4>
+                            <button id="delete-account-btn" class="bg-red-600 text-white hover:bg-red-50 text-xs font-bold px-3 py-2 rounded-xl transition">
+                                <i class="fas fa-trash-alt mr-1"></i>Delete Account
+                            </button>
+                        </div>
+
+                        <!-- Notifications -->
+                        <div id="settings-notifications" class="settings-section hidden space-y-4">
+                            <h3 class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-3">Notifications</h3>
+                            
+                            <label class="flex items-center justify-between cursor-pointer group">
+                                <div><p class="text-sm font-bold text-gray-800">Project Comments on other users' projects</p></div>
+                                <input type="checkbox" id="setting-notif-comments" class="sr-only peer">
+                                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500 relative"></div>
+                            </label>
+                            <label class="flex items-center justify-between cursor-pointer group">
+                                <div><p class="text-sm font-bold text-gray-800">Comments on your projects</p></div>
+                                <input type="checkbox" id="setting-notif-project-comments" class="sr-only peer">
+                                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500 relative"></div>
+                            </label>
+                            <label class="flex items-center justify-between cursor-pointer group">
+                                <div><p class="text-sm font-bold text-gray-800">Project Invites</p></div>
+                                <input type="checkbox" id="setting-notif-invites" class="sr-only peer">
+                                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500 relative"></div>
+                            </label>
+                            <label class="flex items-center justify-between cursor-pointer group">
+                                <div><p class="text-sm font-bold text-gray-800">New Project published by users you follow</p></div>
+                                <input type="checkbox" id="setting-notif-project-published" class="sr-only peer">
+                                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500 relative"></div>
+                            </label>
+                            <label class="flex items-center justify-between cursor-pointer group">
+                                <div><p class="text-sm font-bold text-gray-800">Request to join a project</p></div>
+                                <input type="checkbox" id="setting-notif-join-request" class="sr-only peer">
+                                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500 relative"></div>
+                            </label>
+                        </div>
+
+                        <!-- Display -->
+                        <div id="settings-display" class="settings-section hidden space-y-4">
+                            <h3 class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-3">Display</h3>
+                            
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-1">Theme</label>
+                                <select id="setting-theme" class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-red-500 text-sm bg-gray-50">
+                                    <option value="light">Light</option>
+                                    <option value="dark">Dark</option>
+                                </select>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="mt-6 pt-4 border-t border-gray-100 flex justify-end gap-3">
+                <button type="button" id="cancel-settings-btn" class="px-5 py-2 rounded-xl border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50 transition">Cancel</button>
+                <button type="button" id="save-settings-btn" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-xl font-bold transition text-sm flex items-center gap-2">
+                    <span id="save-settings-label">Save Settings</span>
+                    <i id="save-settings-spinner" class="fas fa-spinner fa-spin hidden"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const API = '/api';
+
+        
+        // 1. Function to apply the theme visually
+        function applyTheme(theme) {
+        if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+        // Optional: Save to localStorage for instant loading on next visit
+        localStorage.setItem('theme', 'dark');
+        } else {
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
+        }
+}
+
+// 2. Modify your existing loadSettings function (or wherever you fetch user data)
+async function loadUserSettings() {
+    try {
+        const res = await fetch('/api/settings');
+        const s = await res.json();
+        
+        // ... your other loading logic ...
+
+        // Set the dropdown value and apply the theme
+        const theme = s.display?.theme || 'light';
+        document.getElementById('setting-theme').value = theme;
+        applyTheme(theme);
+        
+    } catch (err) {
+        console.error("Failed to load settings:", err);
+    }
+}
+
+// 3. Update your Settings Form Save logic
+document.getElementById('settings-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const selectedTheme = document.getElementById('setting-theme').value;
+    
+    const settingsUpdate = {
+        display: {
+            theme: selectedTheme
+        },
+        // ... include other fields (privacy, notifications) ...
+    };
+
+    const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settingsUpdate)
+    });
+
+    if (res.ok) {
+        applyTheme(selectedTheme); // Apply immediately after saving
+        showToast("Settings saved successfully!");
+    }
+});
+
+// 4. Initial check on page load (prevents white flash)
+(function() {
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    applyTheme(savedTheme);
+})();
 
         // ── Smooth Mobile Menu Toggle ───────────────────────────────────────────
         const menuBtn    = document.getElementById('menu-btn');
@@ -442,6 +622,85 @@
             }
         }
 
+        async function loadSettings() {
+            try {
+                const res = await fetch(`${API}/settings`);
+                if (!res.ok) throw new Error();
+                const s = await res.json();
+                
+                document.getElementById('setting-profile-vis').checked = s.privacy?.profile_visibility ?? true;
+                document.getElementById('setting-email-vis').checked = s.privacy?.email_visibility ?? true;
+                document.getElementById('setting-show-rank').checked = s.privacy?.show_rank ?? true;
+                document.getElementById('setting-show-karma').checked = s.privacy?.show_karma ?? true;
+                
+                document.getElementById('setting-notif-qna').checked = s.notifications?.qna_answers ?? true;
+                document.getElementById('setting-notif-comments').checked = s.notifications?.project_comments ?? true;
+                document.getElementById('setting-notif-views').checked = s.notifications?.profile_views ?? true;
+                document.getElementById('setting-notif-invites').checked = s.notifications?.project_invites ?? true;
+                document.getElementById('setting-notif-suggestions').checked = s.notifications?.suggestions ?? true;
+                document.getElementById('setting-notif-newsletter').checked = s.notifications?.newsletter ?? true;
+                
+                document.getElementById('setting-theme').value = s.display?.theme || 'light';
+                
+                document.getElementById('setting-other-dm').checked = s.other?.direct_messages ?? true;
+                document.getElementById('setting-other-collab').checked = s.other?.auto_accept ?? false;
+            } catch {
+                showToast('Could not load settings', false);
+            }
+        }
+
+        async function saveSettings() {
+            const saveBtn = document.getElementById('save-settings-btn');
+            const label = document.getElementById('save-settings-label');
+            const spinner = document.getElementById('save-settings-spinner');
+            saveBtn.disabled = true;
+            label.textContent = 'Saving…';
+            spinner.classList.remove('hidden');
+
+            try {
+                const data = {
+                    privacy: {
+                        profile_visibility: document.getElementById('setting-profile-vis').checked,
+                        email_visibility: document.getElementById('setting-email-vis').checked,
+                        show_rank: document.getElementById('setting-show-rank').checked,
+                        show_karma: document.getElementById('setting-show-karma').checked,
+                    },
+                    notifications: {
+                        qna_answers: document.getElementById('setting-notif-qna').checked,
+                        project_comments: document.getElementById('setting-notif-comments').checked,
+                        profile_views: document.getElementById('setting-notif-views').checked,
+                        project_invites: document.getElementById('setting-notif-invites').checked,
+                        suggestions: document.getElementById('setting-notif-suggestions').checked,
+                        newsletter: document.getElementById('setting-notif-newsletter').checked,
+                    },
+                    display: {
+                        theme: document.getElementById('setting-theme').value,
+                    },
+                    other: {
+                        direct_messages: document.getElementById('setting-other-dm').checked,
+                        auto_accept: document.getElementById('setting-other-collab').checked,
+                    }
+                };
+
+                const res = await fetch(`${API}/settings`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data),
+                });
+                
+                if (!res.ok) throw new Error();
+                
+                document.getElementById('settings-modal').classList.add('hidden');
+                showToast('Settings saved ✓');
+            } catch {
+                showToast('Failed to save settings', false);
+            } finally {
+                saveBtn.disabled = false;
+                label.textContent = 'Save Settings';
+                spinner.classList.add('hidden');
+            }
+        }
+
         async function uploadAvatar(file) {
             showToast('Uploading photo…', true);
             const form = new FormData();
@@ -541,6 +800,40 @@
             document.getElementById('close-modal-btn').addEventListener('click', () => modal.classList.add('hidden'));
             document.getElementById('cancel-edit-btn').addEventListener('click', () => modal.classList.add('hidden'));
             modal.addEventListener('click', e => { if (e.target === modal) modal.classList.add('hidden'); });
+            
+            // Settings Modal
+            const settingsModal = document.getElementById('settings-modal');
+            document.getElementById('open-settings-modal-btn').addEventListener('click', async () => {
+                await loadSettings();
+                settingsModal.classList.remove('hidden');
+            });
+            document.getElementById('close-settings-btn').addEventListener('click', () => settingsModal.classList.add('hidden'));
+            document.getElementById('cancel-settings-btn').addEventListener('click', () => settingsModal.classList.add('hidden'));
+            settingsModal.addEventListener('click', e => { if (e.target === settingsModal) settingsModal.classList.add('hidden'); });
+            
+            document.getElementById('save-settings-btn').addEventListener('click', saveSettings);
+
+            // Settings Tabs
+            document.querySelectorAll('.settings-tab-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    // Remove active from all tabs
+                    document.querySelectorAll('.settings-tab-btn').forEach(b => {
+                        b.classList.remove('active', 'text-red-600', 'bg-red-50');
+                        b.classList.add('text-gray-500');
+                    });
+                    // Hide all sections
+                    document.querySelectorAll('.settings-section').forEach(s => s.classList.add('hidden'));
+                    
+                    // Add active to clicked tab
+                    const target = btn.getAttribute('data-target');
+                    btn.classList.add('active', 'text-red-600', 'bg-red-50');
+                    btn.classList.remove('text-gray-500');
+                    
+                    // Show target section
+                    document.getElementById(target).classList.remove('hidden');
+                });
+            });
 
             document.getElementById('edit-profile-form').addEventListener('submit', e => {
                 e.preventDefault();

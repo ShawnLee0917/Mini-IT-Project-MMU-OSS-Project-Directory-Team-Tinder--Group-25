@@ -52,11 +52,7 @@ def _initialize_default_labels():
     for label_data in default_labels:
         existing = CommentLabel.query.filter_by(name=label_data['name']).first()
         if not existing:
-            label = CommentLabel(
-                name=label_data['name'],
-                color=label_data['color'],
-                description=label_data['description']
-            )
+            label = CommentLabel(**label_data)
             db.session.add(label)
     
     db.session.commit()
