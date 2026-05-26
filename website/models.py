@@ -77,7 +77,6 @@ class UserSettings(db.Model):
     
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
-    member_histories = db.relationship('MemberHistory', backref='user', lazy=True, cascade='all, delete-orphan')
 
 
 class Skill(db.Model):

@@ -10,8 +10,8 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 import uuid
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify, session
-from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, QuestionCommentImage, QuestionImage, JoinRequest, LeaveRequest, MemberHistory
-from datetime import datetime, timezone, ProjectCommentImage, UserSettings, ProjectMember, CommunityPostComment, CommunityPost, CommunityPostLike, CommunityPostImage, CommunityPostFavorite, CommunityPostCommentImage
+from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, QuestionCommentImage, QuestionImage, JoinRequest, LeaveRequest, MemberHistory, ProjectCommentImage, UserSettings, ProjectMember, CommunityPostComment, CommunityPost, CommunityPostLike, CommunityPostImage, CommunityPostFavorite, CommunityPostCommentImage
+from datetime import datetime, timezone
 
 views = Blueprint('views', __name__)
 
@@ -2535,7 +2535,7 @@ def get_ai_suggestions():
 
 # --- API Endpoint: Get user profile by ID ---
 @views.route('/api/user/<int:user_id>/profile', methods=['GET'])
-def get_user_profile(user_id):
+def get_public_user_profile(user_id):
     """Get public profile information for a specific user"""
     user = User.query.get(user_id)
     if not user:
@@ -2603,8 +2603,8 @@ def get_user_projects(user_id):
 
 
 # --- Route: View user profile page ---
-@views.route('/user/<int:user_id>')
-def view_user_profile(user_id):
+@views.route('/user/<int:user_id>/page')
+def view_user_profile_page(user_id):
     """Display a user's profile page"""
     user = User.query.get(user_id)
     if not user:
