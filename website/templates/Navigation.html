@@ -381,7 +381,7 @@
     async function loadInvitations() {
         if (IS_FILE) return;
         try {
-            const res = await fetch(`${API}/my-invitations`);
+            const res = await fetch(`${API}/my-invitations`, { credentials: 'include' });
             if (!res.ok) return;
             const invs = await res.json();
             
@@ -425,7 +425,7 @@
 
     async function respondToInvitation(requestId, action) {
         try {
-            const res = await fetch(`${API}/invitations/${requestId}/${action}`, { method: 'POST' });
+            const res = await fetch(`${API}/invitations/${requestId}/${action}`, { method: 'POST', credentials: 'include' });
             const data = await res.json();
             if (res.ok) {
                 showNotif(data.success, true);
@@ -463,7 +463,7 @@
         const select = document.getElementById('post-project-select');
         if (select.options.length <= 1 && !IS_FILE) {
             try {
-                const res = await fetch(`${API}/projects`);
+                const res = await fetch(`${API}/projects`, { credentials: 'include' });
                 if (res.ok) {
                     const projects = await res.json();
                     if (projects.length === 0) {
@@ -567,7 +567,7 @@
         container.innerHTML = '<div class="text-center text-gray-400 py-10 bg-white border border-gray-100 rounded-2xl text-sm"><i class="fas fa-spinner fa-spin mr-2"></i>Loading...</div>';
 
         try {
-            const res = await fetch(`${API}/community_posts?filter=${currentFilter}`);
+            const res = await fetch(`${API}/community_posts?filter=${currentFilter}`, { credentials: 'include' });
             if (!res.ok) throw new Error('Failed to fetch feed');
             const posts = await res.json();
             
@@ -670,7 +670,7 @@
     async function toggleAction(postId, action, btnElement) {
         btnElement.disabled = true;
         try {
-            const res = await fetch(`${API}/community_posts/${postId}/${action}`, { method: 'POST' });
+            const res = await fetch(`${API}/community_posts/${postId}/${action}`, { method: 'POST', credentials: 'include' });
             if (!res.ok) throw new Error(`Failed to ${action} post`);
             
             const data = await res.json();
@@ -703,7 +703,7 @@
     async function deletePost(postId) {
         if (!confirm('Are you sure you want to delete this post?')) return;
         try {
-            const res = await fetch(`${API}/community_posts/${postId}`, { method: 'DELETE' });
+            const res = await fetch(`${API}/community_posts/${postId}`, { method: 'DELETE', credentials: 'include' });
             if (res.ok) { 
                 document.getElementById(`post-${postId}`).remove(); 
                 showNotif('Post deleted'); 
@@ -728,7 +728,7 @@
         const listDiv = document.getElementById(`comments-list-${postId}`);
         listDiv.innerHTML = '<div class="text-center text-xs text-gray-400 py-2"><i class="fas fa-spinner fa-spin"></i> Loading comments...</div>';
         try {
-            const res = await fetch(`${API}/community_posts/${postId}/comments`);
+            const res = await fetch(`${API}/community_posts/${postId}/comments`, { credentials: 'include' });
             const comments = await res.json();
             
             if (comments.length === 0) {
@@ -801,6 +801,7 @@
         try {
             const res = await fetch(`${API}/community_posts/${postId}/comments`, {
                 method: 'POST',
+                credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ content, parent_id: parentId })
             });
@@ -821,7 +822,7 @@
     async function deleteComment(postId, commentId) {
         if(!confirm('Delete this comment?')) return;
         try {
-            const res = await fetch(`${API}/community_posts/${postId}/comments/${commentId}`, { method: 'DELETE' });
+            const res = await fetch(`${API}/community_posts/${postId}/comments/${commentId}`, { method: 'DELETE', credentials: 'include' });
             if (res.ok) await loadPostComments(postId);
         } catch (err) { showNotif('Error deleting comment', false); }
     }
@@ -859,6 +860,7 @@
         try {
             const res = await fetch(`${API}/community_posts`, {
                 method: 'POST',
+                credentials: 'include',
                 body: formData 
             });
             
@@ -886,7 +888,7 @@
         if (IS_FILE) return;
         const list = document.getElementById('suggestions-list');
         try {
-            const res = await fetch(`${API}/ai-suggestions`);
+            const res = await fetch(`${API}/ai-suggestions`, { credentials: 'include' });
             if (!res.ok) throw new Error();
             const data = await res.json();
             
@@ -937,12 +939,12 @@
             return;
         }
         try {
-            const meRes = await fetch(`${API}/me`);
+            const meRes = await fetch(`${API}/me`, { credentials: 'include' });
             if (!meRes.ok) { window.location.href = '/login'; return; }
             const meData = await meRes.json();
             if (!meData.loggedIn) { window.location.href = '/login'; return; }
             
-            const profileRes = await fetch(`${API}/profile`);
+            const profileRes = await fetch(`${API}/profile`, { credentials: 'include' });
             if (!profileRes.ok) throw new Error('Failed to load profile');
             const profile = await profileRes.json();
             
@@ -960,7 +962,7 @@
     async function logout() {
         if (!IS_FILE) {
             try {
-                await fetch(`${API}/logout`, { method: 'POST' });
+                await fetch(`${API}/logout`, { method: 'POST', credentials: 'include' });
             } catch (err) {
                 console.error('Logout error:', err);
             }

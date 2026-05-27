@@ -32,6 +32,7 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     is_verified = db.Column(db.Boolean, default=False)
     otp = db.Column(db.String(6), nullable=True)
+    last_seen = db.Column(db.DateTime, nullable=True)
     
     # Relationships
     skills = db.relationship('Skill', backref='user', lazy=True, cascade='all, delete-orphan')
@@ -171,6 +172,43 @@ class JoinRequest(db.Model):
     project = db.relationship('Project', backref='join_requests')
     
     __table_args__ = (db.UniqueConstraint('user_id', 'project_id', name='unique_user_project_request'),)
+
+
+class MemberHistory(db.Model):
+    """Track member join and leave history for projects"""
+    __tablename__ = 'member_history'
+    
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id', ondelete='CASCADE'), nullable=False)
+    action = db.Column(db.String(50), nullable=False)  # 'joined' or 'left'
+    timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    reason = db.Column(db.String(255), nullable=True)  # Optional reason for leaving
+    
+    # Relationships
+    project = db.relationship('Project', backref='member_histories')
+    
+    __table_args__ = (db.Index('idx_project_user', 'project_id', 'user_id'),)
+
+
+class LeaveRequest(db.Model):
+    """Team member leave/exit requests with reason"""
+    __tablename__ = 'leave_requests'
+    
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id', ondelete='CASCADE'), nullable=False)
+    reason = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(50), nullable=False, default='pending')  # 'pending', 'approved', 'rejected'
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    approved_at = db.Column(db.DateTime, nullable=True)
+    
+    # Relationships
+    user = db.relationship('User', backref='leave_requests')
+    project = db.relationship('Project', backref='leave_requests')
+    
+    __table_args__ = (db.UniqueConstraint('user_id', 'project_id', name='unique_user_leave_request'),)
 
 
 # ---------------------------------------------------------------------------
