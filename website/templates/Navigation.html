@@ -902,7 +902,6 @@
             }
 
             list.innerHTML = data.suggestions.slice(0, 3).map(p => {
-                let scoreColor = p.match_score >= 80 ? 'text-green-600 bg-green-50' : 'text-blue-600 bg-blue-50';
                 return `
                 <a href="/project/${p.id}" class="block p-5 hover:bg-gray-50 transition border-b border-gray-50 last:border-0 group">
                     <div class="flex justify-between items-start mb-1.5">

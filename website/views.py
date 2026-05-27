@@ -2529,9 +2529,15 @@ def get_ai_suggestions():
             'languages': project.languages,
             'roles_needed': project.roles_needed,
             'match_reason': match_reason,
+            'match_score': int(match_score),
         })
     
-    return jsonify(result)
+    return jsonify({
+        'success': True,
+        'user_interests': user_interests,
+        'suggestions': result,
+        'total': len(result)
+    })
 
 
 # --- API Endpoint: Get user profile by ID ---
