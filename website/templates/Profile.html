@@ -541,9 +541,27 @@ document.getElementById('settings-form').addEventListener('submit', async (e) =>
         }
 
         // ── Data Loading & Saving ───────────────────────────────────────────────
+        let viewingUserId = null;
+        
+        // Extract user_id from URL path (e.g., /user/5)
+        const pathMatch = window.location.pathname.match(/\/user\/(\d+)/);
+        if (pathMatch) {
+            viewingUserId = parseInt(pathMatch[1]);
+        }
+        // Also check for view_user_id from template
+        const templateViewUserId = document.querySelector('script[data-view-user-id]');
+        if (templateViewUserId) {
+            viewingUserId = parseInt(templateViewUserId.dataset.viewUserId);
+        }
+        
         async function loadProfile() {
             try {
-                const res = await fetch(`${API}/profile`);
+                let endpoint = `${API}/profile`;
+                if (viewingUserId) {
+                    endpoint = `${API}/user/${viewingUserId}/profile`;
+                }
+                
+                const res = await fetch(endpoint);
                 if (res.status === 401) { window.location.href = '/login'; return; }
                 if (!res.ok) throw new Error();
                 const d = await res.json();
@@ -721,10 +739,22 @@ document.getElementById('settings-form').addEventListener('submit', async (e) =>
 
         async function loadProjects() {
             try {
-                const res = await fetch(`${API}/projects`);
-                if (!res.ok) throw new Error();
-                const projects = await res.json();
-                renderProjects(projects);
+                let endpoint = `${API}/projects`;
+                if (viewingUserId) {
+                    endpoint = `${API}/user/${viewingUserId}/projects`;
+                }
+                
+                const res = await fetch(endpoint);
+                if (!res.ok) throw new Error('Failed to load projects');
+                const data = await res.json();
+                
+                // If viewing other user, combine owned and joined projects
+                if (viewingUserId) {
+                    const allProjects = [...(data.owned_projects || []), ...(data.joined_projects || [])];
+                    renderProjects(allProjects);
+                } else {
+                    renderProjects(data);
+                }
             } catch (err) {
                 console.error('Failed to load projects:', err);
             }
@@ -786,10 +816,24 @@ document.getElementById('settings-form').addEventListener('submit', async (e) =>
         }
 
         document.addEventListener('DOMContentLoaded', async () => {
+            // Hide edit button and show back button if viewing other user
+            if (viewingUserId) {
+                document.getElementById('open-edit-modal-btn').classList.add('hidden');
+                document.getElementById('back-to-project-btn').classList.remove('hidden');
+                
+                // Hide avatar click to change when viewing others
+                const avatarWrapper = document.getElementById('avatar-wrapper');
+                if (avatarWrapper) {
+                    avatarWrapper.style.cursor = 'default';
+                    avatarWrapper.title = '';
+                }
+            }
+            
             await loadProfile();
             await loadProjects();
 
-            populateInterestCheckboxes();
+            if (!viewingUserId) {
+                populateInterestCheckboxes();
 
             const modal = document.getElementById('edit-profile-modal');
             document.getElementById('open-edit-modal-btn').addEventListener('click', () => {
@@ -835,23 +879,24 @@ document.getElementById('settings-form').addEventListener('submit', async (e) =>
                 });
             });
 
-            document.getElementById('edit-profile-form').addEventListener('submit', e => {
-                e.preventDefault();
-                const name = document.getElementById('edit-name').value.trim();
-                const faculty = document.getElementById('edit-faculty').value.trim();
-                const bio = document.getElementById('edit-bio').value.trim();
-                const skills = document.getElementById('edit-skills').value.split(',').map(s => s.trim()).filter(Boolean);
-                saveProfile(name, faculty, bio, skills);
-            });
+                document.getElementById('edit-profile-form').addEventListener('submit', e => {
+                    e.preventDefault();
+                    const name = document.getElementById('edit-name').value.trim();
+                    const faculty = document.getElementById('edit-faculty').value.trim();
+                    const bio = document.getElementById('edit-bio').value.trim();
+                    const skills = document.getElementById('edit-skills').value.split(',').map(s => s.trim()).filter(Boolean);
+                    saveProfile(name, faculty, bio, skills);
+                });
 
-            document.getElementById('avatar-wrapper').addEventListener('click', () => document.getElementById('avatar-input').click());
-            document.getElementById('avatar-input').addEventListener('change', e => {
-                const file = e.target.files[0];
-                if (file) uploadAvatar(file);
-            });
+                document.getElementById('avatar-wrapper').addEventListener('click', () => document.getElementById('avatar-input').click());
+                document.getElementById('avatar-input').addEventListener('change', e => {
+                    const file = e.target.files[0];
+                    if (file) uploadAvatar(file);
+                });
 
-            document.getElementById('logout-btn').addEventListener('click', logout);
-            document.getElementById('logout-btn-mobile').addEventListener('click', logout);
+                document.getElementById('logout-btn').addEventListener('click', logout);
+                document.getElementById('logout-btn-mobile').addEventListener('click', logout);
+            }
         });
     </script>
 </body>
