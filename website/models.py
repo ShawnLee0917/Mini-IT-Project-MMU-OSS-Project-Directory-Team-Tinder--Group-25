@@ -31,6 +31,7 @@ class User(db.Model):
     karma = db.Column(db.Integer, nullable=False, default=0)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     is_verified = db.Column(db.Boolean, default=False)
+    is_admin = db.Column(db.Boolean, default=False)  # Admin privilege for content moderation
     otp = db.Column(db.String(6), nullable=True)
     last_seen = db.Column(db.DateTime, nullable=True)
     
@@ -405,3 +406,94 @@ class CommunityPostCommentImage(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     comment_id = db.Column(db.Integer, db.ForeignKey('community_post_comments.id', ondelete='CASCADE'), nullable=False)
     image_path = db.Column(db.String(255), nullable=False)
+
+
+# ---------------------------------------------------------------------------
+# Content Moderation Models - Admin Control System
+# ---------------------------------------------------------------------------
+
+class ContentReport(db.Model):
+    """User reports for inappropriate content - Project, Question, Comment, or Post"""
+    __tablename__ = 'content_reports'
+    
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    reporter_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    
+    # Content type: 'project', 'question', 'comment', 'post', 'post_comment'
+    content_type = db.Column(db.String(50), nullable=False)
+    content_id = db.Column(db.Integer, nullable=False)  # ID of the reported content
+    
+    # Reason for report: 'spam', 'inappropriate', 'harmful', 'plagiarism', 'other'
+    reason = db.Column(db.String(50), nullable=False)
+    description = db.Column(db.Text, nullable=True)  # Detailed explanation
+    
+    # Status: 'pending', 'approved', 'rejected', 'deleted'
+    status = db.Column(db.String(20), nullable=False, default='pending')
+    
+    # Admin action
+    admin_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    admin_comment = db.Column(db.Text, nullable=True)
+    
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    reporter = db.relationship('User', foreign_keys=[reporter_id], backref='reported_contents')
+    admin = db.relationship('User', foreign_keys=[admin_id], backref='moderated_reports')
+    
+    __table_args__ = (db.Index('idx_content_reports', 'content_type', 'content_id', 'status'),)
+
+
+class AdminLog(db.Model):
+    """Log of all admin moderation actions"""
+    __tablename__ = 'admin_logs'
+    
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    admin_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    
+    # Action: 'delete_content', 'suspend_user', 'restore_content', 'approve_report', 'reject_report'
+    action = db.Column(db.String(50), nullable=False)
+    
+    # Target type and ID
+    target_type = db.Column(db.String(50), nullable=True)  # 'project', 'question', 'comment', 'post', 'user'
+    target_id = db.Column(db.Integer, nullable=True)
+    
+    details = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    
+    # Relationships
+    admin = db.relationship('User', backref='admin_logs')
+    
+    __table_args__ = (db.Index('idx_admin_logs', 'admin_id', 'created_at'),)
+
+
+class SuspendedUser(db.Model):
+    """Track suspended users and reasons"""
+    __tablename__ = 'suspended_users'
+    
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, unique=True)
+    admin_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    
+    reason = db.Column(db.Text, nullable=False)
+    is_active = db.Column(db.Boolean, default=True)  # False = unsuspended
+    
+    suspended_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    unsuspended_at = db.Column(db.DateTime, nullable=True)
+    
+    # Relationships
+    user = db.relationship('User', foreign_keys=[user_id], backref='suspension')
+    admin = db.relationship('User', foreign_keys=[admin_id], backref='user_suspensions')
+
+
+class ContentFlagKeyword(db.Model):
+    """Predefined keywords for automatic content flagging"""
+    __tablename__ = 'content_flag_keywords'
+    
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    keyword = db.Column(db.String(255), nullable=False, unique=True)
+    category = db.Column(db.String(50), nullable=False)  # 'spam', 'inappropriate', 'harmful'
+    severity = db.Column(db.Integer, default=1)  # 1-5, higher = more severe
+    is_active = db.Column(db.Boolean, default=True)
+    added_by = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)

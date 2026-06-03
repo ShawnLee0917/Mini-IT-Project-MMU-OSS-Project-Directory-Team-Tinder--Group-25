@@ -29,6 +29,7 @@ def create_app():
     with app.app_context():
         db.create_all()
         _initialize_default_labels()
+        _initialize_admin_system()
 
     return app
 
@@ -56,3 +57,51 @@ def _initialize_default_labels():
             db.session.add(label)
     
     db.session.commit()
+
+
+def _initialize_admin_system():
+    """Auto-initialize admin system on app startup"""
+    from .models import User, ContentFlagKeyword, SuspendedUser, AdminLog
+    
+    try:
+        # Check if any admin already exists
+        existing_admin = User.query.filter_by(is_admin=True).first()
+        
+        if not existing_admin:
+            # If no admin, set the first user as admin
+            first_user = User.query.first()
+            
+            if first_user:
+                first_user.is_admin = True
+                db.session.commit()
+                print(f"[AUTO SETUP] Admin account created: {first_user.email}")
+            else:
+                print("[AUTO SETUP] No users found yet. Admin will be set when first user registers.")
+        else:
+            print(f"[AUTO SETUP] Admin account already exists: {existing_admin.email}")
+        
+        # Initialize default flagged keywords if not present
+        default_keywords = [
+            {'keyword': 'click-here', 'category': 'spam', 'severity': 2},
+            {'keyword': 'buy-now', 'category': 'spam', 'severity': 3},
+            {'keyword': 'free-money', 'category': 'spam', 'severity': 4},
+            {'keyword': 'earn-cash', 'category': 'spam', 'severity': 3},
+            {'keyword': 'inappropriate', 'category': 'inappropriate', 'severity': 3},
+            {'keyword': 'harmful-content', 'category': 'harmful', 'severity': 5},
+        ]
+        
+        keywords_added = 0
+        for kw_data in default_keywords:
+            existing = ContentFlagKeyword.query.filter_by(keyword=kw_data['keyword']).first()
+            if not existing:
+                kw = ContentFlagKeyword(**kw_data)
+                db.session.add(kw)
+                keywords_added += 1
+        
+        if keywords_added > 0:
+            db.session.commit()
+            print(f"[AUTO SETUP] Added {keywords_added} default keywords")
+        
+    except Exception as e:
+        print(f"[AUTO SETUP] Warning during initialization: {str(e)}")
+        db.session.rollback()
