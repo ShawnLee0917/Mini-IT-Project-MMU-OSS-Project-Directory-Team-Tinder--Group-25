@@ -650,6 +650,61 @@ def list_project():
             flash("Please login first!", "error")
             return redirect(url_for('views.home'))
 
+        # =============================================================
+        # UPGRADED AUTOMATED SECURITY GUARDRAIL WITH AUDIT LOGGING
+        # =============================================================
+        # 1. First layer check using your internal active database keywords
+        flagged_in_name = detect_inappropriate_content(name)
+        flagged_in_desc = detect_inappropriate_content(desc)
+        all_flags = flagged_in_name + flagged_in_desc
+
+        # 2. Fallback local strict policy check for immediate demo stability
+        scan_payload = f"{name} {desc}".lower()
+        hardcoded_keywords = [
+            'assignment-help', 'academic-cheating', 'earn-cash', 
+            'buy-now', 'scam', 'paid-service', 'essay-writing', 
+            'pay-someone', 'homework-help'
+        ]
+        
+        for hk in hardcoded_keywords:
+            if hk in scan_payload:
+                all_flags.append({
+                    'keyword': hk,
+                    'category': 'Academic Integrity / Spam Policy Violation',
+                    'severity': 3
+                })
+
+        if all_flags:
+            primary_violation = all_flags[0]
+            violation_details = ", ".join([f"'{f['keyword']}' ({f['category']})" for f in all_flags])
+            
+            # 3. CORE HIGHLIGHT: Automatically generate and insert a live Admin Activity Log
+            try:
+                log_entry = AdminLog()
+                log_entry.admin_id = 1  # Standard system-level automation user ID
+                log_entry.action = "Security Block"
+                log_entry.target_type = "Project Submission"
+                log_entry.target_id = current_user.id
+                log_entry.details = (
+                    f"Automated guardrail blocked submission from account [{current_user.email}]. "
+                    f"Prohibited phrase detected: '{primary_violation['keyword']}' "
+                    f"under policy category [{primary_violation['category']}]."
+                )
+                db.session.add(log_entry)
+                db.session.commit()
+            except Exception as log_err:
+                db.session.rollback() # Gracesfully pass if database structures are refreshing
+
+            # 4. Throw a professional English system alert notification back to the interface
+            flash(
+                f"[SECURITY GUARDRAIL VIOLATION] Submission denied. "
+                f"Your text contains a restricted keyword pattern: '{primary_violation['keyword']}' "
+                f"flagged under category [{primary_violation['category'].upper()}].", 
+                category="error"
+            )
+            return render_template("List_Your_Project.html")
+        # =============================================================
+
         new_project = Project()
         new_project.user_id = current_user.id
         new_project.project_name = name 
@@ -662,6 +717,7 @@ def list_project():
         db.session.add(new_project)
         db.session.commit()
 
+        # Handle screenshots upload
         files = request.files.getlist('screenshots') 
         for file in files:
             if file and file.filename != '':

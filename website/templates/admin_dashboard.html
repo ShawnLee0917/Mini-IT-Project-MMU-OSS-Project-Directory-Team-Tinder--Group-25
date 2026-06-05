@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MMU OSSD - Admin Control Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50">
+    <div class="bg-gradient-to-r from-blue-700 to-blue-900 text-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-shield-alt text-3xl text-blue-300"></i>
+                    <div>
+                        <h1 class="text-3xl font-bold tracking-tight">Admin Control Panel</h1>
+                        <p class="text-blue-200 text-sm">Automated Content Moderation & Community Safety Systems</p>
+                    </div>
+                </div>
+                <div class="text-right text-sm text-blue-100 hidden sm:block">
+                    <p>Logged in as: <span class="font-semibold text-white">Admin Console</span></p>
+                    <p class="text-xs text-blue-300">MMU OSSD Directory</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-red-500">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium uppercase tracking-wider">Pending Audit</p>
+                        <p class="text-3xl font-bold text-red-600 mt-2" id="pending-count">0</p>
+                    </div>
+                    <i class="fas fa-exclamation-circle text-red-500 text-3xl opacity-20"></i>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-orange-500">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium uppercase tracking-wider">Total Reports Logged</p>
+                        <p class="text-3xl font-bold text-orange-600 mt-2" id="total-count">0</p>
+                    </div>
+                    <i class="fas fa-chart-bar text-orange-500 text-3xl opacity-20"></i>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium uppercase tracking-wider">Active Keywords</p>
+                        <p class="text-3xl font-bold text-purple-600 mt-2" id="keywords-count">0</p>
+                    </div>
+                    <i class="fas fa-filter text-purple-500 text-3xl opacity-20"></i>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-6 border-l-4 border-slate-700">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium uppercase tracking-wider">Suspended Accounts</p>
+                        <p class="text-3xl font-bold text-slate-800 mt-2" id="suspended-count">{{ suspended_users|length }}</p>
+                    </div>
+                    <i class="fas fa-ban text-slate-700 text-3xl opacity-20"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow mb-8 overflow-hidden">
+            <div class="flex border-b border-gray-200 overflow-x-auto bg-slate-100">
+                <button class="tab-button flex-1 px-6 py-4 text-blue-600 font-semibold hover:bg-white border-b-2 border-blue-600 active whitespace-nowrap transition-all" onclick="switchTab('reports', event)">
+                    <i class="fas fa-list-check mr-2"></i> Moderation Queue
+                </button>
+                <button class="tab-button flex-1 px-6 py-4 text-gray-600 font-medium hover:bg-white border-b-2 border-transparent whitespace-nowrap transition-all" onclick="switchTab('keywords', event)">
+                    <i class="fas fa-key mr-2"></i> Flagged Keywords Dictionary
+                </button>
+                <button class="tab-button flex-1 px-6 py-4 text-gray-600 font-medium hover:bg-white border-b-2 border-transparent whitespace-nowrap transition-all" onclick="switchTab('suspended', event)">
+                    <i class="fas fa-user-slash mr-2"></i> Suspended Students
+                </button>
+                <button class="tab-button flex-1 px-6 py-4 text-gray-600 font-medium hover:bg-white border-b-2 border-transparent whitespace-nowrap transition-all" onclick="switchTab('logs', event)">
+                    <i class="fas fa-history mr-2"></i> Admin Activity Logs
+                </button>
+            </div>
+
+            <div class="p-6">
+                <div id="reports" class="tab-content active">
+                    <div class="mb-6 flex gap-3">
+                        <button class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium text-sm shadow-sm" onclick="loadReports('pending')">
+                            <i class="fas fa-clock mr-2"></i> Review Pending
+                        </button>
+                        <button class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-medium text-sm" onclick="loadReports('all')">
+                            <i class="fas fa-list mr-2"></i> Historical Archive
+                        </button>
+                    </div>
+                    <div id="reports-container" class="space-y-4"></div>
+                </div>
+
+                <div id="keywords" class="tab-content hidden">
+                    <div class="bg-blue-50 rounded-lg p-6 mb-6 border border-blue-200 shadow-sm">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                            <i class="fas fa-plus-circle mr-2 text-blue-600"></i> Register New Guardrail Keyword
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">Target Keyword</label>
+                                <input type="text" id="keyword-input" placeholder="e.g., scam, buy-now, assignment-help" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">Security Category</label>
+                                <select id="category-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                    <option value="spam">Spam / Advertising</option>
+                                    <option value="inappropriate">Inappropriate Language</option>
+                                    <option value="harmful">Harmful / Academic Integrity Violations</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">Severity Impact Weight (1-5)</label>
+                                <input type="number" id="severity-input" min="1" max="5" value="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                            </div>
+                        </div>
+                        <button class="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium text-sm shadow-sm" onclick="addKeyword()">
+                            <i class="fas fa-plus mr-2"></i> Commit Keyword to Security Engine
+                        </button>
+                    </div>
+                    <div id="keywords-container" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                </div>
+
+                <div id="suspended" class="tab-content hidden">
+                    <div id="suspended-container" class="space-y-3"></div>
+                </div>
+
+                <div id="logs" class="tab-content hidden">
+                    <div id="logs-container" class="space-y-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="commentModal" class="fixed inset-0 bg-slate-900/50 hidden flex items-center justify-center z-50 backdrop-blur-sm">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden border border-gray-200">
+            <div class="px-6 py-4 border-b border-gray-200 bg-slate-50">
+                <h2 class="text-lg font-bold text-gray-800 flex items-center">
+                    <i class="fas fa-gavel mr-2 text-blue-600"></i> Administrative Verdict Form
+                </h2>
+            </div>
+            <div class="px-6 py-4">
+                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Audit Memo / Reason</label>
+                <textarea id="adminComment" rows="4" placeholder="Provide detailed context regarding this mitigation action..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"></textarea>
+            </div>
+            <div class="px-6 py-4 border-t border-gray-200 flex gap-3 justify-end bg-slate-50">
+                <button class="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition font-medium text-sm" onclick="closeModal()">Dismiss</button>
+                <button class="px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition hidden font-medium text-sm shadow-sm" id="confirmDeleteBtn" onclick="confirmDelete()">
+                    <i class="fas fa-trash-alt mr-2"></i> Confirm Content Deletion
+                </button>
+                <button class="px-4 py-2 text-white bg-orange-600 rounded-lg hover:bg-orange-700 transition hidden font-medium text-sm shadow-sm" id="confirmRejectBtn" onclick="confirmReject()">
+                    <i class="fas fa-times-circle mr-2"></i> Dismiss Report Request
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="serverData" style="display:none;" data-suspended-users="{{ suspended_users|tojson }}"></div>
+
+    <script>
+        let currentReportId = null;
+        let currentAction = null;
+        
+        function switchTab(tabName, event) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('border-blue-600', 'text-blue-600', 'font-semibold', 'bg-white');
+                btn.classList.add('border-transparent', 'text-gray-600', 'font-medium');
+            });
+            
+            document.getElementById(tabName).classList.remove('hidden');
+            const clickedBtn = event.target.closest('.tab-button');
+            clickedBtn.classList.add('border-blue-600', 'text-blue-600', 'font-semibold', 'bg-white');
+            clickedBtn.classList.remove('border-transparent', 'text-gray-600', 'font-medium');
+            
+            if (tabName === 'reports') loadReports('pending');
+            if (tabName === 'keywords') loadKeywords();
+            if (tabName === 'suspended') loadSuspendedUsers();
+            if (tabName === 'logs') loadLogs();
+        }
+        
+        function loadReports(status = 'pending') {
+            fetch(`/api/admin/reports?status=${status}`)
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('pending-count').textContent = data.reports.filter(r => r.status === 'pending').length;
+                    document.getElementById('total-count').textContent = data.total;
+                    
+                    let html = '';
+                    if (data.reports.length === 0) {
+                        html = '<div class="text-center py-12 bg-white rounded-lg border border-dashed border-gray-300"><i class="fas fa-shield-cat text-green-500 text-4xl mb-4 block opacity-60"></i><p class="text-gray-500 text-sm font-medium">All clear! No reports require immediate review.</p></div>';
+                    } else {
+                        data.reports.forEach(report => {
+                            const typeColors = {
+                                'project': 'bg-blue-100 text-blue-800 border-blue-200',
+                                'question': 'bg-purple-100 text-purple-800 border-purple-200',
+                                'comment': 'bg-green-100 text-green-800 border-green-200',
+                                'post': 'bg-orange-100 text-orange-800 border-orange-200',
+                                'post_comment': 'bg-yellow-100 text-yellow-800 border-yellow-200'
+                            };
+                            html += `
+                                <div class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-sm transition-all">
+                                    <div class="flex items-center justify-between mb-3 border-b border-slate-100 pb-3">
+                                        <span class="inline-block px-2.5 py-0.5 rounded text-xs font-bold border ${typeColors[report.content_type] || 'bg-gray-100 text-gray-800'}">
+                                            ${report.content_type.toUpperCase()}
+                                        </span>
+                                        <span class="text-xs text-gray-400 font-medium flex items-center gap-1">
+                                            <i class="far fa-clock"></i> ${new Date(report.created_at).toLocaleDateString()}
+                                        </span>
+                                    </div>
+                                    <p class="text-red-600 font-semibold text-sm flex items-center mb-4 bg-red-50 p-2.5 rounded border border-red-100">
+                                        <i class="fas fa-triangle-exclamation mr-2"></i> Flag Reason: ${report.reason}
+                                    </p>
+                                    <div class="bg-slate-50 rounded p-4 mb-4 text-xs space-y-1.5 border-l-4 border-blue-600">
+                                        <p class="text-gray-700"><strong>Submitted By Reporter:</strong> ${report.reporter_name}</p>
+                                        <p class="text-gray-700"><strong>Target Content Database Reference Entity ID:</strong> ${report.content_id}</p>
+                                        ${report.description ? `<p class="text-gray-700 mt-2 bg-white p-2 rounded border"><strong>Incident Details Log:</strong> ${report.description}</p>` : ''}
+                                    </div>
+                                    <div class="flex gap-3">
+                                        <button class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium text-xs shadow-sm" onclick="openModal(${report.id}, 'delete')">
+                                            <i class="fas fa-trash-alt mr-1.5"></i> Purge Content
+                                        </button>
+                                        <button class="flex-1 px-4 py-2 bg-slate-200 text-gray-700 rounded-lg hover:bg-slate-300 transition font-medium text-xs" onclick="openModal(${report.id}, 'reject')">
+                                            <i class="fas fa-ban mr-1.5"></i> Dismiss Claim
+                                        </button>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    }
+                    document.getElementById('reports-container').innerHTML = html;
+                });
+        }
+        
+        function loadKeywords() {
+            fetch('/api/admin/keywords')
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('keywords-count').textContent = data.keywords.filter(k => k.is_active).length;
+                    let html = '';
+                    const categoryColors = {
+                        'spam': 'bg-rose-50/50 border-rose-200 hover:bg-rose-50',
+                        'inappropriate': 'bg-amber-50/50 border-amber-200 hover:bg-amber-50',
+                        'harmful': 'bg-red-50/50 border-red-200 hover:bg-red-50'
+                    };
+                    const categoryBadges = {
+                        'spam': 'bg-rose-100 text-rose-700 border-rose-200',
+                        'inappropriate': 'bg-amber-100 text-amber-700 border-amber-200',
+                        'harmful': 'bg-red-100 text-red-700 border-red-200'
+                    };
+                    data.keywords.forEach(kw => {
+                        if (kw.is_active) {
+                            html += `
+                                <div class="border ${categoryColors[kw.category] || 'bg-gray-50 border-gray-200'} rounded-lg p-4 flex items-center justify-between shadow-sm transition-all">
+                                    <div>
+                                        <p class="font-bold text-gray-900 font-mono text-base">"${kw.keyword}"</p>
+                                        <div class="mt-2 flex flex-wrap gap-1.5">
+                                            <span class="px-2 py-0.5 text-[10px] font-bold uppercase rounded border ${categoryBadges[kw.category] || 'bg-gray-100 text-gray-700'}">
+                                                ${kw.category}
+                                            </span>
+                                            <span class="px-2 py-0.5 text-[10px] font-bold uppercase rounded bg-slate-100 text-slate-700 border border-slate-200">
+                                                Severity Level: ${kw.severity}/5
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <button class="w-8 h-8 flex items-center justify-center bg-red-50 text-red-600 rounded-full hover:bg-red-600 hover:text-white transition-all shadow-sm border border-red-100" onclick="deleteKeyword(${kw.id})">
+                                        <i class="fas fa-trash-alt text-xs"></i>
+                                    </button>
+                                </div>
+                            `;
+                        }
+                    });
+                    if (html === '') {
+                        html = '<div class="col-span-full text-center py-12 bg-white rounded-lg border border-dashed border-gray-300"><p class="text-gray-500 text-sm">No active rule patterns found in dictionaries.</p></div>';
+                    }
+                    document.getElementById('keywords-container').innerHTML = html;
+                });
+        }
+        
+        function loadSuspendedUsers() {
+            const dataElement = document.getElementById('serverData');
+            const jsonData = dataElement.getAttribute('data-suspended-users');
+            const suspended = jsonData ? JSON.parse(jsonData) : [];
+            let html = '';
+            if (suspended.length === 0) {
+                html = '<div class="text-center py-12 bg-white rounded-lg border border-dashed border-gray-300"><p class="text-gray-500 text-sm">No student account restrictions are currently globally active.</p></div>';
+            } else {
+                suspended.forEach(su => {
+                    html += `
+                        <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm hover:border-red-300 transition-all">
+                            <div class="flex items-center justify-between">
+                                <div class="space-y-1">
+                                    <p class="font-bold text-gray-800 flex items-center gap-2">
+                                        <i class="fas fa-circle-user text-slate-400"></i> ${su.user.email}
+                                    </p>
+                                    <p class="text-xs text-gray-600 bg-slate-100 p-2 rounded border"><strong>Infraction Reason:</strong> ${su.reason}</p>
+                                    <p class="text-[11px] text-gray-400 font-medium"><i class="far fa-calendar-alt"></i> Enforcement Stamp: ${new Date(su.suspended_at).toLocaleString()}</p>
+                                </div>
+                                <button class="px-3 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition font-medium text-xs shadow-sm flex items-center gap-1" onclick="unsuspendUser(${su.user_id})">
+                                    <i class="fas fa-user-check"></i> Lift Restriction
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            document.getElementById('suspended-container').innerHTML = html;
+        }
+        
+        function loadLogs() {
+            fetch('/api/admin/logs')
+                .then(r => r.json())
+                .then(data => {
+                    let html = '';
+                    const actionIcons = {
+                        'delete_content': 'fa-trash-alt text-red-600 bg-red-50 border-red-100',
+                        'suspend_user': 'fa-user-slash text-slate-700 bg-slate-100 border-slate-200',
+                        'restore_content': 'fa-rotate-left text-green-600 bg-green-50 border-green-100',
+                        'approve_report': 'fa-square-check text-blue-600 bg-blue-50 border-blue-100',
+                        'reject_report': 'fa-rectangle-xmark text-orange-600 bg-orange-50 border-orange-100'
+                    };
+                    data.logs.forEach(log => {
+                        html += `
+                            <div class="bg-white border-l-4 border-blue-700 rounded p-4 shadow-sm flex items-start gap-3 hover:bg-slate-50/50">
+                                <div class="w-8 h-8 rounded-full border flex items-center justify-center shrink-0 ${actionIcons[log.action] || 'fa-circle text-gray-600 bg-gray-50 border-gray-200'}">
+                                    <i class="fas ${log.action in actionIcons ? '' : 'fa-circle'} text-xs"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="font-bold text-gray-800 text-sm tracking-wide font-mono uppercase">${log.action}</p>
+                                    <p class="text-xs text-gray-600 mt-1 bg-slate-50 p-2 rounded border border-slate-100">${log.details || 'No meta tracing payload provided'}</p>
+                                    <p class="text-[10px] text-gray-400 font-medium mt-2 flex items-center gap-1">
+                                        <i class="far fa-clock"></i> ${new Date(log.created_at).toLocaleString()}
+                                    </p>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    if (data.logs.length === 0) {
+                        html = '<div class="text-center py-12 bg-white rounded-lg border border-dashed border-gray-300"><p class="text-gray-500 text-sm">System audit log stream is empty.</p></div>';
+                    }
+                    document.getElementById('logs-container').innerHTML = html;
+                });
+        }
+        
+        function addKeyword() {
+            const keyword = document.getElementById('keyword-input').value.trim();
+            const category = document.getElementById('category-input').value;
+            const severity = document.getElementById('severity-input').value;
+            
+            if (!keyword) {
+                alert('Please enter a target pattern definition string.');
+                return;
+            }
+            
+            fetch('/api/admin/add-keyword', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({keyword, category, severity: parseInt(severity)})
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('keyword-input').value = '';
+                    loadKeywords();
+                } else {
+                    alert('Security Registration Fault: ' + data.error);
+                }
+            });
+        }
+        
+        function deleteKeyword(id) {
+            if (confirm('Are you sure you want to completely drop this security check pattern from production dictionaries?')) {
+                fetch(`/api/admin/delete-keyword/${id}`, {method: 'DELETE'})
+                    .then(r => r.json())
+                    .then(data => loadKeywords());
+            }
+        }
+        
+        function openModal(reportId, action) {
+            currentReportId = reportId;
+            currentAction = action;
+            document.getElementById('commentModal').classList.remove('hidden');
+            document.getElementById('confirmDeleteBtn').classList.add('hidden');
+            document.getElementById('confirmRejectBtn').classList.add('hidden');
+            if (action === 'delete') {
+                document.getElementById('confirmDeleteBtn').classList.remove('hidden');
+            } else {
+                document.getElementById('confirmRejectBtn').classList.remove('hidden');
+            }
+        }
+        
+        function closeModal() {
+            document.getElementById('commentModal').classList.add('hidden');
+            document.getElementById('adminComment').value = '';
+        }
+        
+        function confirmDelete() {
+            const comment = document.getElementById('adminComment').value;
+            fetch(`/api/admin/approve-report/${currentReportId}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({comment})
+            })
+            .then(r => r.json())
+            .then(data => {
+                closeModal();
+                loadReports('pending');
+            });
+        }
+        
+        function confirmReject() {
+            const comment = document.getElementById('adminComment').value;
+            fetch(`/api/admin/reject-report/${currentReportId}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({comment})
+            })
+            .then(r => r.json())
+            .then(data => {
+                closeModal();
+                loadReports('pending');
+            });
+        }
+        
+        function unsuspendUser(userId) {
+            if (confirm('Proceed to safely restore this restricted entity to full student scope permissions?')) {
+                fetch(`/api/admin/unsuspend-user/${userId}`, {method: 'POST'})
+                    .then(r => r.json())
+                    .then(data => loadSuspendedUsers());
+            }
+        }
+        
+        // Load data on page load initialization
+        window.addEventListener('load', () => {
+            loadReports('pending');
+            loadKeywords();
+            loadSuspendedUsers();
+            loadLogs();
+        });
+    </script>
+</body>
+</html>
