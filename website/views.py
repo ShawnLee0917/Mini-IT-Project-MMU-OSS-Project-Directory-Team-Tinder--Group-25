@@ -3212,3 +3212,177 @@ def hottest_projects():
         })
         
     return render_template("trending.html", projects=projects_data)
+
+
+# =====================================================================
+# ─── 密码重置功能（PASSWORD RESET SYSTEM） ───
+# =====================================================================
+
+@views.route('/forgot-password')
+def forgot_password_page():
+    """1. 渲染忘记密码、输入邮箱的页面"""
+    return render_template("forgot_password.html")
+
+
+@views.route('/verify-reset')
+def verify_reset_page():
+    """2. 渲染输入 OTP 验证码和新密码的页面"""
+    return render_template("reset_password_otp.html")
+
+
+@views.route('/api/forgot-password', methods=['POST'])
+def api_forgot_password():
+    """3. 接收用户邮箱，生成并发送重置密码的 OTP 验证码"""
+    data = request.get_json(silent=True) or {}
+    email = data.get('email', '').strip().lower()
+
+    if not email:
+        return jsonify({'error': 'Email address is required.'}), 400
+
+    # 检查用户是否存在
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        # 为了防范账户枚举攻击，可以选择返回成功，但提示信息委婉；
+        # 此处根据前端提示直接返回错误或成功：
+        return jsonify({'error': 'No account associated with this email.'}), 404
+
+    # 生成 6 位随机 OTP 验证码
+    otp_code = f"{random.randint(100000, 999999)}"
+    
+    # 将 OTP 暂存到用户的数据库记录中（或者复用现有的 otp 字段）
+    user.otp = otp_code
+    db.session.commit()
+
+    # 复用系统自带的发送函数送出邮件（开发模式下会在控制台同步打印）
+    email_sent = send_otp_email(user.email, otp_code)
+    
+    if email_sent:
+        return jsonify({
+            'success': True, 
+            'message': 'A verification token has been sent to your email.'
+        })
+    else:
+        return jsonify({'error': 'Failed to send verification email. Please try again later.'}), 500
+
+
+@views.route('/api/verify_reset_otp', methods=['POST'])
+def api_verify_reset_otp():
+    """4. 校验用户的验证码并直接修改密码"""
+    data = request.get_json(silent=True) or {}
+    
+    # 提示：因为 reset_password_otp.html 中只有 otp 和 password 两个输入框，
+    # 我们可以通过查找谁拥有这个全局唯一的有效 OTP，或者让前端一并带上 email。
+    # 这里采用根据 OTP 查人并完成修改的稳妥做法：
+    otp_val = data.get('otp', '').strip()
+    new_password = data.get('password', '')
+
+    if not otp_val or not new_password:
+        return jsonify({'error': 'Verification token and new password are required.'}), 400
+
+    if len(new_password) < 6:
+        return jsonify({'error': 'Password must be at least 6 characters long.'}), 400
+
+    # 寻找匹配此验证码的未验证重置用户
+    user = User.query.filter_by(otp=otp_val).first()
+
+    if not user:
+        return jsonify({'error': 'Invalid or expired verification token.'}), 400
+
+    # 使用 Werkzeug 安全生成密码 Hash 并保存
+    user.password = generate_password_hash(new_password, method='pbkdf2:sha256')
+    user.otp = None  # 密码重置成功，立即作废该 OTP 验证码
+    db.session.commit()
+
+    return jsonify({
+        'success': True, 
+        'message': 'Password updated successfully!'
+    })
+# =====================================================================
+# ─── 管理员一键删除不良内容功能（ADMIN MODERATION） ───
+# =====================================================================
+
+def require_admin():
+    """安全拦截：验证当前登录用户是否为管理员"""
+    email = session.get('user_email')
+    if not email:
+        return jsonify({'error': 'Please log in first.'}), 401
+    
+    user = User.query.filter_by(email=email).first()
+    if not user or not getattr(user, 'is_admin', False):
+        return jsonify({'error': 'Access denied. Unauthorized admin account.'}), 403
+    return None
+
+
+@views.route('/admin/dashboard')
+def admin_dashboard_page():
+    """1. 渲染管理员面板，列出项目、留言和社区帖子"""
+    email = session.get('user_email')
+    if not email:
+        return redirect(url_for('views.api_login'))
+        
+    user = User.query.filter_by(email=email).first()
+    if not user or not getattr(user, 'is_admin', False):
+        return "Access Denied. Admins Only.", 403
+
+    # 读取所有项目、最新留言以及社区帖子
+    all_projects = Project.query.filter(Project.status != 'Archived').order_by(Project.created_at.desc()).all()
+    all_comments = ProjectComment.query.order_by(ProjectComment.created_at.desc()).limit(50).all()
+    all_posts = CommunityPost.query.order_by(CommunityPost.created_at.desc()).limit(50).all()
+
+    return render_template(
+        "admin_dashboard.html", 
+        projects=all_projects, 
+        comments=all_comments,
+        posts=all_posts  # ✨ 修复：补上了漏掉的 posts 变量传递
+    )
+
+
+@views.route('/api/admin/delete-content', methods=['POST'])
+def api_admin_delete_content():
+    """2. 管理员一键删除不良内容 API"""
+    error_resp = require_admin()
+    if error_resp:
+        return error_resp
+
+    data = request.get_json(silent=True) or {}
+    content_type = data.get('type')  # 'project', 'comment', 'post'
+    content_id = data.get('id')
+
+    if not content_type or not content_id:
+        return jsonify({'error': 'Missing type or ID.'}), 400
+
+    try:
+        # A. 删除不良项目
+        if content_type == 'project':
+            target = Project.query.get(content_id)
+            if target:
+                db.session.delete(target)
+                
+                # ✨ 修复：将字段名修改为符合 models.py 定义的 timestamp
+                log = AdminLog(action=f"Deleted Project ID {content_id}") 
+                db.session.add(log)
+                
+                db.session.commit()
+                return jsonify({'success': True, 'message': 'Project deleted successfully.'})
+
+        # B. 删除不良留言评论
+        elif content_type == 'comment':
+            target = ProjectComment.query.get(content_id)
+            if target:
+                db.session.delete(target)
+                db.session.commit()
+                return jsonify({'success': True, 'message': 'Comment deleted successfully.'})
+
+        # C. 删除不良社区帖子
+        elif content_type == 'post':
+            target = CommunityPost.query.get(content_id)
+            if target:
+                db.session.delete(target)
+                db.session.commit()
+                return jsonify({'success': True, 'message': 'Community post deleted successfully.'})
+
+        return jsonify({'error': 'Content not found.'}), 404
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
