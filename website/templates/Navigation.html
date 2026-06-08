@@ -141,6 +141,10 @@
                 <span id="nav-email" class="text-xs">…</span>
                 <i class="fas fa-user-circle text-lg"></i>
             </a>
+            <a id="admin-nav-btn" href="/admin/dashboard" class="hidden flex items-center gap-2 px-3 py-1.5 bg-red-600/80 hover:bg-red-700 text-white rounded-lg text-sm font-semibold transition-all shadow-md shadow-red-900/20">
+                        <i class="fa-solid fa-shield-halved text-xs"></i>
+                        <span>Admin</span>
+            </a>
             <button id="logout-btn"
                 class="bg-white text-red-700 hover:bg-red-50 text-xs font-bold px-3 py-2 rounded-xl transition">
                 <i class="fas fa-sign-out-alt mr-1"></i>Logout
@@ -162,6 +166,10 @@
                 <span id="mobile-notif-badge" class="bg-yellow-400 text-red-900 px-2 rounded-full text-xs hidden">0</span>
             </button>
 
+            <a id="admin-nav-btn-mobile" href="/admin/dashboard" class="hidden flex items-center gap-3 px-4 py-3 bg-red-600/20 text-red-400 rounded-xl font-medium text-sm transition-all border border-red-500/20">
+                <i class="fa-solid fa-shield-halved text-base w-5"></i>
+                <span>Admin Moderation</span>
+            </a>
             <button id="logout-btn-mobile" class="text-left text-red-200 hover:text-white transition text-sm border-t border-red-700 pt-4 mt-2">
                 <i class="fas fa-sign-out-alt mr-1"></i> Logout
             </button>
@@ -950,6 +958,13 @@
             
             if (document.getElementById('nav-email')) document.getElementById('nav-email').textContent = profile.email;
             if (document.getElementById('nav-email-mobile')) document.getElementById('nav-email-mobile').textContent = profile.email;
+            // 如果后端判定是管理员，移出 hidden 样式将其显现
+                if (profile.is_admin) {
+                    const adminBtn = document.getElementById('admin-nav-btn');
+                    const adminBtnMobile = document.getElementById('admin-nav-btn-mobile');
+                    if (adminBtn) adminBtn.classList.remove('hidden');
+                    if (adminBtnMobile) adminBtnMobile.classList.remove('hidden');
+                }
             
             await loadInvitations();
 

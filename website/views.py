@@ -15,6 +15,28 @@ from datetime import datetime, timezone
 
 views = Blueprint('views', __name__)
 
+# =====================================================================
+# ─── BANNED KEYWORDS AUTOMATIC FILTERING SYSTEM ───
+# =====================================================================
+BANNED_KEYWORDS = [
+    'scam', 'spam', 'casino', 'gamble', 'betting',
+    'buy followers', 'homework help', 'advertisement', 'hack'
+]
+
+def contains_banned_keywords(text_to_check):
+    """
+    Helper function to check if the text contains any blacklisted words.
+    Returns the banned word if found, otherwise returns None.
+    """
+    if not text_to_check:
+        return None
+    
+    # Convert text to lowercase to prevent bypassing with 'ScaM' or 'SCAM'
+    lower_text = str(text_to_check).lower()
+    for word in BANNED_KEYWORDS:
+        if word.lower() in lower_text:
+            return word
+    return None
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'static', 'uploads')
 ALLOWED_EXT = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
@@ -49,6 +71,67 @@ def parse_interests(interests_str):
 # Content Moderation & Admin Functions
 # =====================================================================
 
+@views.route('/api/admin/delete-content', methods=['POST'])
+def api_admin_delete_content():
+    """管理面板无刷新一键删除项目、评论或帖子"""
+    error_resp = require_admin()
+    if error_resp:
+        return error_resp
+
+    data = request.get_json(silent=True) or {}
+    content_type = data.get('type')  # 'project', 'comment', 'post'
+    content_id = data.get('id')
+
+    if not content_type or not content_id:
+        return jsonify({'error': 'Missing type or ID.'}), 400
+
+    try:
+        target = None
+        details_msg = ""
+
+        if content_type == 'project':
+            target = Project.query.get(content_id)
+            if target:
+                details_msg = f"Deleted Project: {target.project_name or content_id}"
+                db.session.delete(target)
+
+        elif content_type == 'comment':
+            # Comments could be on projects or other content; handle both
+            target = ProjectComment.query.get(content_id)
+            if not target:
+                target = Comment.query.get(content_id)
+            if target:
+                details_msg = f"Deleted Comment ID {content_id}"
+                db.session.delete(target)
+
+        elif content_type == 'post':
+            target = CommunityPost.query.get(content_id)
+            if target:
+                details_msg = f"Deleted Post: {target.title or content_id}"
+                db.session.delete(target)
+
+        else:
+            return jsonify({'error': 'Invalid content type.'}), 400
+
+        if target:
+            # Log the admin action
+            log = AdminLog()
+            log.admin_id = get_current_user().id
+            log.action = 'delete_content'
+            log.target_type = content_type
+            log.target_id = int(content_id)
+            log.details = f"[Admin Action] {details_msg}"
+            db.session.add(log)
+
+            db.session.commit()
+            return jsonify({'success': True, 'message': f'{content_type.capitalize()} deleted successfully.'})
+        else:
+            return jsonify({'error': 'Content not found.'}), 404
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Database operational failure: {str(e)}'}), 500
+    
 def check_admin_permission():
     """Verify if current user is admin"""
     if 'user_email' not in session:
@@ -2403,9 +2486,19 @@ def create_project_comment(project_id):
     
     if not content:
         return jsonify({'error': 'Comment content is required'}), 400
+
+    # ─── 核心修改：在这里插入黑名单留言拦截雷达 ───
+    triggered_word = contains_banned_keywords(content)
+    if triggered_word:
+        return jsonify({
+            'error': f"Comment blocked: Your text contains the unallowed keyword '{triggered_word}'."
+        }), 400
+    # ──────────────────────────────────────────
     
     if comment_type not in ['normal', 'issue', 'suggestion']:
         return jsonify({'error': 'Invalid comment type'}), 400
+
+    # 后面是你原本的处理逻辑（比如保存评论到数据库、处理图片等）...
     
 # Determine user role
     user_role = 'user'
@@ -3337,52 +3430,3 @@ def admin_dashboard_page():
     )
 
 
-@views.route('/api/admin/delete-content', methods=['POST'])
-def api_admin_delete_content():
-    """2. 管理员一键删除不良内容 API"""
-    error_resp = require_admin()
-    if error_resp:
-        return error_resp
-
-    data = request.get_json(silent=True) or {}
-    content_type = data.get('type')  # 'project', 'comment', 'post'
-    content_id = data.get('id')
-
-    if not content_type or not content_id:
-        return jsonify({'error': 'Missing type or ID.'}), 400
-
-    try:
-        # A. 删除不良项目
-        if content_type == 'project':
-            target = Project.query.get(content_id)
-            if target:
-                db.session.delete(target)
-                
-                # ✨ 修复：将字段名修改为符合 models.py 定义的 timestamp
-                log = AdminLog(action=f"Deleted Project ID {content_id}") 
-                db.session.add(log)
-                
-                db.session.commit()
-                return jsonify({'success': True, 'message': 'Project deleted successfully.'})
-
-        # B. 删除不良留言评论
-        elif content_type == 'comment':
-            target = ProjectComment.query.get(content_id)
-            if target:
-                db.session.delete(target)
-                db.session.commit()
-                return jsonify({'success': True, 'message': 'Comment deleted successfully.'})
-
-        # C. 删除不良社区帖子
-        elif content_type == 'post':
-            target = CommunityPost.query.get(content_id)
-            if target:
-                db.session.delete(target)
-                db.session.commit()
-                return jsonify({'success': True, 'message': 'Community post deleted successfully.'})
-
-        return jsonify({'error': 'Content not found.'}), 404
-
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': f'Database error: {str(e)}'}), 500

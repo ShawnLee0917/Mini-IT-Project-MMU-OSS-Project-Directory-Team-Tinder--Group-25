@@ -23,6 +23,7 @@ class User(db.Model):
     email = db.Column(db.String(255), unique=True, nullable=False)
     password_hash = db.Column(db.String(255))
     name = db.Column(db.String(255), nullable=False, default='MMU Student')
+    is_admin = db.Column(db.Boolean, default=False, nullable=False)
     faculty = db.Column(db.String(255), nullable=False, default='Faculty of Computing & Informatics')
     bio = db.Column(db.Text, default='')
     avatar_path = db.Column(db.String(255), default='')
