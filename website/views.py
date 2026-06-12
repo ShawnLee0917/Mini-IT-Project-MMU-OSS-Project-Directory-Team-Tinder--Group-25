@@ -138,6 +138,83 @@ def test_otp(email):
     <p>Use this code at: <a href="/verify">http://127.0.0.1:5000/verify</a></p>
     """
 
+# ── Forgot / Reset Password Pages ──────────────────────────────────────────
+@views.route('/forgot-password')
+def forgot_password():
+    return render_template('forgot_password.html')
+
+@views.route('/reset-password')
+def reset_password():
+    return render_template('reset_password.html')
+
+# ── API: Request password reset OTP ─────────────────────────────────────────
+@views.route('/api/forgot-password', methods=['POST'])
+def api_forgot_password():
+    data  = request.get_json(silent=True) or {}
+    email = data.get('email', '').strip().lower()
+
+    if not email:
+        return jsonify({'error': 'Email is required'}), 400
+    if not (email.endswith('@mmu.edu.my') or email.endswith('@student.mmu.edu.my')):
+        return jsonify({'error': 'Only MMU email addresses are allowed'}), 400
+
+    user = User.query.filter_by(email=email).first()
+    # Always return success even if email not found (security best practice)
+    if user and user.is_verified:
+        otp_code  = f'{random.randint(0, 999999):06d}'
+        user.otp  = otp_code
+        db.session.commit()
+        send_otp_email(email, otp_code)
+
+    return jsonify({'success': True, 'message': 'If that email is registered, a reset code has been sent.'})
+
+# ── API: Verify reset OTP (without changing password yet) ───────────────────
+@views.route('/api/verify-reset-otp', methods=['POST'])
+def api_verify_reset_otp():
+    data  = request.get_json(silent=True) or {}
+    email = data.get('email', '').strip().lower()
+    otp   = data.get('otp', '').strip()
+
+    user = User.query.filter_by(email=email).first()
+    if not user or not user.otp or user.otp != otp:
+        return jsonify({'error': 'Invalid or expired reset code. Please request a new one.'}), 401
+
+    return jsonify({'success': True, 'message': 'Code verified'})
+
+# ── API: Set new password after OTP verified ─────────────────────────────────
+@views.route('/api/reset-password', methods=['POST'])
+def api_reset_password():
+    from werkzeug.security import generate_password_hash
+    data         = request.get_json(silent=True) or {}
+    email        = data.get('email', '').strip().lower()
+    otp          = data.get('otp', '').strip()
+    new_password = data.get('new_password', '')
+
+    if not email or not otp or not new_password:
+        return jsonify({'error': 'All fields are required'}), 400
+    if len(new_password) < 6:
+        return jsonify({'error': 'Password must be at least 6 characters'}), 400
+
+    user = User.query.filter_by(email=email).first()
+    if not user or not user.otp or user.otp != otp:
+        return jsonify({'error': 'Invalid or expired reset code. Please start over.'}), 401
+
+    user.password_hash = generate_password_hash(new_password)
+    user.otp           = None   # Invalidate the OTP after use
+    db.session.commit()
+
+    return jsonify({'success': True, 'message': 'Password reset successfully!'})
+
+# ── API: Dev helper — retrieve reset OTP (same as get_otp) ──────────────────
+@views.route('/api/get_reset_otp', methods=['POST'])
+def api_get_reset_otp():
+    data  = request.get_json(silent=True) or {}
+    email = data.get('email', '').strip().lower()
+    user  = User.query.filter_by(email=email).first()
+    if not user or not user.otp:
+        return jsonify({'error': 'No reset code found for this email. Please request one first.'}), 404
+    return jsonify({'otp': user.otp})
+
 @views.route('/search')
 def search():
     all_projects = Project.query.order_by(Project.created_at.desc()).all()
@@ -1368,15 +1445,10 @@ def add_member(project_id):
             return jsonify({"error": "An invitation has already been sent to this user."}), 400
         elif existing_request.status == 'pending':
             existing_request.status = 'accepted'
-            new_member = ProjectMember(project_id=project_id, user_id=user_to_add.id, role='member')
+            new_member = ProjectMember(project_id=project_id, user_id=user_to_add.id, role='member')  # type: ignore
             db.session.add(new_member)
 
-            history = MemberHistory(
-                user_id=user_to_add.id,
-                project_id=project_id,
-                action='joined',
-                reason=None
-            )
+            history = MemberHistory(user_id=user_to_add.id, project_id=project_id, action='joined', reason=None)  # type: ignore
             db.session.add(history)
             db.session.commit()
             return jsonify({"success": f"{user_to_add.name} had already applied to join. They are now added!", "user_name": user_to_add.name})
@@ -1385,7 +1457,7 @@ def add_member(project_id):
             db.session.commit()
             return jsonify({"success": f"Invitation sent to {user_to_add.name}!", "user_name": user_to_add.name})
 
-    new_invite = JoinRequest(user_id=user_to_add.id, project_id=project_id, status='invited')
+    new_invite = JoinRequest(user_id=user_to_add.id, project_id=project_id, status='invited')  # type: ignore
     db.session.add(new_invite)
     
     db.session.commit()
@@ -1434,7 +1506,7 @@ def respond_to_invitation(request_id, action):
         invitation.status = 'accepted'
         existing = ProjectMember.query.filter_by(project_id=invitation.project_id, user_id=current_user.id).first()
         if not existing:
-            new_member = ProjectMember(project_id=invitation.project_id, user_id=current_user.id, role='member')
+            new_member = ProjectMember(project_id=invitation.project_id, user_id=current_user.id, role='member')  # type: ignore
             db.session.add(new_member)
         msg = 'Invitation accepted! You joined the project.'
     elif action == 'reject':
@@ -1556,11 +1628,7 @@ def request_join_project(project_id):
             db.session.commit()
             return jsonify({"success": "Join request sent successfully!"}), 200
     else:
-        join_request = JoinRequest(
-            user_id=current_user.id,
-            project_id=project_id,
-            status='pending'
-        )
+        join_request = JoinRequest(user_id=current_user.id, project_id=project_id, status='pending')  # type: ignore
         db.session.add(join_request)
         db.session.commit()
         return jsonify({"success": "Join request sent successfully!"}), 201
@@ -1618,16 +1686,11 @@ def accept_join_request(project_id, request_id):
     
     existing_member = ProjectMember.query.filter_by(project_id=project_id, user_id=user_to_add.id).first()
     if not existing_member:
-        new_member = ProjectMember(project_id=project_id, user_id=user_to_add.id, role='member')
+        new_member = ProjectMember(project_id=project_id, user_id=user_to_add.id, role='member')  # type: ignore
         db.session.add(new_member)
         
         # Create member history record
-        history = MemberHistory(
-            user_id=user_to_add.id,
-            project_id=project_id,
-            action='joined',
-            reason=None
-        )
+        history = MemberHistory(user_id=user_to_add.id, project_id=project_id, action='joined', reason=None)  # type: ignore
         db.session.add(history)
     
     # Update request status
@@ -1698,12 +1761,7 @@ def leave_project_immediately(project_id):
             db.session.delete(old_req)
         
         # Create member history record
-        history = MemberHistory(
-            user_id=current_user.id,
-            project_id=project_id,
-            action='left',
-            reason=reason if reason else None
-        )
+        history = MemberHistory(user_id=current_user.id, project_id=project_id, action='left', reason=reason if reason else None)  # type: ignore
         
         db.session.add(history)
         db.session.commit()
@@ -1747,12 +1805,7 @@ def request_leave_team(project_id):
     if len(reason) < 10:
         return jsonify({'error': 'Reason must be at least 10 characters'}), 400
     
-    leave_req = LeaveRequest(
-        user_id=current_user.id,
-        project_id=project_id,
-        reason=reason,
-        status='pending'
-    )
+    leave_req = LeaveRequest(user_id=current_user.id, project_id=project_id, reason=reason, status='pending')  # type: ignore
     
     db.session.add(leave_req)
     db.session.commit()
@@ -1945,14 +1998,7 @@ def create_project_comment(project_id):
         if is_member:
             user_role = 'team-member'    
             
-    comment = ProjectComment(
-        project_id=project_id,
-        user_id=current_user.id,
-        content=content,
-        comment_type=comment_type,
-        label=label if user_role == 'owner' else None,  # Only owner can set labels
-        user_role=user_role
-    )
+    comment = ProjectComment(project_id=project_id, user_id=current_user.id, content=content, comment_type=comment_type, label=label if user_role == 'owner' else None, user_role=user_role)  # type: ignore
     
     db.session.add(comment)
     db.session.flush()  # Get comment.id before committing
@@ -2618,14 +2664,6 @@ def view_user_profile_page(user_id):
         return redirect(url_for('views.home'))
     
     return render_template("Profile.html", view_user_id=user_id)
-    
-    return jsonify({
-        'success': True,
-        'user_interests': user_interests,
-        'suggestions': result,
-        'total': len(result),
-        'algorithm_version': 'unified-v1'
-    })
 
 
 @views.route('/api/project/<int:project_id>/similar', methods=['GET'])
