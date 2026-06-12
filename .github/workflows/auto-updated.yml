@@ -10,14 +10,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Pull latest code & reload app
+      - name: Update & Reload
         run: |
           curl -X POST "https://www.pythonanywhere.com/api/v0/user/${{ secrets.PA_USERNAME }}/consoles/new/" \
             -H "Authorization: Token ${{ secrets.PA_API_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d '{"executable":"bash"}' > console.json
-          CONSOLE_ID=$(grep -o '"id":[0-9]*' console.json | cut -d: -f2)
-          curl -X POST "https://www.pythonanywhere.com/api/v0/user/${{ secrets.PA_USERNAME }}/consoles/$CONSOLE_ID/send_input/" \
+            -d '{"executable":"bash"}' > c.json
+          ID=$(grep -o '"id":[0-9]*' c.json | cut -d: -f2)
+          curl -X POST "https://www.pythonanywhere.com/api/v0/user/${{ secrets.PA_USERNAME }}/consoles/$ID/send_input/" \
             -H "Authorization: Token ${{ secrets.PA_API_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d '{"input":"cd /home/ShawnLee/Mini-IT-Project-MMU-OSS-Project-Directory-Team-Tinder-Group-25 && git pull origin main && pip install -r requirements.txt\n"}'
