@@ -559,6 +559,45 @@
                 <div id="join-requests-list" class="mb-8 space-y-2"></div>
             </div>
             
+            <div class="bg-white rounded-3xl border border-gray-100 p-4 shadow-sm mb-6">
+                <button onclick="openReportModal()" class="w-full flex items-center justify-center bg-gray-50 hover:bg-red-50 text-red-600 hover:text-red-700 border border-dashed border-gray-200 hover:border-red-200 px-4 py-2.5 rounded-xl text-xs font-bold transition shadow-sm">
+                    <i class="fa-solid fa-triangle-exclamation mr-1.5"></i> Report Inappropriate Content
+                </button>
+            </div>
+            
+            <div id="report-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[999] p-4">
+                <div class="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl text-gray-900 border border-gray-100">
+                    <h3 class="text-lg font-bold flex items-center gap-2 mb-2 text-red-600">
+                        <i class="fa-solid fa-triangle-exclamation"></i> Report This Project
+                    </h3>
+                    <p class="text-xs text-gray-500 mb-4">Help us keep the MMU OSSD community safe. Please select a reason for reporting.</p>
+                    
+                    <form id="report-form" onsubmit="submitReport(event)">
+                        <div class="space-y-3 mb-6 text-gray-700">
+                            <label class="flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl cursor-pointer transition text-sm">
+                                <input type="radio" name="report_reason" value="Inappropriate Content" checked class="accent-red-600">
+                                <span>Inappropriate / Adult Content</span>
+                            </label>
+                            <label class="flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl cursor-pointer transition text-sm">
+                                <input type="radio" name="report_reason" value="Scam / Spam / Advertisement" class="accent-red-600">
+                                <span>Scam / Spam / Advertisement</span>
+                            </label>
+                            <label class="flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl cursor-pointer transition text-sm">
+                                <input type="radio" name="report_reason" value="Academic Dishonesty (Plagiarism)" class="accent-red-600">
+                                <span>Academic Dishonesty / Plagiarism</span>
+                            </label>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="flex justify-end gap-3 text-sm font-semibold">
+                <button type="button" onclick="closeReportModal()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl transition shadow-md">Submit Report</button>
+            </div>
+        </form>
+        </div>
+    </div>
+            
             <div class="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden">
                 <div class="bg-gradient-to-r from-gray-800 to-gray-900 px-5 py-4 flex items-center justify-between">
                     <h4 class="text-xs font-black text-white uppercase tracking-widest flex items-center gap-2">
@@ -674,6 +713,47 @@
             }
         }
     });
+
+    // ─── 举报功能控制脚本 ───
+    function openReportModal() {
+        document.getElementById('report-modal').classList.remove('hidden');
+    }
+
+    function closeReportModal() {
+        document.getElementById('report-modal').classList.add('hidden');
+    }
+
+    async function submitReport(event) {
+        event.preventDefault();
+        const reason = document.querySelector('input[name="report_reason"]:checked').value;
+        
+        // 从你顶部已经定义好的全局变量中直接获取 projectId
+        if (!projectId) {
+            alert('Error: Project ID not found.');
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/reports/submit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    project_id: parseInt(projectId),
+                    reason: reason
+                })
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                alert('Thank you! Your report has been submitted. Admin will review it shortly.');
+                closeReportModal();
+            } else {
+                alert(`Error: ${data.error}`);
+            }
+        } catch (error) {
+            alert('Failed to send report. Please check your network connection.');
+        }
+    }
 
     // ────────────────────────────────────────────────────────────────────
     // Navigation & General
