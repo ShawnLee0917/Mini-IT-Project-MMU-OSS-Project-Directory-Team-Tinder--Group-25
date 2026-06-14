@@ -128,6 +128,13 @@ class Project(db.Model):
     # ADDED: Relationship to easily count or access stars for this project
     stars = db.relationship('ProjectStar', backref='project', lazy=True, cascade='all, delete-orphan')
 
+class ProjectViewLog(db.Model):
+    __tablename__ = 'project_view_logs'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True) 
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
 class ProjectStar(db.Model):
     __tablename__ = 'project_stars'
     
@@ -369,6 +376,8 @@ class CommunityPostFavorite(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     post_id = db.Column(db.Integer, db.ForeignKey('community_posts.id', ondelete='CASCADE'), nullable=False)
+
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, server_default=db.func.now())
     
     __table_args__ = (db.UniqueConstraint('user_id', 'post_id', name='unique_user_cpost_fav'),)
 

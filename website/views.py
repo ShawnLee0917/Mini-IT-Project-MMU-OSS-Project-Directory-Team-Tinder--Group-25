@@ -10,8 +10,8 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 import uuid
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify, session
-from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, QuestionCommentImage, QuestionImage, JoinRequest, LeaveRequest, MemberHistory, ProjectCommentImage, UserSettings, ProjectMember, CommunityPostComment, CommunityPost, CommunityPostLike, CommunityPostImage, CommunityPostFavorite, CommunityPostCommentImage
-from datetime import datetime, timezone
+from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, QuestionCommentImage, QuestionImage, JoinRequest, LeaveRequest, MemberHistory, ProjectCommentImage, UserSettings, ProjectMember, CommunityPostComment, CommunityPost, CommunityPostLike, CommunityPostImage, CommunityPostFavorite, CommunityPostCommentImage, ProjectViewLog
+from datetime import datetime, timezone, timedelta
 
 views = Blueprint('views', __name__)
 
@@ -201,10 +201,46 @@ def project_page(project_id):
     project = Project.query.get_or_404(project_id)
     current_user = get_current_user()
     
-    if project.views is None:
-        project.views = 0
-    project.views += 1
-    db.session.commit()
+    viewed_projects = session.get('viewed_projects', {})
+    now = datetime.now(timezone.utc)
+    
+    COOLDOWN_HOURS = 24
+    should_increment = True
+    project_id_str = str(project_id)
+    
+    if project_id_str in viewed_projects:
+        try:
+            
+            last_viewed_str = viewed_projects[project_id_str]
+            last_viewed_time = datetime.fromisoformat(last_viewed_str)
+            
+            
+            if last_viewed_time.tzinfo is None:
+                last_viewed_time = last_viewed_time.replace(tzinfo=timezone.utc)
+                
+            
+            if now - last_viewed_time < timedelta(hours=COOLDOWN_HOURS):
+                should_increment = False
+        except (ValueError, TypeError):
+            
+            pass
+            
+    if should_increment:
+        if project.views is None:
+            project.views = 0
+        project.views += 1
+
+        view_log = ProjectViewLog(
+            project_id=project.id,
+            user_id=current_user.id if current_user else None 
+        )
+        db.session.add(view_log)
+        
+        viewed_projects[project_id_str] = now.isoformat()
+        session['viewed_projects'] = viewed_projects
+        session.modified = True 
+        
+        db.session.commit()
 
     current_user_role = None
     if current_user:
@@ -216,7 +252,6 @@ def project_page(project_id):
                 current_user_role = member_record.role
 
     return render_template("Project_Page.html", project=project, current_user=current_user, current_user_role=current_user_role)
-
 @views.route('/upload-success')
 def upload_success():
     return render_template("Upload_Success.html")
@@ -2725,29 +2760,301 @@ def save_interest():
         'message': 'Interests updated successfully',
         'interests': interests
     })
+
+# =====================================================================
+# API: Community Timeline Posts 
+# =====================================================================
+
+@views.route('/api/community_posts', methods=['GET'])
+def get_community_posts():
+    current_user = get_current_user()
+    current_user_id = current_user.id if current_user else None
+    filter_type = request.args.get('filter', 'all')
+    
+    query = CommunityPost.query
+    if filter_type == 'questions':
+        query = query.filter_by(category='Question')
+    elif filter_type == 'discussions':
+        query = query.filter_by(category='Discussion')
+    elif filter_type == 'posts':
+        query = query.filter_by(category='Posts')
+    elif filter_type == 'liked' and current_user_id:
+        query = query.join(CommunityPostLike).filter(CommunityPostLike.user_id == current_user_id)
+    elif filter_type == 'saved' and current_user_id:
+        query = query.join(CommunityPostFavorite).filter(CommunityPostFavorite.user_id == current_user_id)
+
+    posts = query.order_by(CommunityPost.created_at.desc()).limit(30).all()
+    
+    result = []
+    for p in posts:
+        proj_data = None
+        if p.attached_project:
+            proj_data = {'id': p.attached_project.id, 'name': p.attached_project.project_name}
+            
+        like_count = len(p.likes)
+        fav_count = len(p.favorites)
+        comment_count = len(p.comments)
+        
+        user_liked = False
+        user_faved = False
+        if current_user_id:
+            user_liked = any(like.user_id == current_user_id for like in p.likes)
+            user_faved = any(fav.user_id == current_user_id for fav in p.favorites)
+            
+        image_urls = [f"/static/uploads/{img.image_path}" for img in p.images]
+        if p.image_path and f"/static/uploads/{p.image_path}" not in image_urls:
+            image_urls.insert(0, f"/static/uploads/{p.image_path}")
+            
+        result.append({
+            'id': p.id,
+            'user_name': p.author.name if p.author else 'Unknown',
+            'is_owner': current_user_id == p.user_id,
+            'content': p.content,
+            'category': p.category,
+            'created_at': p.created_at.isoformat(),
+            'image_urls': image_urls,
+            'link_url': p.link_url,
+            'attached_project': proj_data,
+            'like_count': like_count,
+            'fav_count': fav_count,
+            'comment_count': comment_count,
+            'user_liked': user_liked,
+            'user_faved': user_faved
+        })
+    return jsonify(result)
+
+@views.route('/api/community_posts', methods=['POST'])
+def create_community_post():
+    err = require_login()
+    if err: return err
+    
+    current_user = get_current_user()
+    content = request.form.get('content', '').strip()
+    category = request.form.get('category', 'Posts')
+    link_url = request.form.get('link_url', '').strip()
+    attached_project_id = request.form.get('attached_project_id')
+    
+    if not content: return jsonify({'error': 'Post content cannot be empty'}), 400
+    
+    if not attached_project_id or not attached_project_id.isdigit():
+        return jsonify({'error': 'You must attach a project to make a post.'}), 400
+        
+    proj = Project.query.get(int(attached_project_id))
+    if not proj:
+        return jsonify({'error': 'The selected project does not exist.'}), 404
+        
+    post = CommunityPost(
+        user_id=current_user.id, 
+        content=content, 
+        category=category,
+        attached_project_id=proj.id
+    )
+    if link_url: post.link_url = link_url
+        
+    if 'images' in request.files:
+        import uuid
+        files = request.files.getlist('images')
+        for file in files:
+            if file and file.filename and allowed_file(file.filename):
+                ext = file.filename.rsplit('.', 1)[1].lower()
+                filename = f"post_{uuid.uuid4().hex}.{ext}"
+                file.save(os.path.join(current_app.config.get('UPLOAD_FOLDER', UPLOAD_FOLDER), filename))
+                img_record = CommunityPostImage(image_path=filename)
+                post.images.append(img_record)
+
+    db.session.add(post)
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'Posted successfully'})
+
+@views.route('/api/community_posts/<int:post_id>', methods=['DELETE'])
+def delete_community_post(post_id):
+    err = require_login()
+    if err: return err
+    current_user = get_current_user()
+    post = CommunityPost.query.get_or_404(post_id)
+    if post.user_id != current_user.id:
+        return jsonify({'error': 'Unauthorized'}), 403
+    db.session.delete(post)
+    db.session.commit()
+    return jsonify({'success': True})
+
+@views.route('/api/community_posts/<int:post_id>/like', methods=['POST'])
+def toggle_community_post_like(post_id):
+    err = require_login()
+    if err: return err
+    current_user = get_current_user()
+    existing_like = CommunityPostLike.query.filter_by(user_id=current_user.id, post_id=post_id).first()
+    if existing_like:
+        db.session.delete(existing_like)
+        liked = False
+    else:
+        db.session.add(CommunityPostLike(user_id=current_user.id, post_id=post_id))
+        liked = True
+    db.session.commit()
+    count = CommunityPostLike.query.filter_by(post_id=post_id).count()
+    return jsonify({'success': True, 'liked': liked, 'like_count': count})
+
+@views.route('/api/community_posts/<int:post_id>/favorite', methods=['POST'])
+def toggle_community_post_favorite(post_id):
+    err = require_login()
+    if err: return err
+    current_user = get_current_user()
+    existing_fav = CommunityPostFavorite.query.filter_by(user_id=current_user.id, post_id=post_id).first()
+    if existing_fav:
+        db.session.delete(existing_fav)
+        faved = False
+    else:
+        db.session.add(CommunityPostFavorite(user_id=current_user.id, post_id=post_id))
+        faved = True
+    db.session.commit()
+    count = CommunityPostFavorite.query.filter_by(post_id=post_id).count()
+    return jsonify({'success': True, 'faved': faved, 'fav_count': count})
+
+@views.route('/api/community_posts/<int:post_id>/comments', methods=['GET', 'POST'])
+def manage_community_post_comments(post_id):
+    err = require_login()
+    if err: return err
+    current_user = get_current_user()
+    
+    if request.method == 'GET':
+        comments = CommunityPostComment.query.filter_by(post_id=post_id).order_by(CommunityPostComment.created_at.asc()).all()
+        result = [{
+            'id': c.id,
+            'user_name': c.author.name,
+            'is_owner': c.user_id == current_user.id,
+            'content': c.content,
+            'parent_id': c.parent_id,
+            'created_at': c.created_at.isoformat(),
+            'image_urls': [f"/static/uploads/{img.image_path}" for img in c.images]
+        } for c in comments]
+        return jsonify(result)
+        
+    if request.method == 'POST':
+        if request.content_type and 'multipart' in request.content_type:
+            content = request.form.get('content', '').strip()
+            parent_id = request.form.get('parent_id')
+        else:
+            data = request.get_json(silent=True) or {}
+            content = data.get('content', '').strip()
+            parent_id = data.get('parent_id')
+        
+        if not content: return jsonify({'error': 'Comment cannot be empty'}), 400
+        if parent_id and str(parent_id).isdigit(): parent_id = int(parent_id)
+        else: parent_id = None
+            
+        comment = CommunityPostComment(post_id=post_id, user_id=current_user.id, content=content, parent_id=parent_id)
+        
+        if 'images' in request.files:
+            import uuid
+            files = request.files.getlist('images')
+            for file in files:
+                if file and file.filename and allowed_file(file.filename):
+                    ext = file.filename.rsplit('.', 1)[1].lower()
+                    filename = f"c_{uuid.uuid4().hex}.{ext}"
+                    file.save(os.path.join(current_app.config.get('UPLOAD_FOLDER', UPLOAD_FOLDER), filename))
+                    img = CommunityPostCommentImage(image_path=filename)
+                    comment.images.append(img)
+                    
+        db.session.add(comment)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Comment added'})
+
+@views.route('/api/community_posts/<int:post_id>/comments/<int:comment_id>', methods=['DELETE'])
+def delete_community_post_comment(post_id, comment_id):
+    err = require_login()
+    if err: return err
+    current_user = get_current_user()
+    c = CommunityPostComment.query.get_or_404(comment_id)
+    if c.post_id != post_id: return jsonify({'error': 'Mismatch'}), 400
+    if c.user_id != current_user.id: return jsonify({'error': 'Unauthorized'}), 403
+    db.session.delete(c)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
 @views.route('/hottest')
 def hottest_projects():
+    from datetime import datetime, timezone, timedelta
     
-    trending_projects = Project.query.filter(
-        Project.status != 'Archived'
-    ).order_by(
-        Project.views.desc().nulls_last(), 
-        Project.created_at.desc()
-    ).limit(10).all()
+    all_projects = Project.query.filter(Project.status != 'Archived').all()
     
-    projects_data = []
-    for p in trending_projects:
-        comment_count = ProjectComment.query.filter_by(project_id=p.id).count()
+    all_time_data = []
+    trending_data = []
+    
+    now = datetime.now(timezone.utc)
+    seven_days_ago = now - timedelta(days=7)
+    
+    for p in all_projects:
+        project_comment_count = ProjectComment.query.filter_by(project_id=p.id).count()
         
+        attached_posts = CommunityPost.query.filter_by(attached_project_id=p.id).all()
+        post_ids = [post.id for post in attached_posts]
+        
+        post_save_count = 0
+        post_like_count = 0
+        if post_ids:
+            post_save_count = CommunityPostFavorite.query.filter(CommunityPostFavorite.post_id.in_(post_ids)).count()
+            post_like_count = CommunityPostLike.query.filter(CommunityPostLike.post_id.in_(post_ids)).count()
+            
+        views = p.views or 0
         primary_lang = p.languages.split(',')[0].strip() if p.languages else 'N/A'
         
-        projects_data.append({
+        total_score = (views * 1) + (post_like_count * 5) + (project_comment_count * 10) + (post_save_count * 20)
+        
+        project_dict_all_time = {
             'id': p.id,
             'title': p.project_name,          
             'description': p.description,
             'language': primary_lang,
-            'views': p.views or 0,            
-            'comments': comment_count 
-        })
+            'views': views,            
+            'comments': project_comment_count,
+            'likes': post_like_count,  
+            'saves': post_save_count,  
+            'total_score': total_score
+        }
+        all_time_data.append(project_dict_all_time)
+
+        recent_comments = ProjectComment.query.filter(
+            ProjectComment.project_id == p.id,
+            ProjectComment.created_at >= seven_days_ago
+        ).count()
         
-    return render_template("trending.html", projects=projects_data)
+        recent_views = ProjectViewLog.query.filter(
+            ProjectViewLog.project_id == p.id,
+            ProjectViewLog.created_at >= seven_days_ago
+        ).count()
+        
+        recent_saves = 0
+        recent_likes = 0
+        if post_ids:
+            recent_saves = CommunityPostFavorite.query.filter(
+                CommunityPostFavorite.post_id.in_(post_ids),
+                CommunityPostFavorite.created_at >= seven_days_ago
+            ).count()
+            
+            recent_likes = CommunityPostLike.query.filter(
+                CommunityPostLike.post_id.in_(post_ids),
+                CommunityPostLike.created_at >= seven_days_ago
+            ).count()
+            
+        trending_score = (recent_views * 1) + (recent_likes * 5) + (recent_comments * 10) + (recent_saves * 20)
+        
+        if trending_score > 0:
+            project_dict_trending = {
+                'id': p.id,
+                'title': p.project_name,          
+                'description': p.description,
+                'language': primary_lang,
+                'views': views, 
+                'comments': project_comment_count,
+                'likes': post_like_count,  
+                'saves': post_save_count,  
+                'total_score': total_score,
+                'trending_score': trending_score 
+            }
+            trending_data.append(project_dict_trending)
+            
+    top_all_time = sorted(all_time_data, key=lambda x: x['total_score'], reverse=True)[:10]
+    top_trending = sorted(trending_data, key=lambda x: x['trending_score'], reverse=True)[:10]
+        
+    return render_template("Trending.html", all_time_projects=top_all_time, trending_projects=top_trending)
