@@ -79,8 +79,9 @@ def api_admin_delete_content():
         return error_resp
 
     data = request.get_json(silent=True) or {}
-    content_type = data.get('type')  # 'project', 'comment', 'post'
+    content_type = data.get('type')  # 'project', 'comment', 'post', 'post_comment'
     content_id = data.get('id')
+    report_id = data.get('report_id')
 
     if not content_type or not content_id:
         return jsonify({'error': 'Missing type or ID.'}), 400
@@ -96,7 +97,6 @@ def api_admin_delete_content():
                 db.session.delete(target)
 
         elif content_type == 'comment':
-            # Comments could be on projects or other content; handle both
             target = ProjectComment.query.get(content_id)
             if not target:
                 target = Comment.query.get(content_id)
@@ -107,14 +107,25 @@ def api_admin_delete_content():
         elif content_type == 'post':
             target = CommunityPost.query.get(content_id)
             if target:
-                details_msg = f"Deleted Post: {target.title or content_id}"
+                details_msg = f"Deleted Post ID {content_id}"
+                db.session.delete(target)
+
+        elif content_type == 'post_comment':
+            target = CommunityPostComment.query.get(content_id)
+            if target:
+                details_msg = f"Deleted Post Comment ID {content_id}"
                 db.session.delete(target)
 
         else:
             return jsonify({'error': 'Invalid content type.'}), 400
 
         if target:
-            # Log the admin action
+            if report_id:
+                report = ContentReport.query.get(report_id)
+                if report:
+                    report.status = 'deleted'
+                    report.admin_id = get_current_user().id
+
             log = AdminLog()
             log.admin_id = get_current_user().id
             log.action = 'delete_content'
@@ -184,29 +195,73 @@ def auto_report_content(content_type, content_id, reason='auto_flagged'):
     return False
 
 
-@views.route('/admin/dashboard')
-def admin_dashboard():
-    """Admin moderation dashboard"""
-    is_admin, admin_user = check_admin_permission()
-    if not is_admin:
-        return jsonify({'error': 'Admin permission required'}), 403
-    
-    # Get pending reports
-    pending_reports = ContentReport.query.filter_by(status='pending').order_by(
-        ContentReport.created_at.desc()
-    ).all()
-    
-    # Get recent admin logs
-    recent_logs = AdminLog.query.order_by(AdminLog.created_at.desc()).limit(50).all()
-    
-    # Get suspended users
-    suspended = SuspendedUser.query.filter_by(is_active=True).all()
-    
-    return render_template('admin_dashboard.html', 
-                         pending_reports=pending_reports,
-                         recent_logs=recent_logs,
-                         suspended_users=suspended,
-                         admin_user=admin_user)
+def _enrich_pending_reports(reports):
+    """Build display metadata for pending content reports."""
+    items = []
+    type_labels = {
+        'project': 'Project',
+        'comment': 'Comment',
+        'question': 'Question',
+        'post': 'Community Post',
+        'post_comment': 'Post Comment',
+    }
+
+    for report in reports:
+        item = {
+            'id': report.id,
+            'content_type': report.content_type,
+            'content_id': report.content_id,
+            'reason': report.reason,
+            'description': report.description or '',
+            'reporter_name': report.reporter.name if report.reporter else 'System',
+            'created_at': report.created_at,
+            'type_label': type_labels.get(report.content_type, report.content_type.title()),
+            'target_label': f'{type_labels.get(report.content_type, report.content_type)} #{report.content_id}',
+            'target_link': '#',
+            'target_preview': '',
+        }
+
+        if report.content_type == 'project':
+            project = Project.query.get(report.content_id)
+            if project:
+                item['target_label'] = project.project_name
+                item['target_link'] = f'/project/{report.content_id}'
+                item['target_preview'] = (project.description or '')[:120]
+            else:
+                item['target_preview'] = 'Content may have been removed already.'
+
+        elif report.content_type == 'comment':
+            comment = ProjectComment.query.get(report.content_id)
+            if comment:
+                item['target_label'] = f'Comment on {comment.project.project_name if comment.project else "Project"}'
+                item['target_link'] = f'/project/{comment.project_id}'
+                item['target_preview'] = (comment.content or '')[:120]
+            else:
+                item['target_preview'] = 'Comment may have been removed already.'
+
+        elif report.content_type == 'question':
+            question = Question.query.get(report.content_id)
+            if question:
+                item['target_label'] = question.title
+                item['target_link'] = f'/qna/{report.content_id}'
+                item['target_preview'] = (question.body or '')[:120]
+
+        elif report.content_type == 'post':
+            post = CommunityPost.query.get(report.content_id)
+            if post:
+                item['target_label'] = f'Community Post #{post.id}'
+                item['target_link'] = '/trending'
+                item['target_preview'] = (post.content or '')[:120]
+
+        elif report.content_type == 'post_comment':
+            post_comment = CommunityPostComment.query.get(report.content_id)
+            if post_comment:
+                item['target_label'] = f'Comment on Post #{post_comment.post_id}'
+                item['target_link'] = '/trending'
+                item['target_preview'] = (post_comment.content or '')[:120]
+
+        items.append(item)
+    return items
 
 
 @views.route('/api/admin/reports', methods=['GET'])
@@ -260,7 +315,8 @@ def api_report_content():
     data = request.get_json(silent=True) or {}
     
     content_type = data.get('content_type')  # 'project', 'question', 'comment', 'post', 'post_comment'
-    content_id = data.get('content_id', type=int)
+    raw_id = data.get('content_id')
+    content_id = int(raw_id) if raw_id is not None else None
     reason = data.get('reason')  # 'spam', 'inappropriate', 'harmful', 'plagiarism', 'other'
     description = data.get('description', '')
     
@@ -284,6 +340,7 @@ def api_report_content():
     report.content_id = content_id
     report.reason = reason
     report.description = description
+    report.status = 'pending'  # 👈 【核心修复】：显式指定状态为 pending，确保后台能查到
     
     db.session.add(report)
     db.session.commit()
@@ -303,7 +360,7 @@ def api_approve_report(report_id):
         return jsonify({'error': 'Admin permission required'}), 403
     
     report = ContentReport.query.get_or_404(report_id)
-    admin_comment = request.get_json(silent=True).get('comment', '')
+    admin_comment = (request.get_json(silent=True) or {}).get('comment', '')
     
     try:
         # Delete the reported content based on type
@@ -362,7 +419,7 @@ def api_reject_report(report_id):
         return jsonify({'error': 'Admin permission required'}), 403
     
     report = ContentReport.query.get_or_404(report_id)
-    admin_comment = request.get_json(silent=True).get('comment', '')
+    admin_comment = (request.get_json(silent=True) or {}).get('comment', '')
     
     report.status = 'rejected'
     report.admin_id = admin_user.id
@@ -542,6 +599,58 @@ def api_get_admin_logs():
         'current_page': page
     })
 
+
+@views.route('/api/admin/dismiss-report', methods=['POST'])
+def api_admin_dismiss_report():
+    """管理面板：忽略/驳回举报记录"""
+    
+    # 1. 权限检查：确保函数名和你的验证逻辑一致
+    is_admin, user = check_admin_permission()
+    if not is_admin:
+        return jsonify({'error': 'Unauthorized access.'}), 403
+
+    # 2. 解析前端传来的 JSON
+    data = request.get_json(silent=True) or {}
+    report_id = data.get('report_id')
+
+    if not report_id:
+        return jsonify({'error': 'Missing report ID.'}), 400
+
+    try:
+        # 3. 查找举报记录（改用兼容性最强的 filter_by 方式）
+        # 请确保 ContentReport 名字与你的 models.py 中完全一致
+        report = ContentReport.query.filter_by(id=int(report_id)).first()
+        
+        if not report:
+            return jsonify({'error': f'Report #{report_id} not found in database.'}), 404
+
+        # 4. 更新状态
+        report.status = 'resolved' 
+        
+        # 5. 安全地记录审计日志（将其完全隔离，防止因没有表或少字段导致整个接口崩溃）
+        try:
+            log = AdminLog()
+            # 动态获取当前管理员 ID，如果没有就安全赋一个默认值 1
+            log.admin_id = user.id if (user and hasattr(user, 'id')) else 1
+            log.action = 'dismiss_report'
+            log.target_type = 'report'
+            log.target_id = int(report_id)
+            log.details = f"[Admin Action] Dismissed report #{report_id}"
+            db.session.add(log)
+        except Exception as log_err:
+            # 如果是 AdminLog 报错，打印出来但不要 raise，让主逻辑继续走
+            print(f"安全跳过日志错误 (AdminLog Save Failed): {str(log_err)}")
+
+        # 6. 提交到数据库
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Report dismissed successfully.'}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        # 核心调试：如果还报错，这行会在你运行 Flask 的 VS Code 终端里打印出真正的 Python 报错死因
+        print(f"\n💥 [CRITICAL ERROR] Dismiss API crashed due to: {str(e)}\n")
+        return jsonify({'error': f'Database failure: {str(e)}'}), 500
+    
 # --- ADDED: Auto-Email Sending Function ---
 def send_otp_email(receiver_email, otp_code):
     # =====================================================================
@@ -3408,25 +3517,36 @@ def require_admin():
 
 @views.route('/admin/dashboard')
 def admin_dashboard_page():
-    """1. 渲染管理员面板，列出项目、留言和社区帖子"""
+    """Render admin moderation panel with projects, comments, posts, and pending reports."""
     email = session.get('user_email')
     if not email:
         return redirect(url_for('views.api_login'))
-        
+
     user = User.query.filter_by(email=email).first()
     if not user or not getattr(user, 'is_admin', False):
         return "Access Denied. Admins Only.", 403
 
-    # 读取所有项目、最新留言以及社区帖子
     all_projects = Project.query.filter(Project.status != 'Archived').order_by(Project.created_at.desc()).all()
     all_comments = ProjectComment.query.order_by(ProjectComment.created_at.desc()).limit(50).all()
     all_posts = CommunityPost.query.order_by(CommunityPost.created_at.desc()).limit(50).all()
 
-    return render_template(
-        "admin_dashboard.html", 
-        projects=all_projects, 
-        comments=all_comments,
-        posts=all_posts  # ✨ 修复：补上了漏掉的 posts 变量传递
-    )
+    pending_reports_raw = ContentReport.query.filter_by(status='pending').order_by(
+        ContentReport.created_at.desc()
+    ).all()
+    pending_reports = _enrich_pending_reports(pending_reports_raw)
 
+    recent_logs = AdminLog.query.order_by(AdminLog.created_at.desc()).limit(20).all()
+    suspended_users = SuspendedUser.query.filter_by(is_active=True).all()
+
+    return render_template(
+        "admin_dashboard.html",
+        projects=all_projects,
+        comments=all_comments,
+        posts=all_posts,
+        pending_reports=pending_reports,
+        pending_count=len(pending_reports),
+        recent_logs=recent_logs,
+        suspended_users=suspended_users,
+        admin_user=user,
+    )
 
