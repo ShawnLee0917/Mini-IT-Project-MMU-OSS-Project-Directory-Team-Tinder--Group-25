@@ -253,7 +253,20 @@ def profile():
 def view_user_profile(user_id):
     """View another user's profile"""
     user = User.query.get_or_404(user_id)
-    return render_template("User_Profile.html", profile_user=user, current_user=get_current_user())
+    current_user = get_current_user()
+    
+    # Check privacy settings
+    settings = user.settings
+    is_private = settings and settings.profile_visibility == 'private'
+    
+    # Check if current user is authorized to view this profile
+    show_private_message = False
+    if is_private:
+        # Only allow viewing if it's the user's own profile
+        if not current_user or current_user.id != user.id:
+            show_private_message = True
+    
+    return render_template("User_Profile.html", profile_user=user, current_user=current_user, show_private_message=show_private_message)
 
 @views.route('/qna/delete/<int:question_id>')
 def qna_delete_page(question_id):
@@ -552,6 +565,16 @@ def get_profile():
 def get_user_profile(user_id):
     """Get any user's profile data"""
     user = User.query.get_or_404(user_id)
+    
+    settings = user.settings
+    is_private = settings and settings.profile_visibility == 'private'
+    
+    current_user = get_current_user()
+    current_user_id = current_user.id if current_user else None
+    
+    if is_private and current_user_id != user.id:
+        return jsonify({'error': 'This profile is private', 'is_private': True}), 403
+
     
     skills = Skill.query.filter_by(user_id=user.id).all()
     badges = Badge.query.filter_by(user_id=user.id).all()
@@ -2593,6 +2616,15 @@ def get_public_user_profile(user_id):
     user = User.query.get(user_id)
     if not user:
         return jsonify({'error': 'User not found'}), 404
+        
+    settings = user.settings
+    is_private = settings and settings.profile_visibility == 'private'
+    
+    current_user = get_current_user()
+    current_user_id = current_user.id if current_user else None
+    
+    if is_private and current_user_id != user.id:
+        return jsonify({'error': 'This profile is private', 'is_private': True}), 403
     
     skills = Skill.query.filter_by(user_id=user.id).all()
     badges = Badge.query.filter_by(user_id=user.id).all()
@@ -2622,6 +2654,15 @@ def get_user_projects(user_id):
     user = User.query.get(user_id)
     if not user:
         return jsonify({'error': 'User not found'}), 404
+        
+    settings = user.settings
+    is_private = settings and settings.profile_visibility == 'private'
+    
+    current_user = get_current_user()
+    current_user_id = current_user.id if current_user else None
+    
+    if is_private and current_user_id != user.id:
+        return jsonify({'error': 'This profile is private'}), 403
     
     # Get projects created by user
     owned_projects = Project.query.filter_by(user_id=user.id).order_by(
