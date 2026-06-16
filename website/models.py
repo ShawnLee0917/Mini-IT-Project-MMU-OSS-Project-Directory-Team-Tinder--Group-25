@@ -1,5 +1,5 @@
 from . import db
-from datetime import datetime
+from datetime import datetime, timezone
 
 class ProjectMember(db.Model):
     __tablename__ = 'project_members'
@@ -414,3 +414,16 @@ class CommunityPostCommentImage(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     comment_id = db.Column(db.Integer, db.ForeignKey('community_post_comments.id', ondelete='CASCADE'), nullable=False)
     image_path = db.Column(db.String(255), nullable=False)
+
+class ProjectUpdate(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    title = db.Column(db.String(150), nullable=False)  
+    status = db.Column(db.String(50), nullable=False)  
+    content = db.Column(db.Text, nullable=False)       
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), )
+    is_approved = db.Column(db.Boolean, default=False)  
+
+    author = db.relationship('User', backref='project_updates')
+    project = db.relationship('Project', backref=db.backref('updates', lazy='dynamic'))

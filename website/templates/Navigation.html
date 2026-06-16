@@ -404,12 +404,11 @@
                             <span class="font-bold text-gray-900">${escapeHtml(inv.owner_name)}</span> invited you to join the team for <span class="font-bold text-red-600">${escapeHtml(inv.project_name)}</span>
                         </p>
                         <div class="flex gap-2">
-                            <button onclick="respondToInvitation(${inv.id}, 'accept')" class="flex-1 bg-green-500 hover:bg-green-600 text-white text-xs font-bold py-1.5 rounded-lg transition shadow-sm">Accept</button>
+                            <a href="/project/${inv.project_id}" class="flex-1 flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-1.5 rounded-lg transition shadow-sm">View Details</a>
                             <button onclick="respondToInvitation(${inv.id}, 'reject')" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold py-1.5 rounded-lg transition">Decline</button>
                         </div>
                     </div>
-                `).join('');
-            } else {
+                `).join('');            } else {
                 // Hide badges if empty
                 badge.classList.add('hidden');
                 mobileBadge.classList.add('hidden');

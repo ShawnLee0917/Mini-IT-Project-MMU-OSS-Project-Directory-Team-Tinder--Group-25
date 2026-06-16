@@ -178,9 +178,20 @@
                         <i class="fas fa-edit text-xl"></i> Edit
                     </a>
                 {% elif current_user and not current_user_role %}
-                <button onclick="requestJoinProject('{{ project.id }}')" class="bg-blue-100 text-blue-700 px-6 py-3 rounded-xl font-bold hover:bg-blue-200 transition flex items-center gap-2 border border-blue-300">
-                    <i class="fas fa-user-plus text-xl"></i> Request to Join
-                </button>
+                    
+                    {% if is_invited %}
+                        <button onclick="respondToProjectInvitation('{{ invitation_id }}', 'accept')" class="bg-green-100 text-green-700 px-6 py-3 rounded-xl font-bold hover:bg-green-200 transition flex items-center gap-2 border border-green-300">
+                            <i class="fas fa-check text-xl"></i> Accept Invite
+                        </button>
+                        <button onclick="respondToProjectInvitation('{{ invitation_id }}', 'reject')" class="bg-red-100 text-red-700 px-6 py-3 rounded-xl font-bold hover:bg-red-200 transition flex items-center gap-2 border border-red-300">
+                            <i class="fas fa-times text-xl"></i> Decline
+                        </button>
+                    {% else %}
+                        <button onclick="requestJoinProject('{{ project.id }}')" class="bg-blue-100 text-blue-700 px-6 py-3 rounded-xl font-bold hover:bg-blue-200 transition flex items-center gap-2 border border-blue-300">
+                            <i class="fas fa-user-plus text-xl"></i> Request to Join
+                        </button>
+                    {% endif %}
+                    
                 {% endif %}                
                 <a href="{{ project.repo_url }}" target="_blank" class="bg-gray-100 text-gray-700 px-6 py-3 rounded-xl font-bold hover:bg-gray-200 transition flex items-center gap-2">
                     <i class="fab fa-github text-xl"></i> Repository
@@ -202,8 +213,72 @@
                     </h3>
                     <div class="h-px bg-gray-200 flex-grow ml-4"></div>
                 </div>
-                <div class="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm text-gray-600 leading-relaxed space-y-4">
-                    <p class="whitespace-pre-line">{{ project.description }}</p>
+
+                <div class="flex gap-8 mb-4 border-b border-gray-100 px-2">
+                    <button id="btn-project-details" onclick="switchAboutTab('details')" 
+                            class="pb-2 text-sm font-bold border-b-2 border-blue-600 text-blue-600 transition-all">
+                        Project Details
+                    </button>
+                    <button id="btn-progress-updates" onclick="switchAboutTab('updates')" 
+                            class="pb-2 text-sm font-bold border-b-2 border-transparent text-gray-400 hover:text-gray-600 transition-all">
+                        Updates
+                    </button>
+                </div>
+
+                <div class="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm text-gray-600 leading-relaxed">
+                    
+                    <div id="content-project-details" class="block">
+                        <p class="whitespace-pre-line">{{ project.description }}</p>
+                    </div>
+
+                    <div id="content-progress-updates" class="hidden">
+                                {% if current_user_role in ['owner', 'admin', 'member'] %}
+                                <div class="flex justify-end mb-6 pb-4 border-b border-gray-100">
+                                    <button onclick="openUpdateModal()" class="bg-blue-50 text-blue-600 border border-blue-200 px-4 py-2 rounded-xl text-sm font-bold hover:bg-blue-100 transition flex items-center gap-2">
+                                        <i class="fas fa-plus"></i> Add Update
+                                    </button>
+                                </div>
+                                {% endif %}
+                                
+                                <div id="updates-list" class="space-y-6">
+                                    <div class="text-center text-gray-400 py-4"><i class="fas fa-spinner fa-spin mr-2"></i>Loading updates...</div>
+                                </div>
+                            </div>
+
+                    <div id="add-update-modal" class="hidden fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6">
+                            <h3 class="text-lg font-bold text-gray-900 mb-4"><i class="fas fa-bullhorn mr-2 text-blue-500"></i>Post Progress Update</h3>
+                            
+                            <div class="mb-4">
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Progress Title</label>
+                                <input type="text" id="update-title" placeholder="e.g. Version 1.2" class="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-400 text-sm">
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Status</label>
+                                <select id="update-status" class="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-400 text-sm">
+                                    <option value="On Track">On Track</option>
+                                    <option value="Needs Work">Needs Work</option>
+                                    <option value="Delayed">Delayed</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Feedback & Details</label>
+                                <textarea id="update-content" rows="4" placeholder="List what was done..." class="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-400 resize-none text-sm"></textarea>
+                                <p class="text-xs text-gray-400 mt-1">Use new lines to create bullet points.</p>
+                            </div>
+
+                            <div class="flex gap-3">
+                                <button onclick="submitUpdate()" class="flex-1 bg-blue-600 text-white font-bold py-2 rounded-xl hover:bg-blue-700 transition">
+                                    <i class="fas fa-paper-plane mr-2"></i>Post
+                                </button>
+                                <button onclick="closeUpdateModal()" class="flex-1 bg-gray-100 text-gray-700 font-bold py-2 rounded-xl hover:bg-gray-200 transition">
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -687,6 +762,33 @@
         window.location.href = '/login';
     }
 
+    function switchAboutTab(tabName) {
+    const btnDetails = document.getElementById('btn-project-details');
+    const btnUpdates = document.getElementById('btn-progress-updates');
+    const contentDetails = document.getElementById('content-project-details');
+    const contentUpdates = document.getElementById('content-progress-updates');
+
+    if (tabName === 'details') {
+        btnDetails.classList.add('border-blue-600', 'text-blue-600');
+        btnDetails.classList.remove('border-transparent', 'text-gray-400');
+        
+        btnUpdates.classList.remove('border-blue-600', 'text-blue-600');
+        btnUpdates.classList.add('border-transparent', 'text-gray-400');
+
+        contentDetails.classList.remove('hidden');
+        contentUpdates.classList.add('hidden');
+    } else {
+        btnUpdates.classList.add('border-blue-600', 'text-blue-600');
+        btnUpdates.classList.remove('border-transparent', 'text-gray-400');
+        
+        btnDetails.classList.remove('border-blue-600', 'text-blue-600');
+        btnDetails.classList.add('border-transparent', 'text-gray-400');
+
+        contentDetails.classList.add('hidden');
+        contentUpdates.classList.remove('hidden');
+    }
+}
+
     document.addEventListener('DOMContentLoaded', () => {
         const menuBtn    = document.getElementById('menu-btn');
         const mobileMenu = document.getElementById('mobile-menu');
@@ -839,6 +941,47 @@
             submitBtn.onclick = () => cleanup(true);
         });
     }
+
+    function showAlertModal(title, message) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('customConfirmModal');
+        const content = document.getElementById('customConfirmContent');
+        const iconBox = document.getElementById('confirmModalIcon');
+        const titleEl = document.getElementById('confirmModalTitle');
+        const msgEl = document.getElementById('confirmModalMessage');
+        const cancelBtn = document.getElementById('confirmModalCancelBtn');
+        const submitBtn = document.getElementById('confirmModalSubmitBtn');
+
+        titleEl.textContent = title;
+        msgEl.textContent = message;
+        submitBtn.textContent = 'OK';
+        
+        cancelBtn.style.display = 'none';
+
+        iconBox.className = "w-16 h-16 bg-green-50 border-4 border-green-100 text-green-500 rounded-full flex items-center justify-center mb-5 text-2xl";
+        iconBox.innerHTML = '<i class="fas fa-check"></i>';
+        submitBtn.className = "flex-1 bg-green-600 text-white px-4 py-3 rounded-xl font-bold hover:bg-green-700 shadow-lg shadow-green-200 transition transform hover:-translate-y-0.5 text-sm";
+
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            modal.classList.remove('opacity-0');
+            content.classList.remove('scale-95');
+        }, 10);
+
+        const cleanup = () => {
+            modal.classList.add('opacity-0');
+            content.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                cancelBtn.style.display = 'block'; 
+                resolve();
+            }, 300);
+            submitBtn.onclick = null;
+        };
+
+        submitBtn.onclick = cleanup;
+    });
+}
 
     async function changeMemberRole(userId, newRole) {
         const isPromoting = (newRole === 'admin');
@@ -1918,10 +2061,177 @@ async function rejectLeaveRequest(projectId, requestId) {
         loadComments();
         loadJoinRequests();
         loadSimilarProjects();
+        loadUpdates(); 
         
         const allTab = document.querySelector('.comment-tab[data-type="all"]');
         if(allTab) allTab.classList.add('border-red-600', 'text-red-600');
     });
+
+    async function respondToProjectInvitation(requestId, action) {
+    try {
+        const res = await fetch(`${API}/invitations/${requestId}/${action}`, { method: 'POST' });
+        const data = await res.json();
+        
+        if (res.ok) {
+            alert(data.success);
+            window.location.reload(); 
+        } else {
+            alert(data.error || 'Action failed');
+        }
+    } catch (err) {
+        console.error('Error responding to invitation:', err);
+        alert('Network error');
+    }}
+
+    // ────────────────────────────────────────────────────────────────────
+    // Project Updates System
+    // ────────────────────────────────────────────────────────────────────
+    
+    function openUpdateModal() {
+        document.getElementById('add-update-modal').classList.remove('hidden');
+    }
+    function closeUpdateModal() {
+        document.getElementById('add-update-modal').classList.add('hidden');
+        document.getElementById('update-title').value = '';
+        document.getElementById('update-content').value = '';
+    }
+
+async function submitUpdate() {
+        const title = document.getElementById('update-title').value.trim();
+        const status = document.getElementById('update-status').value;
+        const content = document.getElementById('update-content').value.trim();
+
+        if (!title || !content) { 
+            await showAlertModal('Error', 'Please fill in both title and details.');
+            return; 
+        }
+
+        try {
+            const res = await fetch(`${API}/project/${projectId}/updates`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, status, content })
+            });
+            const data = await res.json();
+            
+            if (res.ok) {
+                closeUpdateModal();
+                loadUpdates(); 
+                
+                if (data.message === 'Update submitted for approval') {
+                    await showAlertModal(
+                        'Update Submitted', 
+                        'Your update has been submitted and is pending approval from an Admin.'
+                    );
+                }
+            } else {
+                await showAlertModal('Error', data.error || 'Failed to post update');
+            }
+        } catch (err) {
+            console.error(err);
+            await showAlertModal('Error', 'An error occurred.');
+        }
+    }
+    async function loadUpdates() {
+        const list = document.getElementById('updates-list');
+        if (!list) return;
+
+        try {
+            const res = await fetch(`${API}/project/${projectId}/updates`);
+            if (res.ok) {
+                const data = await res.json();
+                
+                if (data.length === 0) {
+                    list.innerHTML = '<div class="text-center text-gray-400 py-8"><i class="fas fa-clipboard-list text-3xl mb-2 block"></i>No updates posted yet.</div>';
+                    return;
+                }
+
+                list.innerHTML = data.map(u => {
+                    let statusColor = 'bg-gray-100 text-gray-700 border-gray-400';
+                    if (u.status === 'On Track') statusColor = 'bg-blue-100 text-blue-700 border-blue-500';
+                    else if (u.status === 'Needs Work' || u.status === 'Delayed') statusColor = 'bg-red-100 text-red-700 border-red-500';
+
+                    const isPending = (u.is_approved === false);
+                    const borderColor = isPending ? 'border-yellow-400' : statusColor.split(' ')[2]; 
+                    const badgeClass = statusColor.split(' ').slice(0, 2).join(' ');
+
+                    const bulletPoints = u.content.split('\n')
+                        .filter(line => line.trim() !== '')
+                        .map(line => `<li>${escapeHtml(line)}</li>`)
+                        .join('');
+
+                    let pendingUI = '';
+                    let actionUI = '';
+
+                    if (isPending) {
+                        pendingUI = '<span class="text-[10px] bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ml-2"><i class="fas fa-hourglass-half mr-1"></i>Pending Approval</span>';
+                        
+                        if (currentUserRole === 'owner' || currentUserRole === 'admin') {
+                            actionUI = `
+                            <div class="mt-4 pt-3 border-t border-yellow-200/50 flex gap-2">
+                                <button onclick="reviewUpdate(${u.id}, 'approve')" class="text-xs bg-green-100 hover:bg-green-200 text-green-700 font-bold py-1.5 px-3 rounded-lg transition"><i class="fas fa-check mr-1"></i> Approve & Publish</button>
+                                <button onclick="reviewUpdate(${u.id}, 'reject')" class="text-xs bg-red-100 hover:bg-red-200 text-red-700 font-bold py-1.5 px-3 rounded-lg transition"><i class="fas fa-times mr-1"></i> Reject</button>
+                            </div>`;
+                        }
+                    }
+
+                    return `
+                    <div class="border-l-4 ${borderColor} pl-4 py-1 mb-6 relative ${isPending ? 'opacity-90' : ''}">
+                        <div class="flex justify-between items-center mb-2">
+                            <div class="flex items-center">
+                                <h4 class="font-bold text-gray-900">${escapeHtml(u.title)}</h4>
+                                ${pendingUI}
+                            </div>
+                            <span class="text-xs ${badgeClass} px-2 py-1 rounded font-bold">${escapeHtml(u.status)}</span>
+                        </div>
+                        <p class="text-xs text-gray-400 mb-2 flex items-center gap-3">
+                            <span><i class="far fa-calendar-alt mr-1"></i> ${new Date(u.created_at).toLocaleDateString()}</span>
+                            <span><i class="far fa-user mr-1"></i> ${escapeHtml(u.author_name)}</span>
+                        </p>
+                        <div class="${isPending ? 'bg-yellow-50' : 'bg-gray-50'} p-4 rounded-xl text-sm transition">
+                            <p class="font-bold mb-2 text-gray-700 uppercase text-xs tracking-wider">Feedback & Details</p>
+                            <ul class="list-disc ml-4 space-y-1 text-gray-500">
+                                ${bulletPoints}
+                            </ul>
+                            ${actionUI}
+                        </div>
+                    </div>
+                    `;
+                }).join('');
+            }
+        } catch (err) {
+            console.error(err);
+            list.innerHTML = '<p class="text-red-500 text-center">Failed to load updates.</p>';
+        }
+    }
+
+async function reviewUpdate(updateId, action) {
+        if (action === 'reject') {
+            const confirmed = await showConfirmModal(
+                'Reject Update', 
+                'Are you sure you want to reject and delete this update request?', 
+                'Yes, reject', 
+                'danger'
+            );
+            if (!confirmed) return;
+        }
+        
+        try {
+            const res = await fetch(`${API}/project/${projectId}/updates/${updateId}/${action}`, {
+                method: 'POST'
+            });
+            const data = await res.json();
+            
+            if (res.ok) {
+                loadUpdates();
+            } else {
+                await showAlertModal('Error', data.error || 'Action failed');
+            }
+        } catch (err) {
+            console.error(err);
+            await showAlertModal('Error', 'An error occurred during review.');
+        }   
+    }
 </script>
 </body>
 </html>

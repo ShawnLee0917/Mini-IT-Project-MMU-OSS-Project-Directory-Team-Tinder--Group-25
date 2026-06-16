@@ -10,7 +10,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 import uuid
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify, session
-from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, QuestionCommentImage, QuestionImage, JoinRequest, LeaveRequest, MemberHistory, ProjectCommentImage, UserSettings, ProjectMember, CommunityPostComment, CommunityPost, CommunityPostLike, CommunityPostImage, CommunityPostFavorite, CommunityPostCommentImage, ProjectViewLog
+from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, QuestionCommentImage, QuestionImage, JoinRequest, LeaveRequest, MemberHistory, ProjectCommentImage, UserSettings, ProjectMember, CommunityPostComment, CommunityPost, CommunityPostLike, CommunityPostImage, CommunityPostFavorite, CommunityPostCommentImage, ProjectViewLog, ProjectUpdate
 from datetime import datetime, timezone, timedelta
 
 views = Blueprint('views', __name__)
@@ -243,6 +243,9 @@ def project_page(project_id):
         db.session.commit()
 
     current_user_role = None
+    is_invited = False
+    invitation_id = None
+    
     if current_user:
         if project.user_id == current_user.id:
             current_user_role = 'owner'
@@ -250,8 +253,21 @@ def project_page(project_id):
             member_record = ProjectMember.query.filter_by(project_id=project.id, user_id=current_user.id).first()
             if member_record:
                 current_user_role = member_record.role
+            else:
+                invite = JoinRequest.query.filter_by(project_id=project.id, user_id=current_user.id, status='invited').first()
+                if invite:
+                    is_invited = True
+                    invitation_id = invite.id
 
-    return render_template("Project_Page.html", project=project, current_user=current_user, current_user_role=current_user_role)
+    return render_template(
+        "Project_Page.html", 
+        project=project, 
+        current_user=current_user, 
+        current_user_role=current_user_role,
+        is_invited=is_invited,
+        invitation_id=invitation_id
+    )
+
 @views.route('/upload-success')
 def upload_success():
     return render_template("Upload_Success.html")
@@ -3058,3 +3074,102 @@ def hottest_projects():
     top_trending = sorted(trending_data, key=lambda x: x['trending_score'], reverse=True)[:10]
         
     return render_template("Trending.html", all_time_projects=top_all_time, trending_projects=top_trending)
+
+@views.route('/api/project/<int:project_id>/updates', methods=['GET', 'POST'])
+def manage_project_updates(project_id):
+    err = require_login()
+    if err and request.method == 'POST': 
+        return err
+
+    project = Project.query.get_or_404(project_id)
+    current_user = get_current_user()
+    
+    current_user_role = 'user'
+    if current_user:
+        if project.user_id == current_user.id:
+            current_user_role = 'owner'
+        else:
+            member_record = ProjectMember.query.filter_by(project_id=project_id, user_id=current_user.id).first()
+            if member_record:
+                current_user_role = member_record.role
+
+    if request.method == 'GET':
+        updates = ProjectUpdate.query.filter_by(project_id=project_id).order_by(ProjectUpdate.created_at.desc()).all()
+        result = []
+        for u in updates:
+            is_appr = getattr(u, 'is_approved', True)
+            if is_appr is None:
+                is_appr = True
+                
+            if is_appr or current_user_role in ['owner', 'admin'] or (current_user and u.user_id == current_user.id):
+                result.append({
+                    'id': u.id,
+                    'title': u.title,
+                    'status': u.status,
+                    'content': u.content,
+                    'author_name': u.author.name if u.author else 'Unknown',
+                    'created_at': u.created_at.isoformat(),
+                    'is_approved': is_appr
+                })
+        return jsonify(result)
+
+    if request.method == 'POST':
+        if current_user_role not in ['owner', 'admin', 'member']:
+            return jsonify({'error': 'Only project members can post updates'}), 403
+
+        data = request.get_json(silent=True) or {}
+        title = data.get('title', '').strip()
+        status = data.get('status', 'On Track')
+        content = data.get('content', '').strip()
+
+        if not title or not content:
+            return jsonify({'error': 'Title and content are required'}), 400
+
+        auto_approve = current_user_role in ['owner', 'admin']
+
+        new_update = ProjectUpdate(
+            project_id=project_id,
+            user_id=current_user.id,
+            title=title,
+            status=status,
+            content=content,
+            is_approved=auto_approve
+        )
+        db.session.add(new_update)
+        db.session.commit()
+
+        msg = 'Update posted successfully' if auto_approve else 'Update submitted for approval'
+        return jsonify({'success': True, 'message': msg})
+
+@views.route('/api/project/<int:project_id>/updates/<int:update_id>/<action>', methods=['POST'])
+def review_project_update(project_id, update_id, action):
+    err = require_login()
+    if err: return err
+    
+    project = Project.query.get_or_404(project_id)
+    current_user = get_current_user()
+    
+    is_owner = (project.user_id == current_user.id)
+    is_admin = False
+    if not is_owner:
+        member_record = ProjectMember.query.filter_by(project_id=project_id, user_id=current_user.id).first()
+        if member_record and member_record.role == 'admin':
+            is_admin = True
+            
+    if not (is_owner or is_admin):
+        return jsonify({'error': 'Unauthorized. Only project leads and admins can review updates.'}), 403
+        
+    update = ProjectUpdate.query.get_or_404(update_id)
+    if update.project_id != project_id:
+        return jsonify({'error': 'Update mismatch'}), 400
+        
+    if action == 'approve':
+        update.is_approved = True
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Update approved and published.'})
+    elif action == 'reject':
+        db.session.delete(update)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Update rejected and removed.'})
+    else:
+        return jsonify({'error': 'Invalid action'}), 400
