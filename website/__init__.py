@@ -4,6 +4,7 @@ import os
 
 db = SQLAlchemy()
 
+
 def create_app():
     app = Flask(__name__)
     app.secret_key = 'mmu-ossd-secret-key-2026'
@@ -20,6 +21,7 @@ def create_app():
     app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
     db.init_app(app)
+    
 
     from . views import views
     from . models import (User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, Question, QuestionLike, QuestionFavorite, QuestionComment, QuestionImage, QuestionCommentImage, JoinRequest)

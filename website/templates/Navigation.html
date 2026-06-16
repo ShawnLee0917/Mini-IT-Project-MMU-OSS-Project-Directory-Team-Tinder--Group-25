@@ -339,12 +339,18 @@
                 <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-bold shrink-0">
                     <span id="post-avatar-placeholder"><i class="fas fa-user"></i></span>
                 </div>
-                <div class="flex-1 min-w-0">
+                <div class="flex-1 min-w-0 flex flex-col gap-3">
                     <textarea id="new-post-content" rows="3" placeholder="What's on your mind? Ask a question or share an experience..." 
                         class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:border-red-400 focus:bg-white transition resize-none"></textarea>
                     
-                    <div id="attachment-previews" class="hidden flex-col gap-3 mt-3 border-t border-gray-100 pt-3">
-                        
+                    <div id="project-select-wrapper" class="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 focus-within:border-blue-400 focus-within:bg-white transition-colors duration-300">
+                        <div class="text-blue-500"><i class="fas fa-project-diagram"></i></div>
+                        <select id="post-project-select" class="w-full bg-transparent text-sm font-medium text-gray-700 outline-none cursor-pointer">
+                            <option value="">Loading your projects...</option>
+                        </select>
+                    </div>
+
+                    <div id="attachment-previews" class="hidden flex-col gap-3 border-t border-gray-100 pt-3">
                         <div id="preview-image-container" class="hidden">
                             <div id="image-preview-grid" class="flex flex-wrap gap-2"></div>
                             <button type="button" onclick="clearImages()" class="mt-2 text-xs text-red-500 hover:text-red-700 font-semibold"><i class="fas fa-trash mr-1"></i>Clear Images</button>
@@ -355,17 +361,9 @@
                             <input type="url" id="post-link" placeholder="https://..." class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:border-purple-400 outline-none transition bg-gray-50 focus:bg-white">
                             <button type="button" onclick="clearLink()" class="text-gray-400 hover:text-red-500 p-2 transition"><i class="fas fa-times"></i></button>
                         </div>
-
-                        <div id="preview-project-container" class="hidden items-center gap-2">
-                            <div class="bg-blue-50 px-3 py-2 rounded-lg text-blue-500"><i class="fas fa-project-diagram"></i></div>
-                            <select id="post-project-select" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:border-blue-400 outline-none bg-gray-50 focus:bg-white transition">
-                                <option value="">Loading your projects...</option>
-                            </select>
-                            <button type="button" onclick="clearProject()" class="text-gray-400 hover:text-red-500 p-2 transition"><i class="fas fa-times"></i></button>
-                        </div>
                     </div>
 
-                    <div class="flex justify-between items-center mt-3 flex-wrap gap-3">
+                    <div class="flex justify-between items-center mt-1 flex-wrap gap-3">
                         <div class="flex items-center gap-1 sm:gap-2">
                             <span class="text-xs font-bold text-gray-500 uppercase tracking-wider hidden sm:block">Type:</span>
                             <select id="new-post-category" class="bg-white border border-gray-200 text-gray-600 text-xs font-semibold rounded-lg px-3 py-2 focus:outline-none focus:border-red-400 cursor-pointer shadow-sm">
@@ -375,10 +373,6 @@
                             </select>
 
                             <div class="flex items-center gap-1 ml-1 sm:ml-2 sm:border-l sm:border-gray-200 sm:pl-3">
-                                <button type="button" onclick="toggleProjectSelect()" class="text-gray-400 hover:text-blue-500 transition p-2 rounded-full hover:bg-blue-50 focus:outline-none" title="Attach Project">
-                                    <i class="fas fa-project-diagram text-lg"></i>
-                                </button>
-                                
                                 <label class="text-gray-400 hover:text-green-500 transition p-2 rounded-full hover:bg-green-50 cursor-pointer mb-0 flex items-center" title="Upload Photo">
                                     <i class="far fa-image text-lg"></i>
                                     <input type="file" class="hidden" accept="image/*" id="post-image-upload" multiple>
@@ -448,10 +442,14 @@
                 </a>
             </div>
         </div>
- 
 
-
-
+        <div class="p-6">
+            <h4 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Resources</h4>
+            <ul class="space-y-3">
+                <li><a href="#" class="text-sm text-gray-600 hover:text-red-600 font-medium transition italic"># How to document for takeover</a></li>
+                <li><a href="#" class="text-sm text-gray-600 hover:text-red-600 font-medium transition italic"># Choosing an OS license</a></li>
+            </ul>
+        </div>
     </div>
 </main>
 
@@ -570,11 +568,11 @@
         setTimeout(() => toast.remove(), 3500);
     }
 
-    // ── [新增] Load & Manage Invitations ──────────────────────────────────────
+    // ── Load & Manage Invitations ──────────────────────────────────────
     async function loadInvitations() {
         if (IS_FILE) return;
         try {
-            const res = await fetch(`${API}/my-invitations`, { credentials: 'include' });
+            const res = await fetch(`${API}/my-invitations`);
             if (!res.ok) return;
             const invs = await res.json();
             
@@ -599,12 +597,11 @@
                             <span class="font-bold text-gray-900">${escapeHtml(inv.owner_name)}</span> invited you to join the team for <span class="font-bold text-red-600">${escapeHtml(inv.project_name)}</span>
                         </p>
                         <div class="flex gap-2">
-                            <button onclick="respondToInvitation(${inv.id}, 'accept')" class="flex-1 bg-green-500 hover:bg-green-600 text-white text-xs font-bold py-1.5 rounded-lg transition shadow-sm">Accept</button>
+                            <a href="/project/${inv.project_id}" class="flex-1 flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-1.5 rounded-lg transition shadow-sm">View Details</a>
                             <button onclick="respondToInvitation(${inv.id}, 'reject')" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold py-1.5 rounded-lg transition">Decline</button>
                         </div>
                     </div>
-                `).join('');
-            } else {
+                `).join('');            } else {
                 // Hide badges if empty
                 badge.classList.add('hidden');
                 mobileBadge.classList.add('hidden');
@@ -618,7 +615,7 @@
 
     async function respondToInvitation(requestId, action) {
         try {
-            const res = await fetch(`${API}/invitations/${requestId}/${action}`, { method: 'POST', credentials: 'include' });
+            const res = await fetch(`${API}/invitations/${requestId}/${action}`, { method: 'POST' });
             const data = await res.json();
             if (res.ok) {
                 showNotif(data.success, true);
@@ -631,6 +628,26 @@
         }
     }
 
+    // ── User Projects Automatic Load (For Post Attachment) ──────────────────
+    async function loadUserProjectsForPost() {
+        if (IS_FILE) return;
+        const select = document.getElementById('post-project-select');
+        if (!select) return;
+        try {
+            const res = await fetch(`${API}/projects`, { credentials: 'include' });
+            if (res.ok) {
+                const projects = await res.json();
+                if (projects.length === 0) {
+                    select.innerHTML = '<option value="">You don\'t have any projects yet.</option>';
+                } else {
+                    select.innerHTML = '<option value="">Select a project to attach (Required)...</option>' + 
+                        projects.map(p => `<option value="${p.id}">${escapeHtml(p.project_name)}</option>`).join('');
+                }
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
 
     // ── Attachment Preview Logic ──────────────────────────────────────────────
     let selectedImages = []; 
@@ -645,37 +662,6 @@
         document.getElementById('post-link').value = '';
         document.getElementById('preview-link-container').classList.add('hidden');
         document.getElementById('preview-link-container').classList.remove('flex');
-        checkPreviewsEmpty();
-    }
-
-    async function toggleProjectSelect() {
-        document.getElementById('attachment-previews').classList.remove('hidden');
-        document.getElementById('preview-project-container').classList.remove('hidden');
-        document.getElementById('preview-project-container').classList.add('flex');
-        
-        const select = document.getElementById('post-project-select');
-        if (select.options.length <= 1 && !IS_FILE) {
-            try {
-                const res = await fetch(`${API}/projects`, { credentials: 'include' });
-                if (res.ok) {
-                    const projects = await res.json();
-                    if (projects.length === 0) {
-                        select.innerHTML = '<option value="">You don\'t have any projects yet.</option>';
-                    } else {
-                        select.innerHTML = '<option value="">Select a project to attach...</option>' + 
-                            projects.map(p => `<option value="${p.id}">${escapeHtml(p.project_name)}</option>`).join('');
-                    }
-                }
-            } catch (e) {
-                console.error(e);
-            }
-        }
-    }
-
-    function clearProject() {
-        document.getElementById('post-project-select').value = '';
-        document.getElementById('preview-project-container').classList.add('hidden');
-        document.getElementById('preview-project-container').classList.remove('flex');
         checkPreviewsEmpty();
     }
 
@@ -728,10 +714,9 @@
 
     function checkPreviewsEmpty() {
         const linkHidden = document.getElementById('preview-link-container').classList.contains('hidden');
-        const projHidden = document.getElementById('preview-project-container').classList.contains('hidden');
         const imgHidden = document.getElementById('preview-image-container').classList.contains('hidden');
         
-        if (linkHidden && projHidden && imgHidden) {
+        if (linkHidden && imgHidden) {
             document.getElementById('attachment-previews').classList.add('hidden');
         }
     }
@@ -760,7 +745,7 @@
         container.innerHTML = '<div class="text-center text-gray-400 py-10 bg-white border border-gray-100 rounded-2xl text-sm"><i class="fas fa-spinner fa-spin mr-2"></i>Loading...</div>';
 
         try {
-            const res = await fetch(`${API}/community_posts?filter=${currentFilter}`, { credentials: 'include' });
+            const res = await fetch(`${API}/community_posts?filter=${currentFilter}`);
             if (!res.ok) throw new Error('Failed to fetch feed');
             const posts = await res.json();
             
@@ -863,7 +848,7 @@
     async function toggleAction(postId, action, btnElement) {
         btnElement.disabled = true;
         try {
-            const res = await fetch(`${API}/community_posts/${postId}/${action}`, { method: 'POST', credentials: 'include' });
+            const res = await fetch(`${API}/community_posts/${postId}/${action}`, { method: 'POST' });
             if (!res.ok) throw new Error(`Failed to ${action} post`);
             
             const data = await res.json();
@@ -896,7 +881,7 @@
     async function deletePost(postId) {
         if (!confirm('Are you sure you want to delete this post?')) return;
         try {
-            const res = await fetch(`${API}/community_posts/${postId}`, { method: 'DELETE', credentials: 'include' });
+            const res = await fetch(`${API}/community_posts/${postId}`, { method: 'DELETE' });
             if (res.ok) { 
                 document.getElementById(`post-${postId}`).remove(); 
                 showNotif('Post deleted'); 
@@ -921,7 +906,7 @@
         const listDiv = document.getElementById(`comments-list-${postId}`);
         listDiv.innerHTML = '<div class="text-center text-xs text-gray-400 py-2"><i class="fas fa-spinner fa-spin"></i> Loading comments...</div>';
         try {
-            const res = await fetch(`${API}/community_posts/${postId}/comments`, { credentials: 'include' });
+            const res = await fetch(`${API}/community_posts/${postId}/comments`);
             const comments = await res.json();
             
             if (comments.length === 0) {
@@ -994,7 +979,6 @@
         try {
             const res = await fetch(`${API}/community_posts/${postId}/comments`, {
                 method: 'POST',
-                credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ content, parent_id: parentId })
             });
@@ -1015,7 +999,7 @@
     async function deleteComment(postId, commentId) {
         if(!confirm('Delete this comment?')) return;
         try {
-            const res = await fetch(`${API}/community_posts/${postId}/comments/${commentId}`, { method: 'DELETE', credentials: 'include' });
+            const res = await fetch(`${API}/community_posts/${postId}/comments/${commentId}`, { method: 'DELETE' });
             if (res.ok) await loadPostComments(postId);
         } catch (err) { showNotif('Error deleting comment', false); }
     }
@@ -1037,6 +1021,21 @@
             showNotif('Please write something before posting.', false);
             return;
         }
+
+        if (!attachedProjectId) {
+            showNotif('Please select a project before posting! 📌', false);
+            const wrapper = document.getElementById('project-select-wrapper');
+            if (wrapper) {
+                wrapper.classList.remove('border-gray-200', 'bg-gray-50');
+                wrapper.classList.add('border-red-500', 'bg-red-50');
+                setTimeout(() => {
+                    wrapper.classList.remove('border-red-500', 'bg-red-50');
+                    wrapper.classList.add('border-gray-200', 'bg-gray-50');
+                }, 2000);
+            }
+            if(projectSelect) projectSelect.focus();
+            return; 
+        }
         
         const originalText = btnElement.innerHTML;
         btnElement.disabled = true;
@@ -1046,7 +1045,7 @@
         formData.append('content', content);
         formData.append('category', category);
         if (linkUrl) formData.append('link_url', linkUrl);
-        if (attachedProjectId) formData.append('attached_project_id', attachedProjectId);
+        formData.append('attached_project_id', attachedProjectId);
         
         selectedImages.forEach(file => formData.append('images', file));
 
@@ -1057,11 +1056,14 @@
                 body: formData 
             });
             
-            if (!res.ok) throw new Error('Failed to post');
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.error || 'Failed to post');
+            }
             
             contentInput.value = '';
-            clearLink();
-            clearProject();
+            if (linkInput) clearLink();
+            if (projectSelect) projectSelect.value = '';
             clearImages();
             
             showNotif('✓ Posted successfully!');
@@ -1069,7 +1071,7 @@
             
         } catch (err) {
             console.error(err);
-            showNotif('Failed to post. Please try again.', false);
+            showNotif(err.message || 'Failed to post. Please try again.', false);
         } finally {
             btnElement.disabled = false;
             btnElement.innerHTML = originalText;
@@ -1081,7 +1083,7 @@
         if (IS_FILE) return;
         const list = document.getElementById('suggestions-list');
         try {
-            const res = await fetch(`${API}/ai-suggestions`, { credentials: 'include' });
+            const res = await fetch(`${API}/ai-suggestions`);
             if (!res.ok) throw new Error();
             const data = await res.json();
             
@@ -1095,10 +1097,12 @@
             }
 
             list.innerHTML = data.suggestions.slice(0, 3).map(p => {
+                let scoreColor = p.match_score >= 80 ? 'text-green-600 bg-green-50' : 'text-blue-600 bg-blue-50';
                 return `
                 <a href="/project/${p.id}" class="block p-5 hover:bg-gray-50 transition border-b border-gray-50 last:border-0 group">
                     <div class="flex justify-between items-start mb-1.5">
                         <span class="font-bold text-sm text-gray-800 group-hover:text-red-600 transition line-clamp-1">${escapeHtml(p.project_name)}</span>
+                        <span class="text-[10px] font-bold ${scoreColor} px-2 py-0.5 rounded-full whitespace-nowrap">${p.match_score}% Match</span>
                     </div>
                     <p class="text-xs text-gray-500 line-clamp-2">${escapeHtml(p.description)}</p>
                 </a>
@@ -1131,12 +1135,12 @@
             return;
         }
         try {
-            const meRes = await fetch(`${API}/me`, { credentials: 'include' });
+            const meRes = await fetch(`${API}/me`);
             if (!meRes.ok) { window.location.href = '/login'; return; }
             const meData = await meRes.json();
             if (!meData.loggedIn) { window.location.href = '/login'; return; }
             
-            const profileRes = await fetch(`${API}/profile`, { credentials: 'include' });
+            const profileRes = await fetch(`${API}/profile`);
             if (!profileRes.ok) throw new Error('Failed to load profile');
             const profile = await profileRes.json();
             
@@ -1154,7 +1158,7 @@
     async function logout() {
         if (!IS_FILE) {
             try {
-                await fetch(`${API}/logout`, { method: 'POST', credentials: 'include' });
+                await fetch(`${API}/logout`, { method: 'POST' });
             } catch (err) {
                 console.error('Logout error:', err);
             }
@@ -1168,6 +1172,7 @@
     initNav().then(() => {
         loadFeed();
         loadAISuggestions();
+        loadUserProjectsForPost(); // 确保加载页面时抓取用户的项目
     });
 </script>
 </body>

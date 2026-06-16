@@ -1,5 +1,5 @@
 from . import db
-from datetime import datetime
+from datetime import datetime, timezone
 
 class ProjectMember(db.Model):
     __tablename__ = 'project_members'
@@ -127,6 +127,13 @@ class Project(db.Model):
     members = db.relationship('ProjectMember', backref='project', lazy='subquery', cascade='all, delete-orphan')
     # ADDED: Relationship to easily count or access stars for this project
     stars = db.relationship('ProjectStar', backref='project', lazy=True, cascade='all, delete-orphan')
+
+class ProjectViewLog(db.Model):
+    __tablename__ = 'project_view_logs'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True) 
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
 class ProjectStar(db.Model):
     __tablename__ = 'project_stars'
@@ -369,6 +376,8 @@ class CommunityPostFavorite(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     post_id = db.Column(db.Integer, db.ForeignKey('community_posts.id', ondelete='CASCADE'), nullable=False)
+
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, server_default=db.func.now())
     
     __table_args__ = (db.UniqueConstraint('user_id', 'post_id', name='unique_user_cpost_fav'),)
 
@@ -405,3 +414,16 @@ class CommunityPostCommentImage(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     comment_id = db.Column(db.Integer, db.ForeignKey('community_post_comments.id', ondelete='CASCADE'), nullable=False)
     image_path = db.Column(db.String(255), nullable=False)
+
+class ProjectUpdate(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    title = db.Column(db.String(150), nullable=False)  
+    status = db.Column(db.String(50), nullable=False)  
+    content = db.Column(db.Text, nullable=False)       
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), )
+    is_approved = db.Column(db.Boolean, default=False)  
+
+    author = db.relationship('User', backref='project_updates')
+    project = db.relationship('Project', backref=db.backref('updates', lazy='dynamic'))
