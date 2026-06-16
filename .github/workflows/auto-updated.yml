@@ -1,0 +1,26 @@
+name: Auto Update PythonAnywhere
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update & Reload
+        run: |
+          curl -X POST "https://shawnlee.pythonanywhere.com/${{ secrets.PA_USERNAME }}/consoles/new/" \
+            -H "Authorization: Token ${{ secrets.PA_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"executable":"bash"}' > c.json
+          ID=$(grep -o '"id":[0-9]*' c.json | cut -d: -f2)
+          curl -X POST "https://shawnlee.pythonanywhere.com/${{ secrets.PA_USERNAME }}/consoles/$ID/send_input/" \
+            -H "Authorization: Token ${{ secrets.PA_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"input":"cd /home/ShawnLee/Mini-IT-Project-MMU-OSS-Project-Directory-Team-Tinder-Group-25 && git pull origin main && pip install -r requirements.txt\n"}'
+          sleep 5
+          curl -X POST "https://shawnlee.pythonanywhere.com/${{ secrets.PA_USERNAME }}/webapps/${{ secrets.PA_DOMAIN }}/reload/" \
+            -H "Authorization: Token ${{ secrets.PA_API_TOKEN }}"

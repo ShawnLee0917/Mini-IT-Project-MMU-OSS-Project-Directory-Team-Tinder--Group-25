@@ -8,7 +8,135 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" rel="stylesheet">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
-        body { font-family: 'Inter', sans-serif; }
+        
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f3f4f6;
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --border-color: #e5e7eb;
+        }
+        
+        html[data-theme="dark"] {
+            --bg-primary: #0f0f0f;
+            --bg-secondary: #1a1a1a;
+            --text-primary: #e5e7eb;
+            --text-secondary: #a1a1a1;
+            --border-color: #333333;
+        }
+        
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+        
+        /* Dark theme overrides */
+        html[data-theme="dark"] body {
+            background-color: var(--bg-secondary);
+        }
+        
+        html[data-theme="dark"] header {
+            background-color: var(--bg-primary) !important;
+            border-color: var(--border-color) !important;
+        }
+        
+        html[data-theme="dark"] header h2,
+        html[data-theme="dark"] header p {
+            color: var(--text-primary) !important;
+        }
+        
+        html[data-theme="dark"] .bg-white {
+            background-color: var(--bg-primary) !important;
+            border-color: var(--border-color) !important;
+        }
+        
+        html[data-theme="dark"] .bg-gray-50 {
+            background-color: var(--bg-secondary) !important;
+        }
+        
+        html[data-theme="dark"] .text-gray-900,
+        html[data-theme="dark"] .text-gray-800 {
+            color: var(--text-primary) !important;
+        }
+        
+        html[data-theme="dark"] .text-gray-500,
+        html[data-theme="dark"] .text-gray-600,
+        html[data-theme="dark"] .text-gray-700 {
+            color: var(--text-secondary) !important;
+        }
+        
+        html[data-theme="dark"] .border-gray-200,
+        html[data-theme="dark"] .border-gray-100 {
+            border-color: var(--border-color) !important;
+        }
+        
+        html[data-theme="dark"] .text-gray-400 {
+            color: var(--text-secondary) !important;
+        }
+        
+        html[data-theme="dark"] input,
+        html[data-theme="dark"] textarea,
+        html[data-theme="dark"] select {
+            background-color: var(--bg-secondary) !important;
+            color: var(--text-primary) !important;
+            border-color: var(--border-color) !important;
+        }
+        
+        html[data-theme="dark"] input:focus,
+        html[data-theme="dark"] textarea:focus,
+        html[data-theme="dark"] select:focus {
+            background-color: var(--bg-primary) !important;
+        }
+
+        html[data-theme="dark"] #notif-dropdown {
+            background-color: var(--bg-primary) !important;
+        }
+
+        html[data-theme="dark"] #notif-dropdown h3,
+        html[data-theme="dark"] #notif-dropdown .text-gray-900 {
+            color: var(--text-primary) !important;
+        }
+
+        html[data-theme="dark"] .bg-purple-50 {
+            background-color: rgba(168, 85, 247, 0.1) !important;
+        }
+
+        html[data-theme="dark"] .bg-blue-50 {
+            background-color: rgba(59, 130, 246, 0.1) !important;
+        }
+
+        html[data-theme="dark"] .bg-green-50 {
+            background-color: rgba(34, 197, 94, 0.1) !important;
+        }
+
+        html[data-theme="dark"] .bg-yellow-50 {
+            background-color: rgba(234, 179, 8, 0.1) !important;
+        }
+
+        html[data-theme="dark"] .bg-red-100 {
+            background-color: rgba(239, 68, 68, 0.1) !important;
+        }
+
+        html[data-theme="dark"] .bg-gray-100,
+        html[data-theme="dark"] .bg-gray-200 {
+            background-color: var(--bg-secondary) !important;
+        }
+
+        html[data-theme="dark"] .divide-gray-50 {
+            border-color: var(--border-color) !important;
+        }
+
+        html[data-theme="dark"] #logout-btn,
+        html[data-theme="dark"] #logout-btn-mobile {
+            background-color: #ffffff !important;
+            color: #dc2626 !important;
+        }
+
+        html[data-theme="dark"] #logout-btn:hover,
+        html[data-theme="dark"] #logout-btn-mobile:hover {
+            background-color: #f3f4f6 !important;
+        }
 
         /* ── Animated Hamburger Button ─────────────────────────── */
         .hamburger {
@@ -137,6 +265,10 @@
                 </div>
             </div>
 
+            <button id="theme-toggle" class="text-white hover:text-red-200 transition p-2 focus:outline-none" title="Toggle Dark Mode">
+                <i class="fas fa-moon text-lg"></i>
+            </button>
+
             <a href="{{ url_for('views.profile') }}" class="bg-red-800 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-500/50 cursor-pointer hover:bg-red-900 transition">
                 <span id="nav-email" class="text-xs">…</span>
                 <i class="fas fa-user-circle text-lg"></i>
@@ -160,6 +292,10 @@
             <button onclick="document.getElementById('notif-btn').click()" class="text-left text-yellow-300 hover:text-white transition flex justify-between items-center" id="mobile-notif-row">
                 <span><i class="fas fa-bell mr-2"></i> Project Invitations</span>
                 <span id="mobile-notif-badge" class="bg-yellow-400 text-red-900 px-2 rounded-full text-xs hidden">0</span>
+            </button>
+
+            <button id="theme-toggle-mobile" onclick="toggleTheme()" class="text-left text-red-100 hover:text-white transition text-sm border-t border-red-700 pt-4 mt-2">
+                <i class="fas fa-moon mr-2"></i> <span id="theme-toggle-text">Dark Mode</span>
             </button>
 
             <button id="logout-btn-mobile" class="text-left text-red-200 hover:text-white transition text-sm border-t border-red-700 pt-4 mt-2">
@@ -321,6 +457,63 @@
     const IS_FILE = window.location.protocol === 'file:';
     const API = '/api';
     let currentFilter = 'all'; 
+
+    // ── Theme Toggle Functionality ────────────────────────────────────────────
+    function initTheme() {
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        setTheme(savedTheme);
+    }
+
+    function setTheme(theme) {
+        const html = document.documentElement;
+        if (theme === 'dark') {
+            html.setAttribute('data-theme', 'dark');
+            localStorage.setItem('theme', 'dark');
+            updateThemeIcon('dark');
+        } else {
+            html.removeAttribute('data-theme');
+            localStorage.setItem('theme', 'light');
+            updateThemeIcon('light');
+        }
+    }
+
+    function toggleTheme() {
+        const html = document.documentElement;
+        const currentTheme = html.getAttribute('data-theme') || 'light';
+        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+        setTheme(newTheme);
+    }
+
+    function updateThemeIcon(theme) {
+        const desktopToggle = document.getElementById('theme-toggle');
+        const mobileText = document.getElementById('theme-toggle-text');
+        if (theme === 'dark') {
+            if (desktopToggle) {
+                desktopToggle.innerHTML = '<i class="fas fa-sun text-lg"></i>';
+                desktopToggle.title = 'Toggle Light Mode';
+            }
+            if (mobileText) {
+                mobileText.textContent = 'Light Mode';
+            }
+        } else {
+            if (desktopToggle) {
+                desktopToggle.innerHTML = '<i class="fas fa-moon text-lg"></i>';
+                desktopToggle.title = 'Toggle Dark Mode';
+            }
+            if (mobileText) {
+                mobileText.textContent = 'Dark Mode';
+            }
+        }
+    }
+
+    // Initialize theme on page load
+    initTheme();
+
+    // Attach event listener to desktop theme toggle
+    const themeToggleBtn = document.getElementById('theme-toggle');
+    if (themeToggleBtn) {
+        themeToggleBtn.addEventListener('click', toggleTheme);
+    }
 
     // ── Mobile menu smooth toggle ─────────────────────────────────────────────
     const menuBtn    = document.getElementById('menu-btn');

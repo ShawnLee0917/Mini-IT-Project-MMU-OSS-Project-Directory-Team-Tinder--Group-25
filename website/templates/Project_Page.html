@@ -486,7 +486,7 @@
                         <i class="fas fa-crown text-yellow-500 mr-2"></i>Project Lead
                     </h5>
                     <div class="flex items-center gap-4 justify-between">
-                        <div class="flex items-center gap-4 flex-1">
+                        <a href="{% if project.user %}{{ url_for('views.view_user_profile', user_id=project.user.id) }}{% else %}#{% endif %}" class="flex items-center gap-4 flex-1 text-decoration-none hover:opacity-80 transition rounded-lg p-2 -m-2">
                             <div class="w-12 h-12 rounded-full bg-red-100 border-2 border-red-200 flex items-center justify-center text-red-600 font-bold text-lg flex-shrink-0">
                                 {{ project.user.name[0] | upper if project.user else 'U' }}
                             </div>
@@ -494,7 +494,7 @@
                                 <div class="font-bold text-gray-900">{{ project.user.name if project.user else 'Anonymous User' }}</div>
                                 <div class="text-xs text-gray-500">{{ project.user.faculty if project.user else 'MMU Student' }}</div>
                             </div>
-                        </div>
+                        </a>
                         <a href="mailto:{{ project.user.email if project.user else '' }}" class="text-xs font-bold text-white bg-red-600 hover:bg-red-700 px-3 py-2 rounded-lg transition whitespace-nowrap flex items-center gap-1">
                             <i class="far fa-envelope"></i> Contact
                         </a>
@@ -1497,7 +1497,13 @@ async function saveEditComment() {
 
 // Delete comment (author or project owner)
 async function deleteComment(commentId) {
-    if (!confirm('Delete this comment?')) return;
+    const confirmed = await showConfirmModal(
+        'Delete Comment',
+        'Are you sure you want to delete this comment? This action cannot be undone.',
+        'Yes, Delete',
+        'danger'
+    );
+    if (!confirmed) return;
     
     try {
         const res = await fetch(`${API}/project/${projectId}/comments/${commentId}`, {
@@ -1509,7 +1515,31 @@ async function deleteComment(commentId) {
             alert(d.error || 'Failed to delete comment');
             return;
         }
-        await loadComments();
+
+        // Show "This message was deleted" tombstone in place of the comment
+        // Find the comment card by looking for a button with this commentId
+        const btn = document.querySelector(`[onclick="deleteComment(${commentId})"]`);
+        const card = btn ? btn.closest('.bg-white.p-6.rounded-2xl') : null;
+        if (card) {
+            card.innerHTML = `
+                <div class="flex items-center gap-3 py-1 opacity-60">
+                    <div class="w-8 h-8 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-400 flex-shrink-0">
+                        <i class="fas fa-trash text-xs"></i>
+                    </div>
+                    <p class="text-sm text-gray-400 italic">
+                        <i class="fas fa-ban mr-1 text-xs"></i>This message was deleted.
+                    </p>
+                </div>
+            `;
+            card.classList.remove('hover:shadow-md', 'group');
+            card.classList.add('bg-gray-50', 'border-dashed');
+        } else {
+            // Fallback: reload comments if card not found
+            await loadComments();
+        }
+
+        // Also remove from local allComments array so filter stays in sync
+        allComments = allComments.filter(c => c.id !== commentId);
     } catch (err) {
         console.error('Error deleting comment:', err);
         alert('Failed to delete comment');
