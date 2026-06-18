@@ -10,8 +10,8 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 import uuid
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify, session
-from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, QuestionCommentImage, QuestionImage, JoinRequest, LeaveRequest, MemberHistory, ProjectCommentImage, UserSettings, ProjectMember, CommunityPostComment, CommunityPost, CommunityPostLike, CommunityPostImage, CommunityPostFavorite, CommunityPostCommentImage, ContentReport, AdminLog, SuspendedUser, ContentFlagKeyword
-from datetime import datetime, timezone
+from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, QuestionCommentImage, QuestionImage, JoinRequest, LeaveRequest, MemberHistory, ProjectCommentImage, UserSettings, ProjectMember, CommunityPostComment, CommunityPost, CommunityPostLike, CommunityPostImage, CommunityPostFavorite, CommunityPostCommentImage, ProjectViewLog, ProjectUpdate, ContentReport, AdminLog, SuspendedUser, ContentFlagKeyword
+from datetime import datetime, timezone, timedelta
 
 views = Blueprint('views', __name__)
 
@@ -745,6 +745,83 @@ def test_otp(email):
     <p>Use this code at: <a href="/verify">http://127.0.0.1:5000/verify</a></p>
     """
 
+# ── Forgot / Reset Password Pages ──────────────────────────────────────────
+@views.route('/forgot-password')
+def forgot_password():
+    return render_template('forgot_password.html')
+
+@views.route('/reset-password')
+def reset_password():
+    return render_template('reset_password.html')
+
+# ── API: Request password reset OTP ─────────────────────────────────────────
+@views.route('/api/forgot-password', methods=['POST'])
+def api_forgot_password():
+    data  = request.get_json(silent=True) or {}
+    email = data.get('email', '').strip().lower()
+
+    if not email:
+        return jsonify({'error': 'Email is required'}), 400
+    if not (email.endswith('@mmu.edu.my') or email.endswith('@student.mmu.edu.my')):
+        return jsonify({'error': 'Only MMU email addresses are allowed'}), 400
+
+    user = User.query.filter_by(email=email).first()
+    # Always return success even if email not found (security best practice)
+    if user and user.is_verified:
+        otp_code  = f'{random.randint(0, 999999):06d}'
+        user.otp  = otp_code
+        db.session.commit()
+        send_otp_email(email, otp_code)
+
+    return jsonify({'success': True, 'message': 'If that email is registered, a reset code has been sent.'})
+
+# ── API: Verify reset OTP (without changing password yet) ───────────────────
+@views.route('/api/verify-reset-otp', methods=['POST'])
+def api_verify_reset_otp():
+    data  = request.get_json(silent=True) or {}
+    email = data.get('email', '').strip().lower()
+    otp   = data.get('otp', '').strip()
+
+    user = User.query.filter_by(email=email).first()
+    if not user or not user.otp or user.otp != otp:
+        return jsonify({'error': 'Invalid or expired reset code. Please request a new one.'}), 401
+
+    return jsonify({'success': True, 'message': 'Code verified'})
+
+# ── API: Set new password after OTP verified ─────────────────────────────────
+@views.route('/api/reset-password', methods=['POST'])
+def api_reset_password():
+    from werkzeug.security import generate_password_hash
+    data         = request.get_json(silent=True) or {}
+    email        = data.get('email', '').strip().lower()
+    otp          = data.get('otp', '').strip()
+    new_password = data.get('new_password', '')
+
+    if not email or not otp or not new_password:
+        return jsonify({'error': 'All fields are required'}), 400
+    if len(new_password) < 6:
+        return jsonify({'error': 'Password must be at least 6 characters'}), 400
+
+    user = User.query.filter_by(email=email).first()
+    if not user or not user.otp or user.otp != otp:
+        return jsonify({'error': 'Invalid or expired reset code. Please start over.'}), 401
+
+    user.password_hash = generate_password_hash(new_password)
+    user.otp           = None   # Invalidate the OTP after use
+    db.session.commit()
+
+    return jsonify({'success': True, 'message': 'Password reset successfully!'})
+
+# ── API: Dev helper — retrieve reset OTP (same as get_otp) ──────────────────
+@views.route('/api/get_reset_otp', methods=['POST'])
+def api_get_reset_otp():
+    data  = request.get_json(silent=True) or {}
+    email = data.get('email', '').strip().lower()
+    user  = User.query.filter_by(email=email).first()
+    if not user or not user.otp:
+        return jsonify({'error': 'No reset code found for this email. Please request one first.'}), 404
+    return jsonify({'otp': user.otp})
+
 @views.route('/search')
 def search():
     all_projects = Project.query.order_by(Project.created_at.desc()).all()
@@ -783,7 +860,20 @@ def profile():
 def view_user_profile(user_id):
     """View another user's profile"""
     user = User.query.get_or_404(user_id)
-    return render_template("User_Profile.html", profile_user=user, current_user=get_current_user())
+    current_user = get_current_user()
+    
+    # Check privacy settings
+    settings = user.settings
+    is_private = settings and settings.profile_visibility == 'private'
+    
+    # Check if current user is authorized to view this profile
+    show_private_message = False
+    if is_private:
+        # Only allow viewing if it's the user's own profile
+        if not current_user or current_user.id != user.id:
+            show_private_message = True
+    
+    return render_template("User_Profile.html", profile_user=user, current_user=current_user, show_private_message=show_private_message)
 
 @views.route('/qna/delete/<int:question_id>')
 def qna_delete_page(question_id):
@@ -808,12 +898,51 @@ def project_page(project_id):
     project = Project.query.get_or_404(project_id)
     current_user = get_current_user()
     
-    if project.views is None:
-        project.views = 0
-    project.views += 1
-    db.session.commit()
+    viewed_projects = session.get('viewed_projects', {})
+    now = datetime.now(timezone.utc)
+    
+    COOLDOWN_HOURS = 24
+    should_increment = True
+    project_id_str = str(project_id)
+    
+    if project_id_str in viewed_projects:
+        try:
+            
+            last_viewed_str = viewed_projects[project_id_str]
+            last_viewed_time = datetime.fromisoformat(last_viewed_str)
+            
+            
+            if last_viewed_time.tzinfo is None:
+                last_viewed_time = last_viewed_time.replace(tzinfo=timezone.utc)
+                
+            
+            if now - last_viewed_time < timedelta(hours=COOLDOWN_HOURS):
+                should_increment = False
+        except (ValueError, TypeError):
+            
+            pass
+            
+    if should_increment:
+        if project.views is None:
+            project.views = 0
+        project.views += 1
+
+        view_log = ProjectViewLog(
+            project_id=project.id,
+            user_id=current_user.id if current_user else None 
+        )
+        db.session.add(view_log)
+        
+        viewed_projects[project_id_str] = now.isoformat()
+        session['viewed_projects'] = viewed_projects
+        session.modified = True 
+        
+        db.session.commit()
 
     current_user_role = None
+    is_invited = False
+    invitation_id = None
+    
     if current_user:
         if project.user_id == current_user.id:
             current_user_role = 'owner'
@@ -821,8 +950,20 @@ def project_page(project_id):
             member_record = ProjectMember.query.filter_by(project_id=project.id, user_id=current_user.id).first()
             if member_record:
                 current_user_role = member_record.role
+            else:
+                invite = JoinRequest.query.filter_by(project_id=project.id, user_id=current_user.id, status='invited').first()
+                if invite:
+                    is_invited = True
+                    invitation_id = invite.id
 
-    return render_template("Project_Page.html", project=project, current_user=current_user, current_user_role=current_user_role)
+    return render_template(
+        "Project_Page.html", 
+        project=project, 
+        current_user=current_user, 
+        current_user_role=current_user_role,
+        is_invited=is_invited,
+        invitation_id=invitation_id
+    )
 
 @views.route('/upload-success')
 def upload_success():
@@ -1138,6 +1279,16 @@ def get_profile():
 def get_user_profile(user_id):
     """Get any user's profile data"""
     user = User.query.get_or_404(user_id)
+    
+    settings = user.settings
+    is_private = settings and settings.profile_visibility == 'private'
+    
+    current_user = get_current_user()
+    current_user_id = current_user.id if current_user else None
+    
+    if is_private and current_user_id != user.id:
+        return jsonify({'error': 'This profile is private', 'is_private': True}), 403
+
     
     skills = Skill.query.filter_by(user_id=user.id).all()
     badges = Badge.query.filter_by(user_id=user.id).all()
@@ -2031,15 +2182,10 @@ def add_member(project_id):
             return jsonify({"error": "An invitation has already been sent to this user."}), 400
         elif existing_request.status == 'pending':
             existing_request.status = 'accepted'
-            new_member = ProjectMember(project_id=project_id, user_id=user_to_add.id, role='member')
+            new_member = ProjectMember(project_id=project_id, user_id=user_to_add.id, role='member')  # type: ignore
             db.session.add(new_member)
 
-            history = MemberHistory(
-                user_id=user_to_add.id,
-                project_id=project_id,
-                action='joined',
-                reason=None
-            )
+            history = MemberHistory(user_id=user_to_add.id, project_id=project_id, action='joined', reason=None)  # type: ignore
             db.session.add(history)
             db.session.commit()
             return jsonify({"success": f"{user_to_add.name} had already applied to join. They are now added!", "user_name": user_to_add.name})
@@ -2048,7 +2194,7 @@ def add_member(project_id):
             db.session.commit()
             return jsonify({"success": f"Invitation sent to {user_to_add.name}!", "user_name": user_to_add.name})
 
-    new_invite = JoinRequest(user_id=user_to_add.id, project_id=project_id, status='invited')
+    new_invite = JoinRequest(user_id=user_to_add.id, project_id=project_id, status='invited')  # type: ignore
     db.session.add(new_invite)
     
     db.session.commit()
@@ -2097,7 +2243,7 @@ def respond_to_invitation(request_id, action):
         invitation.status = 'accepted'
         existing = ProjectMember.query.filter_by(project_id=invitation.project_id, user_id=current_user.id).first()
         if not existing:
-            new_member = ProjectMember(project_id=invitation.project_id, user_id=current_user.id, role='member')
+            new_member = ProjectMember(project_id=invitation.project_id, user_id=current_user.id, role='member')  # type: ignore
             db.session.add(new_member)
         msg = 'Invitation accepted! You joined the project.'
     elif action == 'reject':
@@ -2219,11 +2365,7 @@ def request_join_project(project_id):
             db.session.commit()
             return jsonify({"success": "Join request sent successfully!"}), 200
     else:
-        join_request = JoinRequest(
-            user_id=current_user.id,
-            project_id=project_id,
-            status='pending'
-        )
+        join_request = JoinRequest(user_id=current_user.id, project_id=project_id, status='pending')  # type: ignore
         db.session.add(join_request)
         db.session.commit()
         return jsonify({"success": "Join request sent successfully!"}), 201
@@ -2281,16 +2423,11 @@ def accept_join_request(project_id, request_id):
     
     existing_member = ProjectMember.query.filter_by(project_id=project_id, user_id=user_to_add.id).first()
     if not existing_member:
-        new_member = ProjectMember(project_id=project_id, user_id=user_to_add.id, role='member')
+        new_member = ProjectMember(project_id=project_id, user_id=user_to_add.id, role='member')  # type: ignore
         db.session.add(new_member)
         
         # Create member history record
-        history = MemberHistory(
-            user_id=user_to_add.id,
-            project_id=project_id,
-            action='joined',
-            reason=None
-        )
+        history = MemberHistory(user_id=user_to_add.id, project_id=project_id, action='joined', reason=None)  # type: ignore
         db.session.add(history)
     
     # Update request status
@@ -2361,12 +2498,7 @@ def leave_project_immediately(project_id):
             db.session.delete(old_req)
         
         # Create member history record
-        history = MemberHistory(
-            user_id=current_user.id,
-            project_id=project_id,
-            action='left',
-            reason=reason if reason else None
-        )
+        history = MemberHistory(user_id=current_user.id, project_id=project_id, action='left', reason=reason if reason else None)  # type: ignore
         
         db.session.add(history)
         db.session.commit()
@@ -2410,12 +2542,7 @@ def request_leave_team(project_id):
     if len(reason) < 10:
         return jsonify({'error': 'Reason must be at least 10 characters'}), 400
     
-    leave_req = LeaveRequest(
-        user_id=current_user.id,
-        project_id=project_id,
-        reason=reason,
-        status='pending'
-    )
+    leave_req = LeaveRequest(user_id=current_user.id, project_id=project_id, reason=reason, status='pending')  # type: ignore
     
     db.session.add(leave_req)
     db.session.commit()
@@ -2618,14 +2745,7 @@ def create_project_comment(project_id):
         if is_member:
             user_role = 'team-member'    
             
-    comment = ProjectComment(
-        project_id=project_id,
-        user_id=current_user.id,
-        content=content,
-        comment_type=comment_type,
-        label=label if user_role == 'owner' else None,  # Only owner can set labels
-        user_role=user_role
-    )
+    comment = ProjectComment(project_id=project_id, user_id=current_user.id, content=content, comment_type=comment_type, label=label if user_role == 'owner' else None, user_role=user_role)  # type: ignore
     
     db.session.add(comment)
     db.session.flush()  # Get comment.id before committing
@@ -2669,6 +2789,10 @@ def delete_project_comment(project_id, comment_id):
     project = Project.query.get_or_404(project_id)
     comment = ProjectComment.query.get_or_404(comment_id)
     current_user = get_current_user()
+     
+    # Only owner can delete comments 
+    if current_user.id != project.user_id:
+        return jsonify({'error': 'Only project owner can delete comments'}), 403
     
     if comment.project_id != project_id:
         return jsonify({'error': 'Comment not found in this project'}), 404
@@ -3202,9 +3326,15 @@ def get_ai_suggestions():
             'languages': project.languages,
             'roles_needed': project.roles_needed,
             'match_reason': match_reason,
+            'match_score': int(match_score),
         })
     
-    return jsonify(result)
+    return jsonify({
+        'success': True,
+        'user_interests': user_interests,
+        'suggestions': result,
+        'total': len(result)
+    })
 
 
 # --- API Endpoint: Get user profile by ID ---
@@ -3214,6 +3344,15 @@ def get_public_user_profile(user_id):
     user = User.query.get(user_id)
     if not user:
         return jsonify({'error': 'User not found'}), 404
+        
+    settings = user.settings
+    is_private = settings and settings.profile_visibility == 'private'
+    
+    current_user = get_current_user()
+    current_user_id = current_user.id if current_user else None
+    
+    if is_private and current_user_id != user.id:
+        return jsonify({'error': 'This profile is private', 'is_private': True}), 403
     
     skills = Skill.query.filter_by(user_id=user.id).all()
     badges = Badge.query.filter_by(user_id=user.id).all()
@@ -3243,6 +3382,15 @@ def get_user_projects(user_id):
     user = User.query.get(user_id)
     if not user:
         return jsonify({'error': 'User not found'}), 404
+        
+    settings = user.settings
+    is_private = settings and settings.profile_visibility == 'private'
+    
+    current_user = get_current_user()
+    current_user_id = current_user.id if current_user else None
+    
+    if is_private and current_user_id != user.id:
+        return jsonify({'error': 'This profile is private'}), 403
     
     # Get projects created by user
     owned_projects = Project.query.filter_by(user_id=user.id).order_by(
@@ -3285,14 +3433,6 @@ def view_user_profile_page(user_id):
         return redirect(url_for('views.home'))
     
     return render_template("Profile.html", view_user_id=user_id)
-    
-    return jsonify({
-        'success': True,
-        'user_interests': user_interests,
-        'suggestions': result,
-        'total': len(result),
-        'algorithm_version': 'unified-v1'
-    })
 
 
 @views.route('/api/project/<int:project_id>/similar', methods=['GET'])
@@ -3388,32 +3528,403 @@ def save_interest():
         'message': 'Interests updated successfully',
         'interests': interests
     })
+
+# =====================================================================
+# API: Community Timeline Posts 
+# =====================================================================
+
+@views.route('/api/community_posts', methods=['GET'])
+def get_community_posts():
+    current_user = get_current_user()
+    current_user_id = current_user.id if current_user else None
+    filter_type = request.args.get('filter', 'all')
+    
+    query = CommunityPost.query
+    if filter_type == 'questions':
+        query = query.filter_by(category='Question')
+    elif filter_type == 'discussions':
+        query = query.filter_by(category='Discussion')
+    elif filter_type == 'posts':
+        query = query.filter_by(category='Posts')
+    elif filter_type == 'liked' and current_user_id:
+        query = query.join(CommunityPostLike).filter(CommunityPostLike.user_id == current_user_id)
+    elif filter_type == 'saved' and current_user_id:
+        query = query.join(CommunityPostFavorite).filter(CommunityPostFavorite.user_id == current_user_id)
+
+    posts = query.order_by(CommunityPost.created_at.desc()).limit(30).all()
+    
+    result = []
+    for p in posts:
+        proj_data = None
+        if p.attached_project:
+            proj_data = {'id': p.attached_project.id, 'name': p.attached_project.project_name}
+            
+        like_count = len(p.likes)
+        fav_count = len(p.favorites)
+        comment_count = len(p.comments)
+        
+        user_liked = False
+        user_faved = False
+        if current_user_id:
+            user_liked = any(like.user_id == current_user_id for like in p.likes)
+            user_faved = any(fav.user_id == current_user_id for fav in p.favorites)
+            
+        image_urls = [f"/static/uploads/{img.image_path}" for img in p.images]
+        if p.image_path and f"/static/uploads/{p.image_path}" not in image_urls:
+            image_urls.insert(0, f"/static/uploads/{p.image_path}")
+            
+        result.append({
+            'id': p.id,
+            'user_name': p.author.name if p.author else 'Unknown',
+            'is_owner': current_user_id == p.user_id,
+            'content': p.content,
+            'category': p.category,
+            'created_at': p.created_at.isoformat(),
+            'image_urls': image_urls,
+            'link_url': p.link_url,
+            'attached_project': proj_data,
+            'like_count': like_count,
+            'fav_count': fav_count,
+            'comment_count': comment_count,
+            'user_liked': user_liked,
+            'user_faved': user_faved
+        })
+    return jsonify(result)
+
+@views.route('/api/community_posts', methods=['POST'])
+def create_community_post():
+    err = require_login()
+    if err: return err
+    
+    current_user = get_current_user()
+    content = request.form.get('content', '').strip()
+    category = request.form.get('category', 'Posts')
+    link_url = request.form.get('link_url', '').strip()
+    attached_project_id = request.form.get('attached_project_id')
+    
+    if not content: return jsonify({'error': 'Post content cannot be empty'}), 400
+    
+    if not attached_project_id or not attached_project_id.isdigit():
+        return jsonify({'error': 'You must attach a project to make a post.'}), 400
+        
+    proj = Project.query.get(int(attached_project_id))
+    if not proj:
+        return jsonify({'error': 'The selected project does not exist.'}), 404
+        
+    post = CommunityPost(
+        user_id=current_user.id, 
+        content=content, 
+        category=category,
+        attached_project_id=proj.id
+    )
+    if link_url: post.link_url = link_url
+        
+    if 'images' in request.files:
+        import uuid
+        files = request.files.getlist('images')
+        for file in files:
+            if file and file.filename and allowed_file(file.filename):
+                ext = file.filename.rsplit('.', 1)[1].lower()
+                filename = f"post_{uuid.uuid4().hex}.{ext}"
+                file.save(os.path.join(current_app.config.get('UPLOAD_FOLDER', UPLOAD_FOLDER), filename))
+                img_record = CommunityPostImage(image_path=filename)
+                post.images.append(img_record)
+
+    db.session.add(post)
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'Posted successfully'})
+
+@views.route('/api/community_posts/<int:post_id>', methods=['DELETE'])
+def delete_community_post(post_id):
+    err = require_login()
+    if err: return err
+    current_user = get_current_user()
+    post = CommunityPost.query.get_or_404(post_id)
+    if post.user_id != current_user.id:
+        return jsonify({'error': 'Unauthorized'}), 403
+    db.session.delete(post)
+    db.session.commit()
+    return jsonify({'success': True})
+
+@views.route('/api/community_posts/<int:post_id>/like', methods=['POST'])
+def toggle_community_post_like(post_id):
+    err = require_login()
+    if err: return err
+    current_user = get_current_user()
+    existing_like = CommunityPostLike.query.filter_by(user_id=current_user.id, post_id=post_id).first()
+    if existing_like:
+        db.session.delete(existing_like)
+        liked = False
+    else:
+        db.session.add(CommunityPostLike(user_id=current_user.id, post_id=post_id))
+        liked = True
+    db.session.commit()
+    count = CommunityPostLike.query.filter_by(post_id=post_id).count()
+    return jsonify({'success': True, 'liked': liked, 'like_count': count})
+
+@views.route('/api/community_posts/<int:post_id>/favorite', methods=['POST'])
+def toggle_community_post_favorite(post_id):
+    err = require_login()
+    if err: return err
+    current_user = get_current_user()
+    existing_fav = CommunityPostFavorite.query.filter_by(user_id=current_user.id, post_id=post_id).first()
+    if existing_fav:
+        db.session.delete(existing_fav)
+        faved = False
+    else:
+        db.session.add(CommunityPostFavorite(user_id=current_user.id, post_id=post_id))
+        faved = True
+    db.session.commit()
+    count = CommunityPostFavorite.query.filter_by(post_id=post_id).count()
+    return jsonify({'success': True, 'faved': faved, 'fav_count': count})
+
+@views.route('/api/community_posts/<int:post_id>/comments', methods=['GET', 'POST'])
+def manage_community_post_comments(post_id):
+    err = require_login()
+    if err: return err
+    current_user = get_current_user()
+    
+    if request.method == 'GET':
+        comments = CommunityPostComment.query.filter_by(post_id=post_id).order_by(CommunityPostComment.created_at.asc()).all()
+        result = [{
+            'id': c.id,
+            'user_name': c.author.name,
+            'is_owner': c.user_id == current_user.id,
+            'content': c.content,
+            'parent_id': c.parent_id,
+            'created_at': c.created_at.isoformat(),
+            'image_urls': [f"/static/uploads/{img.image_path}" for img in c.images]
+        } for c in comments]
+        return jsonify(result)
+        
+    if request.method == 'POST':
+        if request.content_type and 'multipart' in request.content_type:
+            content = request.form.get('content', '').strip()
+            parent_id = request.form.get('parent_id')
+        else:
+            data = request.get_json(silent=True) or {}
+            content = data.get('content', '').strip()
+            parent_id = data.get('parent_id')
+        
+        if not content: return jsonify({'error': 'Comment cannot be empty'}), 400
+        if parent_id and str(parent_id).isdigit(): parent_id = int(parent_id)
+        else: parent_id = None
+            
+        comment = CommunityPostComment(post_id=post_id, user_id=current_user.id, content=content, parent_id=parent_id)
+        
+        if 'images' in request.files:
+            import uuid
+            files = request.files.getlist('images')
+            for file in files:
+                if file and file.filename and allowed_file(file.filename):
+                    ext = file.filename.rsplit('.', 1)[1].lower()
+                    filename = f"c_{uuid.uuid4().hex}.{ext}"
+                    file.save(os.path.join(current_app.config.get('UPLOAD_FOLDER', UPLOAD_FOLDER), filename))
+                    img = CommunityPostCommentImage(image_path=filename)
+                    comment.images.append(img)
+                    
+        db.session.add(comment)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Comment added'})
+
+@views.route('/api/community_posts/<int:post_id>/comments/<int:comment_id>', methods=['DELETE'])
+def delete_community_post_comment(post_id, comment_id):
+    err = require_login()
+    if err: return err
+    current_user = get_current_user()
+    c = CommunityPostComment.query.get_or_404(comment_id)
+    if c.post_id != post_id: return jsonify({'error': 'Mismatch'}), 400
+    if c.user_id != current_user.id: return jsonify({'error': 'Unauthorized'}), 403
+    db.session.delete(c)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
 @views.route('/hottest')
 def hottest_projects():
+    from datetime import datetime, timezone, timedelta
     
-    trending_projects = Project.query.filter(
-        Project.status != 'Archived'
-    ).order_by(
-        Project.views.desc().nulls_last(), 
-        Project.created_at.desc()
-    ).limit(10).all()
+    all_projects = Project.query.filter(Project.status != 'Archived').all()
     
-    projects_data = []
-    for p in trending_projects:
-        comment_count = ProjectComment.query.filter_by(project_id=p.id).count()
+    all_time_data = []
+    trending_data = []
+    
+    now = datetime.now(timezone.utc)
+    seven_days_ago = now - timedelta(days=7)
+    
+    for p in all_projects:
+        project_comment_count = ProjectComment.query.filter_by(project_id=p.id).count()
         
+        attached_posts = CommunityPost.query.filter_by(attached_project_id=p.id).all()
+        post_ids = [post.id for post in attached_posts]
+        
+        post_save_count = 0
+        post_like_count = 0
+        if post_ids:
+            post_save_count = CommunityPostFavorite.query.filter(CommunityPostFavorite.post_id.in_(post_ids)).count()
+            post_like_count = CommunityPostLike.query.filter(CommunityPostLike.post_id.in_(post_ids)).count()
+            
+        views = p.views or 0
         primary_lang = p.languages.split(',')[0].strip() if p.languages else 'N/A'
         
-        projects_data.append({
+        total_score = (views * 1) + (post_like_count * 5) + (project_comment_count * 10) + (post_save_count * 20)
+        
+        project_dict_all_time = {
             'id': p.id,
             'title': p.project_name,          
             'description': p.description,
             'language': primary_lang,
-            'views': p.views or 0,            
-            'comments': comment_count 
-        })
+            'views': views,            
+            'comments': project_comment_count,
+            'likes': post_like_count,  
+            'saves': post_save_count,  
+            'total_score': total_score
+        }
+        all_time_data.append(project_dict_all_time)
+
+        recent_comments = ProjectComment.query.filter(
+            ProjectComment.project_id == p.id,
+            ProjectComment.created_at >= seven_days_ago
+        ).count()
         
-    return render_template("trending.html", projects=projects_data)
+        recent_views = ProjectViewLog.query.filter(
+            ProjectViewLog.project_id == p.id,
+            ProjectViewLog.created_at >= seven_days_ago
+        ).count()
+        
+        recent_saves = 0
+        recent_likes = 0
+        if post_ids:
+            recent_saves = CommunityPostFavorite.query.filter(
+                CommunityPostFavorite.post_id.in_(post_ids),
+                CommunityPostFavorite.created_at >= seven_days_ago
+            ).count()
+            
+            recent_likes = CommunityPostLike.query.filter(
+                CommunityPostLike.post_id.in_(post_ids),
+                CommunityPostLike.created_at >= seven_days_ago
+            ).count()
+            
+        trending_score = (recent_views * 1) + (recent_likes * 5) + (recent_comments * 10) + (recent_saves * 20)
+        
+        if trending_score > 0:
+            project_dict_trending = {
+                'id': p.id,
+                'title': p.project_name,          
+                'description': p.description,
+                'language': primary_lang,
+                'views': views, 
+                'comments': project_comment_count,
+                'likes': post_like_count,  
+                'saves': post_save_count,  
+                'total_score': total_score,
+                'trending_score': trending_score 
+            }
+            trending_data.append(project_dict_trending)
+            
+    top_all_time = sorted(all_time_data, key=lambda x: x['total_score'], reverse=True)[:10]
+    top_trending = sorted(trending_data, key=lambda x: x['trending_score'], reverse=True)[:10]
+        
+    return render_template("Trending.html", all_time_projects=top_all_time, trending_projects=top_trending)
+
+@views.route('/api/project/<int:project_id>/updates', methods=['GET', 'POST'])
+def manage_project_updates(project_id):
+    err = require_login()
+    if err and request.method == 'POST': 
+        return err
+
+    project = Project.query.get_or_404(project_id)
+    current_user = get_current_user()
+    
+    current_user_role = 'user'
+    if current_user:
+        if project.user_id == current_user.id:
+            current_user_role = 'owner'
+        else:
+            member_record = ProjectMember.query.filter_by(project_id=project_id, user_id=current_user.id).first()
+            if member_record:
+                current_user_role = member_record.role
+
+    if request.method == 'GET':
+        updates = ProjectUpdate.query.filter_by(project_id=project_id).order_by(ProjectUpdate.created_at.desc()).all()
+        result = []
+        for u in updates:
+            is_appr = getattr(u, 'is_approved', True)
+            if is_appr is None:
+                is_appr = True
+                
+            if is_appr or current_user_role in ['owner', 'admin'] or (current_user and u.user_id == current_user.id):
+                result.append({
+                    'id': u.id,
+                    'title': u.title,
+                    'status': u.status,
+                    'content': u.content,
+                    'author_name': u.author.name if u.author else 'Unknown',
+                    'created_at': u.created_at.isoformat(),
+                    'is_approved': is_appr
+                })
+        return jsonify(result)
+
+    if request.method == 'POST':
+        if current_user_role not in ['owner', 'admin', 'member']:
+            return jsonify({'error': 'Only project members can post updates'}), 403
+
+        data = request.get_json(silent=True) or {}
+        title = data.get('title', '').strip()
+        status = data.get('status', 'On Track')
+        content = data.get('content', '').strip()
+
+        if not title or not content:
+            return jsonify({'error': 'Title and content are required'}), 400
+
+        auto_approve = current_user_role in ['owner', 'admin']
+
+        new_update = ProjectUpdate(
+            project_id=project_id,
+            user_id=current_user.id,
+            title=title,
+            status=status,
+            content=content,
+            is_approved=auto_approve
+        )
+        db.session.add(new_update)
+        db.session.commit()
+
+        msg = 'Update posted successfully' if auto_approve else 'Update submitted for approval'
+        return jsonify({'success': True, 'message': msg})
+
+@views.route('/api/project/<int:project_id>/updates/<int:update_id>/<action>', methods=['POST'])
+def review_project_update(project_id, update_id, action):
+    err = require_login()
+    if err: return err
+    
+    project = Project.query.get_or_404(project_id)
+    current_user = get_current_user()
+    
+    is_owner = (project.user_id == current_user.id)
+    is_admin = False
+    if not is_owner:
+        member_record = ProjectMember.query.filter_by(project_id=project_id, user_id=current_user.id).first()
+        if member_record and member_record.role == 'admin':
+            is_admin = True
+            
+    if not (is_owner or is_admin):
+        return jsonify({'error': 'Unauthorized. Only project leads and admins can review updates.'}), 403
+        
+    update = ProjectUpdate.query.get_or_404(update_id)
+    if update.project_id != project_id:
+        return jsonify({'error': 'Update mismatch'}), 400
+        
+    if action == 'approve':
+        update.is_approved = True
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Update approved and published.'})
+    elif action == 'reject':
+        db.session.delete(update)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Update rejected and removed.'})
+    else:
+        return jsonify({'error': 'Invalid action'}), 400
 
 
 # =====================================================================

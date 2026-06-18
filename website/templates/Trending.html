@@ -118,15 +118,26 @@
 </header>
 
 <main class="container mx-auto px-6 py-12 max-w-4xl">
-    <div class="space-y-6">
-        
-        {% if projects %}
-            {% for project in projects %}
+    
+    <div class="flex justify-center mb-10">
+        <div class="bg-gray-100 p-1.5 rounded-2xl inline-flex shadow-sm border border-gray-200">
+            <button id="tab-trending" onclick="switchTab('trending')" class="px-8 py-3 rounded-xl text-sm font-black transition-all bg-white text-red-600 shadow-sm border border-gray-100 flex items-center gap-2">
+                <i class="fas fa-rocket"></i> Trending Now
+            </button>
+            <button id="tab-alltime" onclick="switchTab('alltime')" class="px-8 py-3 rounded-xl text-sm font-bold transition-all text-gray-500 hover:text-gray-800 flex items-center gap-2">
+                <i class="fas fa-crown"></i> All-Time Hottest
+            </button>
+        </div>
+    </div>
+
+    <div id="list-trending" class="space-y-6">
+        {% if trending_projects %}
+            {% for project in trending_projects %}
             <div class="bg-white border border-gray-200 rounded-2xl p-6 hover:border-red-300 hover:shadow-md transition shadow-sm group relative overflow-hidden">
                 
                 {% if loop.index <= 3 %}
-                <div class="absolute top-0 right-0 bg-gradient-to-r from-red-600 to-red-700 text-white text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-bl-xl shadow-sm">
-                    Top {{ loop.index }}
+                <div class="absolute top-0 right-0 bg-gradient-to-r from-orange-500 to-red-500 text-white text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-bl-xl shadow-sm">
+                    Trending #{{ loop.index }}
                 </div>
                 {% endif %}
 
@@ -140,19 +151,24 @@
                 </a>
                 
                 <div class="flex items-center gap-6 mt-6 pt-4 border-t border-gray-100 flex-wrap">
-                    
                     <span class="flex items-center gap-1.5 text-xs font-semibold text-gray-500">
-                        <i class="far fa-eye text-gray-400 text-sm"></i> {{ project.views }} Views
+                        <i class="fas fa-fire text-orange-400 text-sm"></i> Heat Score: {{ "%.1f"|format(project.trending_score) }}
                     </span>
-                    
-                    <span class="flex items-center gap-1.5 text-xs font-semibold text-gray-500">
-                        <i class="far fa-comment-dots text-gray-400 text-sm"></i> {{ project.comments }} Comments
+                    <span class="flex items-center gap-1.5 text-xs font-semibold text-gray-500" title="Project Views (daily)">
+                        <i class="far fa-eye text-gray-400 text-sm"></i> {{ project.views }}
                     </span>
-                    
+                    <span class="flex items-center gap-1.5 text-xs font-semibold text-gray-500" title="Post Likes">
+                        <i class="far fa-heart text-red-400 text-sm"></i> {{ project.likes }}
+                    </span>
+                    <span class="flex items-center gap-1.5 text-xs font-semibold text-gray-500" title="Post Saves">
+                        <i class="far fa-star text-yellow-400 text-sm"></i> {{ project.saves }}
+                    </span>
+                    <span class="flex items-center gap-1.5 text-xs font-semibold text-gray-500" title="Project Comments">
+                        <i class="far fa-comment-dots text-gray-400 text-sm"></i> {{ project.comments }}
+                    </span>
                 </div>
             </div>
             {% endfor %}
-            
         {% else %}
             <div class="bg-white p-12 rounded-2xl border border-gray-200 shadow-sm text-center">
                 <div class="w-20 h-20 bg-red-50 text-red-400 rounded-full flex items-center justify-center mx-auto mb-5 text-3xl">
@@ -165,14 +181,85 @@
                 </a>
             </div>
         {% endif %}
-
     </div>
+
+    <div id="list-alltime" class="space-y-6 hidden">
+        {% if all_time_projects %}
+            {% for project in all_time_projects %}
+            <div class="bg-white border border-gray-200 rounded-2xl p-6 hover:border-gray-400 hover:shadow-md transition shadow-sm group relative overflow-hidden">
+                
+                {% if loop.index <= 3 %}
+                <div class="absolute top-0 right-0 bg-gray-800 text-white text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-bl-xl shadow-sm">
+                    Top {{ loop.index }}
+                </div>
+                {% endif %}
+
+                <a href="{{ url_for('views.project_page', project_id=project.id) }}" class="block pr-16">
+                    <h3 class="text-xl md:text-2xl font-bold text-gray-900 group-hover:text-gray-600 transition truncate">
+                        {{ project.title }}
+                    </h3>
+                    <p class="text-gray-600 mt-2 text-sm leading-relaxed line-clamp-2">
+                        {{ project.description if project.description else "No description provided." }}
+                    </p>
+                </a>
+                
+                <div class="flex items-center gap-6 mt-6 pt-4 border-t border-gray-100 flex-wrap">
+                    <span class="flex items-center gap-1.5 text-xs font-semibold text-gray-500">
+                        <i class="fas fa-trophy text-yellow-500 text-sm"></i> Total Score: {{ project.total_score }}
+                    </span>
+                    <span class="flex items-center gap-1.5 text-xs font-semibold text-gray-500" title="Project Views">
+                        <i class="far fa-eye text-gray-400 text-sm"></i> {{ project.views }}
+                    </span>
+                    <span class="flex items-center gap-1.5 text-xs font-semibold text-gray-500" title="Post Likes">
+                        <i class="far fa-heart text-red-400 text-sm"></i> {{ project.likes }}
+                    </span>
+                    <span class="flex items-center gap-1.5 text-xs font-semibold text-gray-500" title="Post Saves">
+                        <i class="far fa-star text-yellow-400 text-sm"></i> {{ project.saves }}
+                    </span>
+                    <span class="flex items-center gap-1.5 text-xs font-semibold text-gray-500" title="Project Comments">
+                        <i class="far fa-comment-dots text-gray-400 text-sm"></i> {{ project.comments }}
+                    </span>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="bg-white p-12 rounded-2xl border border-gray-200 shadow-sm text-center">
+                <div class="w-20 h-20 bg-gray-50 text-gray-400 rounded-full flex items-center justify-center mx-auto mb-5 text-3xl">
+                    <i class="fas fa-folder-open"></i>
+                </div>
+                <h3 class="text-xl font-black text-gray-800">No projects recorded</h3>
+                <p class="text-gray-500 text-sm mt-2">Projects will appear here once they gain interaction.</p>
+            </div>
+        {% endif %}
+    </div>
+
 </main>
 
 <script>
     const API = '/api';
     const IS_FILE = window.location.protocol === 'file:';
 
+    // ── Tabs 切换逻辑 ────────────────────────────────────────────────────────
+    function switchTab(tab) {
+        const btnTrending = document.getElementById('tab-trending');
+        const btnAllTime = document.getElementById('tab-alltime');
+        const listTrending = document.getElementById('list-trending');
+        const listAllTime = document.getElementById('list-alltime');
+
+        if (tab === 'trending') {
+            btnTrending.className = "px-8 py-3 rounded-xl text-sm font-black transition-all bg-white text-red-600 shadow-sm border border-gray-100 flex items-center gap-2";
+            btnAllTime.className = "px-8 py-3 rounded-xl text-sm font-bold transition-all text-gray-500 hover:text-gray-800 flex items-center gap-2";
+            listTrending.classList.remove('hidden');
+            listAllTime.classList.add('hidden');
+        } else {
+            btnTrending.className = "px-8 py-3 rounded-xl text-sm font-bold transition-all text-gray-500 hover:text-gray-800 flex items-center gap-2";
+            btnAllTime.className = "px-8 py-3 rounded-xl text-sm font-black transition-all bg-white text-gray-800 shadow-sm border border-gray-100 flex items-center gap-2";
+            listTrending.classList.add('hidden');
+            listAllTime.classList.remove('hidden');
+        }
+    }
+
+    // ── 汉堡菜单逻辑 ─────────────────────────────────────────────
     const menuBtn    = document.getElementById('menu-btn');
     const mobileMenu = document.getElementById('mobile-menu');
 
@@ -196,6 +283,7 @@
         el.addEventListener('click', closeMenu);
     });
 
+    // ── 用户状态与退出登录 ────────────────────────────────────
     async function initNav() {
         if (IS_FILE) {
             if (document.getElementById('nav-email')) document.getElementById('nav-email').textContent = '(offline)';
@@ -235,6 +323,7 @@
     document.getElementById('logout-btn').addEventListener('click', logout);
     document.getElementById('logout-btn-mobile').addEventListener('click', logout);
 
+    // 页面加载完毕后验证用户
     initNav();
 </script>
 </body>

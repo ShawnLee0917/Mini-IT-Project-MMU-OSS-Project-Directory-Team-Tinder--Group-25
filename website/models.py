@@ -1,5 +1,7 @@
 from . import db
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+
+MYT = timezone(timedelta(hours=8))
 
 class ProjectMember(db.Model):
     __tablename__ = 'project_members'
@@ -11,7 +13,7 @@ class ProjectMember(db.Model):
     # Core field: 'admin' or 'member'. 
     # (Note: 'owner' is the project creator, recorded directly in Project's user_id)
     role = db.Column(db.String(20), nullable=False, default='member') 
-    joined_at = db.Column(db.DateTime, default=datetime.utcnow)
+    joined_at = db.Column(db.DateTime, default=datetime.now(MYT))
 
     # Establish relationship for easy access to the corresponding User object via project_member.user
     user = db.relationship('User', backref=db.backref('project_memberships', lazy='dynamic', cascade='all, delete-orphan'))
@@ -30,7 +32,7 @@ class User(db.Model):
     interests = db.Column(db.Text, default='')  # Comma-separated project interests
     rank = db.Column(db.Integer, nullable=False, default=0)
     karma = db.Column(db.Integer, nullable=False, default=0)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT))
     is_verified = db.Column(db.Boolean, default=False)
     is_admin = db.Column(db.Boolean, default=False)  # Admin privilege for content moderation
     otp = db.Column(db.String(6), nullable=True)
@@ -77,8 +79,8 @@ class UserSettings(db.Model):
     allow_direct_messages = db.Column(db.Boolean, default=True)
     auto_accept_collaborations = db.Column(db.Boolean, default=False)
     
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT))
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT), onupdate=datetime.now(MYT))
 
 
 class Skill(db.Model):
@@ -103,7 +105,7 @@ class Comment(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     comment = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT))
 
 
 class Project(db.Model):
@@ -118,7 +120,7 @@ class Project(db.Model):
     languages = db.Column(db.String(255), default='')
     roles_needed = db.Column(db.String(255), default='')
     contributors = db.Column(db.String(50), default='1')
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT))
     views = db.Column(db.Integer, default=0)
     
     # Relationships
@@ -130,13 +132,20 @@ class Project(db.Model):
     # ADDED: Relationship to easily count or access stars for this project
     stars = db.relationship('ProjectStar', backref='project', lazy=True, cascade='all, delete-orphan')
 
+class ProjectViewLog(db.Model):
+    __tablename__ = 'project_view_logs'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True) 
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT))
+
 class ProjectStar(db.Model):
     __tablename__ = 'project_stars'
     
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     project_id = db.Column(db.Integer, db.ForeignKey('projects.id', ondelete='CASCADE'), nullable=False)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT))
     
     # Ensure a user can only star a specific project once
     __table_args__ = (db.UniqueConstraint('user_id', 'project_id', name='unique_user_project_star'),)
@@ -154,7 +163,7 @@ class Suggestion(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     project_id = db.Column(db.Integer, db.ForeignKey('projects.id', ondelete='CASCADE'), nullable=False)
     match_score = db.Column(db.Integer, default=100)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT))
     
     __table_args__ = (db.UniqueConstraint('user_id', 'project_id', name='unique_user_project'),)
 
@@ -166,8 +175,8 @@ class JoinRequest(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     project_id = db.Column(db.Integer, db.ForeignKey('projects.id', ondelete='CASCADE'), nullable=False)
     status = db.Column(db.String(50), nullable=False, default='pending')  # 'pending', 'accepted', 'rejected'
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT))
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT), onupdate=datetime.now(MYT))
     
     # Relationships
     user = db.relationship('User', backref='join_requests')
@@ -184,7 +193,7 @@ class MemberHistory(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     project_id = db.Column(db.Integer, db.ForeignKey('projects.id', ondelete='CASCADE'), nullable=False)
     action = db.Column(db.String(50), nullable=False)  # 'joined' or 'left'
-    timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT))
     reason = db.Column(db.String(255), nullable=True)  # Optional reason for leaving
     
     # Relationships
@@ -202,8 +211,8 @@ class LeaveRequest(db.Model):
     project_id = db.Column(db.Integer, db.ForeignKey('projects.id', ondelete='CASCADE'), nullable=False)
     reason = db.Column(db.Text, nullable=False)
     status = db.Column(db.String(50), nullable=False, default='pending')  # 'pending', 'approved', 'rejected'
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT))
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT), onupdate=datetime.now(MYT))
     approved_at = db.Column(db.DateTime, nullable=True)
     
     # Relationships
@@ -225,7 +234,7 @@ class CommentLabel(db.Model):
     name = db.Column(db.String(50), nullable=False, unique=True)
     color = db.Column(db.String(20), default='gray')  # Color code like 'red', 'green', 'blue', etc.
     description = db.Column(db.String(255), default='')
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT))
 
 
 class ProjectComment(db.Model):
@@ -246,8 +255,8 @@ class ProjectComment(db.Model):
     # Role-based: 'user', 'team-member', 'owner'
     user_role = db.Column(db.String(20), nullable=False, default='user')
     
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT))
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT), onupdate=datetime.now(MYT))
     
     # Relationships
     author = db.relationship('User', backref='project_comments')
@@ -278,7 +287,7 @@ class Question(db.Model):
     title      = db.Column(db.String(300), nullable=False)
     body       = db.Column(db.Text, nullable=False)
     image_path = db.Column(db.String(255), default='')
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT))
 
     likes      = db.relationship('QuestionLike',    backref='question', lazy=True, cascade='all, delete-orphan')
     favorites  = db.relationship('QuestionFavorite', backref='question', lazy=True, cascade='all, delete-orphan')
@@ -322,7 +331,7 @@ class QuestionComment(db.Model):
     question_id = db.Column(db.Integer, db.ForeignKey('questions.id', ondelete='CASCADE'), nullable=False)
     parent_id   = db.Column(db.Integer, db.ForeignKey('question_comments.id', ondelete='CASCADE'), nullable=True)
     body        = db.Column(db.Text, nullable=False)
-    created_at  = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at  = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT))
     
     images = db.relationship('QuestionCommentImage', backref='comment', lazy=True, cascade='all, delete-orphan')
 
@@ -344,7 +353,7 @@ class CommunityPost(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     content = db.Column(db.Text, nullable=False)
     category = db.Column(db.String(50), default='Discussion') 
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT))
     
     image_path = db.Column(db.String(255), nullable=True)
     link_url = db.Column(db.String(500), nullable=True)
@@ -371,6 +380,8 @@ class CommunityPostFavorite(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     post_id = db.Column(db.Integer, db.ForeignKey('community_posts.id', ondelete='CASCADE'), nullable=False)
+
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT), server_default=db.func.now())
     
     __table_args__ = (db.UniqueConstraint('user_id', 'post_id', name='unique_user_cpost_fav'),)
 
@@ -381,7 +392,7 @@ class CommunityPostLike(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     post_id = db.Column(db.Integer, db.ForeignKey('community_posts.id', ondelete='CASCADE'), nullable=False)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT))
     
     __table_args__ = (db.UniqueConstraint('user_id', 'post_id', name='unique_user_cpost_like'),)
 
@@ -396,7 +407,7 @@ class CommunityPostComment(db.Model):
     parent_id = db.Column(db.Integer, db.ForeignKey('community_post_comments.id', ondelete='CASCADE'), nullable=True)
     
     content = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT))
     
     author = db.relationship('User')
     images = db.relationship('CommunityPostCommentImage', backref='comment', lazy=True, cascade='all, delete-orphan')
@@ -407,6 +418,19 @@ class CommunityPostCommentImage(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     comment_id = db.Column(db.Integer, db.ForeignKey('community_post_comments.id', ondelete='CASCADE'), nullable=False)
     image_path = db.Column(db.String(255), nullable=False)
+
+class ProjectUpdate(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    title = db.Column(db.String(150), nullable=False)  
+    status = db.Column(db.String(50), nullable=False)  
+    content = db.Column(db.Text, nullable=False)       
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), )
+    is_approved = db.Column(db.Boolean, default=False)  
+
+    author = db.relationship('User', backref='project_updates')
+    project = db.relationship('Project', backref=db.backref('updates', lazy='dynamic'))
 
 
 # ---------------------------------------------------------------------------
