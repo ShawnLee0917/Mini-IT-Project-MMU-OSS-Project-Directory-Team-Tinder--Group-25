@@ -64,7 +64,7 @@
             opacity: 0;
             transition:
                 max-height 0.38s cubic-bezier(0.4, 0, 0.2, 1),
-                opacity    0.28s ease;
+                opacity     0.28s ease;
         }
         #mobile-menu.menu-open {
             max-height: 500px;   /* tall enough for all links */
@@ -273,8 +273,7 @@
 </main>
 
 <script>
-
-        const IS_FILE = window.location.protocol === 'file:';
+    const IS_FILE = window.location.protocol === 'file:';
     const API = '/api';
 
     // ── Mobile menu smooth toggle ─────────────────────────────────────────────
@@ -309,7 +308,7 @@
         }
     });
 
-        // ── Fetch full profile from Flask ──────────────────────────────────────────
+    // ── Fetch full profile from Flask ──────────────────────────────────────────
     async function initNav() {
         if (IS_FILE) {
             if (document.getElementById('nav-email')) document.getElementById('nav-email').textContent = '(offline)';
@@ -380,6 +379,54 @@
             }
         });
     }
+
+    // 执行导航初始化
+    initNav();
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const projectForm = document.querySelector('form');
+    
+    if (projectForm) {
+        projectForm.addEventListener('submit', function(event) {
+            const nameInput = document.querySelector('input[name="project_name"]');
+            const descInput = document.querySelector('textarea[name="description"]');
+            
+            if (!nameInput || !descInput) return; 
+            
+            const titleText = nameInput.value.toLowerCase();
+            const descText = descInput.value.toLowerCase();
+            
+            // Comprehensive Security Guardrail Keyword Dictionary
+            const prohibitedKeywords = [
+                '代写', 'assignment-help', 'academic-cheating', 
+                'earn-cash', 'buy-now', 'scam', 'paid-service',
+                'essay-writing', 'pay-someone', 'homework-help'
+            ];
+            
+            for (let word of prohibitedKeywords) {
+                if (titleText.includes(word) || descText.includes(word)) {
+                    // Stop form submission immediately
+                    event.preventDefault(); 
+                    
+                    // Trigger High-Fidelity Professional English Alert Window
+                    alert(
+                        `[SECURITY GUARDRAIL VIOLATION]\n\n` +
+                        `Submission Denied!\n` +
+                        `Our automated filter detected a prohibited phrase: "${word}".\n\n` +
+                        `Policy Notice:\n` +
+                        `To maintain MMU's academic integrity and community safety, ` +
+                        `commercial advertisements, paid assignments, and spam patterns ` +
+                        `are strictly banned on this platform.\n\n` +
+                        `Action Required: Please remove the flagged terms and try again.`
+                    );
+                    return false;
+                }
+            }
+        });
+    }
+});
 </script>
 </body>
 </html>

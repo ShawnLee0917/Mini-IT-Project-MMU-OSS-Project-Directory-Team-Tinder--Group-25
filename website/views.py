@@ -10,11 +10,33 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 import uuid
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify, session
-from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, QuestionCommentImage, QuestionImage, JoinRequest, LeaveRequest, MemberHistory, ProjectCommentImage, UserSettings, ProjectMember, CommunityPostComment, CommunityPost, CommunityPostLike, CommunityPostImage, CommunityPostFavorite, CommunityPostCommentImage, ProjectViewLog, ProjectUpdate
+from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, QuestionCommentImage, QuestionImage, JoinRequest, LeaveRequest, MemberHistory, ProjectCommentImage, UserSettings, ProjectMember, CommunityPostComment, CommunityPost, CommunityPostLike, CommunityPostImage, CommunityPostFavorite, CommunityPostCommentImage, ProjectViewLog, ProjectUpdate, ContentReport, AdminLog, SuspendedUser, ContentFlagKeyword
 from datetime import datetime, timezone, timedelta
 
 views = Blueprint('views', __name__)
 
+# =====================================================================
+# ─── BANNED KEYWORDS AUTOMATIC FILTERING SYSTEM ───
+# =====================================================================
+BANNED_KEYWORDS = [
+    'scam', 'spam', 'casino', 'gamble', 'betting',
+    'buy followers', 'homework help', 'advertisement', 'hack'
+]
+
+def contains_banned_keywords(text_to_check):
+    """
+    Helper function to check if the text contains any blacklisted words.
+    Returns the banned word if found, otherwise returns None.
+    """
+    if not text_to_check:
+        return None
+    
+    # Convert text to lowercase to prevent bypassing with 'ScaM' or 'SCAM'
+    lower_text = str(text_to_check).lower()
+    for word in BANNED_KEYWORDS:
+        if word.lower() in lower_text:
+            return word
+    return None
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'static', 'uploads')
 ALLOWED_EXT = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
@@ -44,10 +66,595 @@ def parse_interests(interests_str):
         all_interests = [i.strip() for i in interests_str.split(',') if i.strip()]
         return {'dev_interests': all_interests, 'lang_interests': []}
 
+
+# =====================================================================
+# Content Moderation & Admin Functions
+# =====================================================================
+
+@views.route('/api/admin/delete-content', methods=['POST'])
+def api_admin_delete_content():
+    """管理面板无刷新一键删除项目、评论或帖子"""
+    error_resp = require_admin()
+    if error_resp:
+        return error_resp
+
+    data = request.get_json(silent=True) or {}
+    content_type = data.get('type')  # 'project', 'comment', 'post', 'post_comment'
+    content_id = data.get('id')
+    report_id = data.get('report_id')
+
+    if not content_type or not content_id:
+        return jsonify({'error': 'Missing type or ID.'}), 400
+
+    try:
+        target = None
+        details_msg = ""
+
+        if content_type == 'project':
+            target = Project.query.get(content_id)
+            if target:
+                details_msg = f"Deleted Project: {target.project_name or content_id}"
+                db.session.delete(target)
+
+        elif content_type == 'comment':
+            target = ProjectComment.query.get(content_id)
+            if not target:
+                target = Comment.query.get(content_id)
+            if target:
+                details_msg = f"Deleted Comment ID {content_id}"
+                db.session.delete(target)
+
+        elif content_type == 'post':
+            target = CommunityPost.query.get(content_id)
+            if target:
+                details_msg = f"Deleted Post ID {content_id}"
+                db.session.delete(target)
+
+        elif content_type == 'post_comment':
+            target = CommunityPostComment.query.get(content_id)
+            if target:
+                details_msg = f"Deleted Post Comment ID {content_id}"
+                db.session.delete(target)
+
+        else:
+            return jsonify({'error': 'Invalid content type.'}), 400
+
+        if target:
+            if report_id:
+                report = ContentReport.query.get(report_id)
+                if report:
+                    report.status = 'deleted'
+                    report.admin_id = get_current_user().id
+
+            log = AdminLog()
+            log.admin_id = get_current_user().id
+            log.action = 'delete_content'
+            log.target_type = content_type
+            log.target_id = int(content_id)
+            log.details = f"[Admin Action] {details_msg}"
+            db.session.add(log)
+
+            db.session.commit()
+            return jsonify({'success': True, 'message': f'{content_type.capitalize()} deleted successfully.'})
+        else:
+            return jsonify({'error': 'Content not found.'}), 404
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Database operational failure: {str(e)}'}), 500
+    
+def check_admin_permission():
+    """Verify if current user is admin"""
+    if 'user_email' not in session:
+        return False, None
+    user = get_current_user()
+    if not user or not user.is_admin:
+        return False, None
+    return True, user
+
+
+def detect_inappropriate_content(text):
+    """Scan text for inappropriate keywords - returns list of flagged keywords"""
+    if not text:
+        return []
+    
+    flagged_keywords = ContentFlagKeyword.query.filter_by(is_active=True).all()
+    flagged = []
+    
+    text_lower = text.lower()
+    for keyword_obj in flagged_keywords:
+        if keyword_obj.keyword.lower() in text_lower:
+            flagged.append({
+                'keyword': keyword_obj.keyword,
+                'category': keyword_obj.category,
+                'severity': keyword_obj.severity
+            })
+    
+    return flagged
+
+
+def auto_report_content(content_type, content_id, reason='auto_flagged'):
+    """Automatically create a content report for flagged content"""
+    # Check if report already exists
+    existing = ContentReport.query.filter_by(
+        content_type=content_type,
+        content_id=content_id,
+        status='pending'
+    ).first()
+    
+    if not existing:
+        report = ContentReport()
+        report.reporter_id = 1  # System as reporter
+        report.content_type = content_type
+        report.content_id = content_id
+        report.reason = reason
+        report.status = 'pending'
+        db.session.add(report)
+        db.session.commit()
+        return True
+    return False
+
+
+def _enrich_pending_reports(reports):
+    """Build display metadata for pending content reports."""
+    items = []
+    type_labels = {
+        'project': 'Project',
+        'comment': 'Comment',
+        'question': 'Question',
+        'post': 'Community Post',
+        'post_comment': 'Post Comment',
+    }
+
+    for report in reports:
+        item = {
+            'id': report.id,
+            'content_type': report.content_type,
+            'content_id': report.content_id,
+            'reason': report.reason,
+            'description': report.description or '',
+            'reporter_name': report.reporter.name if report.reporter else 'System',
+            'created_at': report.created_at,
+            'type_label': type_labels.get(report.content_type, report.content_type.title()),
+            'target_label': f'{type_labels.get(report.content_type, report.content_type)} #{report.content_id}',
+            'target_link': '#',
+            'target_preview': '',
+        }
+
+        if report.content_type == 'project':
+            project = Project.query.get(report.content_id)
+            if project:
+                item['target_label'] = project.project_name
+                item['target_link'] = f'/project/{report.content_id}'
+                item['target_preview'] = (project.description or '')[:120]
+            else:
+                item['target_preview'] = 'Content may have been removed already.'
+
+        elif report.content_type == 'comment':
+            comment = ProjectComment.query.get(report.content_id)
+            if comment:
+                item['target_label'] = f'Comment on {comment.project.project_name if comment.project else "Project"}'
+                item['target_link'] = f'/project/{comment.project_id}'
+                item['target_preview'] = (comment.content or '')[:120]
+            else:
+                item['target_preview'] = 'Comment may have been removed already.'
+
+        elif report.content_type == 'question':
+            question = Question.query.get(report.content_id)
+            if question:
+                item['target_label'] = question.title
+                item['target_link'] = f'/qna/{report.content_id}'
+                item['target_preview'] = (question.body or '')[:120]
+
+        elif report.content_type == 'post':
+            post = CommunityPost.query.get(report.content_id)
+            if post:
+                item['target_label'] = f'Community Post #{post.id}'
+                item['target_link'] = '/trending'
+                item['target_preview'] = (post.content or '')[:120]
+
+        elif report.content_type == 'post_comment':
+            post_comment = CommunityPostComment.query.get(report.content_id)
+            if post_comment:
+                item['target_label'] = f'Comment on Post #{post_comment.post_id}'
+                item['target_link'] = '/trending'
+                item['target_preview'] = (post_comment.content or '')[:120]
+
+        items.append(item)
+    return items
+
+
+@views.route('/api/admin/reports', methods=['GET'])
+def api_get_reports():
+    """Get all content reports (paginated)"""
+    is_admin, _ = check_admin_permission()
+    if not is_admin:
+        return jsonify({'error': 'Admin permission required'}), 403
+    
+    page = request.args.get('page', 1, type=int)
+    status = request.args.get('status', 'pending')  # pending, approved, rejected, deleted
+    
+    query = ContentReport.query
+    if status != 'all':
+        query = query.filter_by(status=status)
+    
+    reports = query.order_by(ContentReport.created_at.desc()).paginate(
+        page=page, per_page=20
+    )
+    
+    reports_data = []
+    for report in reports.items:
+        reports_data.append({
+            'id': report.id,
+            'reporter_name': report.reporter.name if report.reporter else 'System',
+            'content_type': report.content_type,
+            'content_id': report.content_id,
+            'reason': report.reason,
+            'description': report.description,
+            'status': report.status,
+            'created_at': report.created_at.isoformat(),
+            'updated_at': report.updated_at.isoformat(),
+        })
+    
+    return jsonify({
+        'reports': reports_data,
+        'total': reports.total,
+        'pages': reports.pages,
+        'current_page': page
+    })
+
+
+@views.route('/api/report-content', methods=['POST'])
+def api_report_content():
+    """User reports inappropriate content"""
+    err = require_login()
+    if err:
+        return err
+    
+    user = get_current_user()
+    data = request.get_json(silent=True) or {}
+    
+    content_type = data.get('content_type')  # 'project', 'question', 'comment', 'post', 'post_comment'
+    raw_id = data.get('content_id')
+    content_id = int(raw_id) if raw_id is not None else None
+    reason = data.get('reason')  # 'spam', 'inappropriate', 'harmful', 'plagiarism', 'other'
+    description = data.get('description', '')
+    
+    if not all([content_type, content_id, reason]):
+        return jsonify({'error': 'Missing required fields'}), 400
+    
+    # Check if user already reported this
+    existing = ContentReport.query.filter_by(
+        reporter_id=user.id,
+        content_type=content_type,
+        content_id=content_id,
+        status='pending'
+    ).first()
+    
+    if existing:
+        return jsonify({'error': 'You have already reported this content'}), 409
+    
+    report = ContentReport()
+    report.reporter_id = user.id
+    report.content_type = content_type
+    report.content_id = content_id
+    report.reason = reason
+    report.description = description
+    report.status = 'pending'  # 👈 【核心修复】：显式指定状态为 pending，确保后台能查到
+    
+    db.session.add(report)
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'message': 'Report submitted. Thank you for helping keep our community safe!',
+        'report_id': report.id
+    })
+
+
+@views.route('/api/admin/approve-report/<int:report_id>', methods=['POST'])
+def api_approve_report(report_id):
+    """Admin approves a report and deletes the content"""
+    is_admin, admin_user = check_admin_permission()
+    if not is_admin:
+        return jsonify({'error': 'Admin permission required'}), 403
+    
+    report = ContentReport.query.get_or_404(report_id)
+    admin_comment = (request.get_json(silent=True) or {}).get('comment', '')
+    
+    try:
+        # Delete the reported content based on type
+        if report.content_type == 'project':
+            content = Project.query.get(report.content_id)
+            if content:
+                db.session.delete(content)
+                
+        elif report.content_type == 'question':
+            content = Question.query.get(report.content_id)
+            if content:
+                db.session.delete(content)
+                
+        elif report.content_type == 'comment':
+            content = ProjectComment.query.get(report.content_id)
+            if content:
+                db.session.delete(content)
+                
+        elif report.content_type == 'post':
+            content = CommunityPost.query.get(report.content_id)
+            if content:
+                db.session.delete(content)
+                
+        elif report.content_type == 'post_comment':
+            content = CommunityPostComment.query.get(report.content_id)
+            if content:
+                db.session.delete(content)
+        
+        # Update report status
+        report.status = 'deleted'
+        report.admin_id = admin_user.id
+        report.admin_comment = admin_comment
+        
+        # Log admin action
+        log = AdminLog()
+        log.admin_id = admin_user.id
+        log.action = 'delete_content'
+        log.target_type = report.content_type
+        log.target_id = report.content_id
+        log.details = f"Reason: {report.reason}. {admin_comment}"
+        db.session.add(log)
+        
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Content deleted successfully'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error deleting content: {str(e)}'}), 500
+
+
+@views.route('/api/admin/reject-report/<int:report_id>', methods=['POST'])
+def api_reject_report(report_id):
+    """Admin rejects a report (content is not deleted)"""
+    is_admin, admin_user = check_admin_permission()
+    if not is_admin:
+        return jsonify({'error': 'Admin permission required'}), 403
+    
+    report = ContentReport.query.get_or_404(report_id)
+    admin_comment = (request.get_json(silent=True) or {}).get('comment', '')
+    
+    report.status = 'rejected'
+    report.admin_id = admin_user.id
+    report.admin_comment = admin_comment
+    
+    log = AdminLog()
+    log.admin_id = admin_user.id
+    log.action = 'reject_report'
+    log.target_type = report.content_type
+    log.target_id = report.content_id
+    log.details = f"Rejected report: {report.reason}. {admin_comment}"
+    db.session.add(log)
+    
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'Report rejected'})
+
+
+@views.route('/api/admin/suspend-user/<int:user_id>', methods=['POST'])
+def api_suspend_user(user_id):
+    """Admin suspends a user"""
+    is_admin, admin_user = check_admin_permission()
+    if not is_admin:
+        return jsonify({'error': 'Admin permission required'}), 403
+    
+    user = User.query.get_or_404(user_id)
+    data = request.get_json(silent=True) or {}
+    reason = data.get('reason', 'Violation of community guidelines')
+    
+    # Check if already suspended
+    existing = SuspendedUser.query.filter_by(user_id=user_id, is_active=True).first()
+    if existing:
+        return jsonify({'error': 'User is already suspended'}), 409
+    
+    suspension = SuspendedUser()
+    suspension.user_id = user_id
+    suspension.admin_id = admin_user.id
+    suspension.reason = reason
+    
+    log = AdminLog()
+    log.admin_id = admin_user.id
+    log.action = 'suspend_user'
+    log.target_type = 'user'
+    log.target_id = user_id
+    log.details = reason
+    db.session.add(log)
+    
+    db.session.add(suspension)
+    db.session.commit()
+    
+    return jsonify({'success': True, 'message': f'User {user.email} has been suspended'})
+
+
+@views.route('/api/admin/unsuspend-user/<int:user_id>', methods=['POST'])
+def api_unsuspend_user(user_id):
+    """Admin unsuspends a user"""
+    is_admin, admin_user = check_admin_permission()
+    if not is_admin:
+        return jsonify({'error': 'Admin permission required'}), 403
+    
+    suspension = SuspendedUser.query.filter_by(user_id=user_id, is_active=True).first()
+    if not suspension:
+        return jsonify({'error': 'User is not suspended'}), 404
+    
+    suspension.is_active = False
+    suspension.unsuspended_at = datetime.utcnow()
+    
+    log = AdminLog()
+    log.admin_id = admin_user.id
+    log.action = 'unsuspend_user'
+    log.target_type = 'user'
+    log.target_id = user_id
+    log.details = 'User unsuspended'
+    db.session.add(log)
+    
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'User unsuspended'})
+
+
+@views.route('/api/admin/keywords', methods=['GET'])
+def api_get_keywords():
+    """Get all content flag keywords"""
+    is_admin, _ = check_admin_permission()
+    if not is_admin:
+        return jsonify({'error': 'Admin permission required'}), 403
+    
+    keywords = ContentFlagKeyword.query.all()
+    keywords_data = [{
+        'id': k.id,
+        'keyword': k.keyword,
+        'category': k.category,
+        'severity': k.severity,
+        'is_active': k.is_active
+    } for k in keywords]
+    
+    return jsonify({'keywords': keywords_data})
+
+
+@views.route('/api/admin/add-keyword', methods=['POST'])
+def api_add_keyword():
+    """Admin adds a flagging keyword"""
+    is_admin, admin_user = check_admin_permission()
+    if not is_admin:
+        return jsonify({'error': 'Admin permission required'}), 403
+    
+    data = request.get_json(silent=True) or {}
+    keyword = data.get('keyword', '').strip()
+    category = data.get('category')  # 'spam', 'inappropriate', 'harmful'
+    severity = data.get('severity', 1)
+    
+    if not keyword or not category:
+        return jsonify({'error': 'Missing required fields'}), 400
+    
+    existing = ContentFlagKeyword.query.filter_by(keyword=keyword).first()
+    if existing:
+        return jsonify({'error': 'Keyword already exists'}), 409
+    
+    keyword_obj = ContentFlagKeyword()
+    keyword_obj.keyword = keyword
+    keyword_obj.category = category
+    keyword_obj.severity = severity
+    keyword_obj.added_by = admin_user.id
+    
+    db.session.add(keyword_obj)
+    db.session.commit()
+    
+    return jsonify({'success': True, 'message': 'Keyword added'})
+
+
+@views.route('/api/admin/delete-keyword/<int:keyword_id>', methods=['DELETE'])
+def api_delete_keyword(keyword_id):
+    """Admin deletes a flagging keyword"""
+    is_admin, admin_user = check_admin_permission()
+    if not is_admin:
+        return jsonify({'error': 'Admin permission required'}), 403
+    
+    keyword = ContentFlagKeyword.query.get_or_404(keyword_id)
+    keyword.is_active = False
+    
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'Keyword disabled'})
+
+
+@views.route('/api/admin/logs', methods=['GET'])
+def api_get_admin_logs():
+    """Get admin action logs (paginated)"""
+    is_admin, _ = check_admin_permission()
+    if not is_admin:
+        return jsonify({'error': 'Admin permission required'}), 403
+    
+    page = request.args.get('page', 1, type=int)
+    action_type = request.args.get('action', None)
+    
+    query = AdminLog.query
+    if action_type:
+        query = query.filter_by(action=action_type)
+    
+    logs = query.order_by(AdminLog.created_at.desc()).paginate(
+        page=page, per_page=50
+    )
+    
+    logs_data = []
+    for log in logs.items:
+        logs_data.append({
+            'id': log.id,
+            'admin_name': log.admin.name if log.admin else 'System',
+            'action': log.action,
+            'target_type': log.target_type,
+            'target_id': log.target_id,
+            'details': log.details,
+            'created_at': log.created_at.isoformat()
+        })
+    
+    return jsonify({
+        'logs': logs_data,
+        'total': logs.total,
+        'pages': logs.pages,
+        'current_page': page
+    })
+
+
+@views.route('/api/admin/dismiss-report', methods=['POST'])
+def api_admin_dismiss_report():
+    """管理面板：忽略/驳回举报记录"""
+    
+    # 1. 权限检查：确保函数名和你的验证逻辑一致
+    is_admin, user = check_admin_permission()
+    if not is_admin:
+        return jsonify({'error': 'Unauthorized access.'}), 403
+
+    # 2. 解析前端传来的 JSON
+    data = request.get_json(silent=True) or {}
+    report_id = data.get('report_id')
+
+    if not report_id:
+        return jsonify({'error': 'Missing report ID.'}), 400
+
+    try:
+        # 3. 查找举报记录（改用兼容性最强的 filter_by 方式）
+        # 请确保 ContentReport 名字与你的 models.py 中完全一致
+        report = ContentReport.query.filter_by(id=int(report_id)).first()
+        
+        if not report:
+            return jsonify({'error': f'Report #{report_id} not found in database.'}), 404
+
+        # 4. 更新状态
+        report.status = 'resolved' 
+        
+        # 5. 安全地记录审计日志（将其完全隔离，防止因没有表或少字段导致整个接口崩溃）
+        try:
+            log = AdminLog()
+            # 动态获取当前管理员 ID，如果没有就安全赋一个默认值 1
+            log.admin_id = user.id if (user and hasattr(user, 'id')) else 1
+            log.action = 'dismiss_report'
+            log.target_type = 'report'
+            log.target_id = int(report_id)
+            log.details = f"[Admin Action] Dismissed report #{report_id}"
+            db.session.add(log)
+        except Exception as log_err:
+            # 如果是 AdminLog 报错，打印出来但不要 raise，让主逻辑继续走
+            print(f"安全跳过日志错误 (AdminLog Save Failed): {str(log_err)}")
+
+        # 6. 提交到数据库
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Report dismissed successfully.'}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        # 核心调试：如果还报错，这行会在你运行 Flask 的 VS Code 终端里打印出真正的 Python 报错死因
+        print(f"\n💥 [CRITICAL ERROR] Dismiss API crashed due to: {str(e)}\n")
+        return jsonify({'error': f'Database failure: {str(e)}'}), 500
+    
 # --- ADDED: Auto-Email Sending Function ---
 def send_otp_email(receiver_email, otp_code):
     # =====================================================================
-    # ⚠️ 关键步骤: 在这里替换为你真实的 Gmail 邮箱和 16 位 Google App Password ⚠️
+    # ⚠️ IMPORTANT: Replace with your real Gmail and 16-digit Google App Password ⚠️
     # =====================================================================
     sender_email = "kohkonghao4@gmail.com" 
     sender_password = "wlas kitq zrpa qpbb"
@@ -376,6 +983,61 @@ def list_project():
             flash("Please login first!", "error")
             return redirect(url_for('views.home'))
 
+        # =============================================================
+        # UPGRADED AUTOMATED SECURITY GUARDRAIL WITH AUDIT LOGGING
+        # =============================================================
+        # 1. First layer check using your internal active database keywords
+        flagged_in_name = detect_inappropriate_content(name)
+        flagged_in_desc = detect_inappropriate_content(desc)
+        all_flags = flagged_in_name + flagged_in_desc
+
+        # 2. Fallback local strict policy check for immediate demo stability
+        scan_payload = f"{name} {desc}".lower()
+        hardcoded_keywords = [
+            'assignment-help', 'academic-cheating', 'earn-cash', 
+            'buy-now', 'scam', 'paid-service', 'essay-writing', 
+            'pay-someone', 'homework-help'
+        ]
+        
+        for hk in hardcoded_keywords:
+            if hk in scan_payload:
+                all_flags.append({
+                    'keyword': hk,
+                    'category': 'Academic Integrity / Spam Policy Violation',
+                    'severity': 3
+                })
+
+        if all_flags:
+            primary_violation = all_flags[0]
+            violation_details = ", ".join([f"'{f['keyword']}' ({f['category']})" for f in all_flags])
+            
+            # 3. CORE HIGHLIGHT: Automatically generate and insert a live Admin Activity Log
+            try:
+                log_entry = AdminLog()
+                log_entry.admin_id = 1  # Standard system-level automation user ID
+                log_entry.action = "Security Block"
+                log_entry.target_type = "Project Submission"
+                log_entry.target_id = current_user.id
+                log_entry.details = (
+                    f"Automated guardrail blocked submission from account [{current_user.email}]. "
+                    f"Prohibited phrase detected: '{primary_violation['keyword']}' "
+                    f"under policy category [{primary_violation['category']}]."
+                )
+                db.session.add(log_entry)
+                db.session.commit()
+            except Exception as log_err:
+                db.session.rollback() # Gracesfully pass if database structures are refreshing
+
+            # 4. Throw a professional English system alert notification back to the interface
+            flash(
+                f"[SECURITY GUARDRAIL VIOLATION] Submission denied. "
+                f"Your text contains a restricted keyword pattern: '{primary_violation['keyword']}' "
+                f"flagged under category [{primary_violation['category'].upper()}].", 
+                category="error"
+            )
+            return render_template("List_Your_Project.html")
+        # =============================================================
+
         new_project = Project()
         new_project.user_id = current_user.id
         new_project.project_name = name 
@@ -388,6 +1050,7 @@ def list_project():
         db.session.add(new_project)
         db.session.commit()
 
+        # Handle screenshots upload
         files = request.files.getlist('screenshots') 
         for file in files:
             if file and file.filename != '':
@@ -1675,12 +2338,12 @@ def request_join_project(project_id):
     current_user = get_current_user()
     project = Project.query.get_or_404(project_id)
     
-    # 检查是否已经是成员
+    # Check if user is already a member
     existing_member = ProjectMember.query.filter_by(project_id=project_id, user_id=current_user.id).first()
     if existing_member:
         return jsonify({"error": "You are already a member of this project"}), 400
         
-    # 防止创建者自己申请加入
+    # Prevent creator from applying to join their own project
     if project.user_id == current_user.id:
         return jsonify({"error": "You are the project owner."}), 400
     
@@ -2059,9 +2722,19 @@ def create_project_comment(project_id):
     
     if not content:
         return jsonify({'error': 'Comment content is required'}), 400
+
+    # ─── 核心修改：在这里插入黑名单留言拦截雷达 ───
+    triggered_word = contains_banned_keywords(content)
+    if triggered_word:
+        return jsonify({
+            'error': f"Comment blocked: Your text contains the unallowed keyword '{triggered_word}'."
+        }), 400
+    # ──────────────────────────────────────────
     
     if comment_type not in ['normal', 'issue', 'suggestion']:
         return jsonify({'error': 'Invalid comment type'}), 400
+
+    # 后面是你原本的处理逻辑（比如保存评论到数据库、处理图片等）...
     
 # Determine user role
     user_role = 'user'
@@ -3252,3 +3925,56 @@ def review_project_update(project_id, update_id, action):
         return jsonify({'success': True, 'message': 'Update rejected and removed.'})
     else:
         return jsonify({'error': 'Invalid action'}), 400
+
+
+# =====================================================================
+# ─── 管理员一键删除不良内容功能（ADMIN MODERATION） ───
+# =====================================================================
+
+def require_admin():
+    """安全拦截：验证当前登录用户是否为管理员"""
+    email = session.get('user_email')
+    if not email:
+        return jsonify({'error': 'Please log in first.'}), 401
+    
+    user = User.query.filter_by(email=email).first()
+    if not user or not getattr(user, 'is_admin', False):
+        return jsonify({'error': 'Access denied. Unauthorized admin account.'}), 403
+    return None
+
+
+@views.route('/admin/dashboard')
+def admin_dashboard_page():
+    """Render admin moderation panel with projects, comments, posts, and pending reports."""
+    email = session.get('user_email')
+    if not email:
+        return redirect(url_for('views.api_login'))
+
+    user = User.query.filter_by(email=email).first()
+    if not user or not getattr(user, 'is_admin', False):
+        return "Access Denied. Admins Only.", 403
+
+    all_projects = Project.query.filter(Project.status != 'Archived').order_by(Project.created_at.desc()).all()
+    all_comments = ProjectComment.query.order_by(ProjectComment.created_at.desc()).limit(50).all()
+    all_posts = CommunityPost.query.order_by(CommunityPost.created_at.desc()).limit(50).all()
+
+    pending_reports_raw = ContentReport.query.filter_by(status='pending').order_by(
+        ContentReport.created_at.desc()
+    ).all()
+    pending_reports = _enrich_pending_reports(pending_reports_raw)
+
+    recent_logs = AdminLog.query.order_by(AdminLog.created_at.desc()).limit(20).all()
+    suspended_users = SuspendedUser.query.filter_by(is_active=True).all()
+
+    return render_template(
+        "admin_dashboard.html",
+        projects=all_projects,
+        comments=all_comments,
+        posts=all_posts,
+        pending_reports=pending_reports,
+        pending_count=len(pending_reports),
+        recent_logs=recent_logs,
+        suspended_users=suspended_users,
+        admin_user=user,
+    )
+
