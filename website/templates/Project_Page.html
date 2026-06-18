@@ -634,6 +634,55 @@
                 <div id="join-requests-list" class="mb-8 space-y-2"></div>
             </div>
             
+            <div class="bg-white rounded-3xl border border-gray-100 p-4 shadow-sm mb-6">
+    <button onclick="openReportModal('project', projectId)" class="w-full flex items-center justify-center bg-gray-50 hover:bg-red-50 text-red-600 hover:text-red-700 border border-dashed border-gray-200 hover:border-red-200 px-4 py-2.5 rounded-xl text-xs font-bold transition shadow-sm">
+        <i class="fa-solid fa-triangle-exclamation mr-1.5"></i> Report Inappropriate Content
+    </button>
+</div>
+ 
+<div id="report-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[999] p-4">
+    <div class="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl text-gray-900 border border-gray-100">
+        <h3 id="report-modal-title" class="text-lg font-bold flex items-center gap-2 mb-2 text-red-600">
+            <i class="fa-solid fa-triangle-exclamation"></i> Report This Project
+        </h3>
+        <p class="text-xs text-gray-500 mb-4">Help us keep the MMU OSSD community safe. Please select a reason for reporting.</p>
+         
+        <form id="report-form" onsubmit="submitReport(event)">
+            <div class="space-y-3 mb-6 text-gray-700">
+                <label class="flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl cursor-pointer transition text-sm">
+                    <input type="radio" name="report_reason" value="Inappropriate Content" checked class="accent-red-600">
+                    <span>Inappropriate / Adult Content</span>
+                </label>
+                <label class="flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl cursor-pointer transition text-sm">
+                    <input type="radio" name="report_reason" value="Scam / Spam / Advertisement" class="accent-red-600">
+                    <span>Scam / Spam / Advertisement</span>
+                </label>
+                <label class="flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl cursor-pointer transition text-sm">
+                    <input type="radio" name="report_reason" value="Academic Dishonesty (Plagiarism)" class="accent-red-600">
+                    <span>Academic Dishonesty / Plagiarism</span>
+                </label>
+
+                <label class="flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl cursor-pointer transition text-sm">
+                    <input type="radio" name="report_reason" value="Other" class="accent-red-600">
+                    <span>Other</span>
+                </label>
+
+                <div id="other-reason-container" class="hidden mt-3">
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Please specify your reason</label>
+                    <textarea id="other_reason_text" name="other_reason_text" rows="3" 
+                              class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-red-500/20 focus:border-red-500 text-sm placeholder-gray-400 resize-none transition-all outline-none" 
+                              placeholder="Tell us more about why you are reporting this..."></textarea>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 text-sm font-semibold">
+                <button type="button" onclick="closeReportModal()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl transition">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl transition shadow-md">Submit Report</button>
+            </div>
+        </form>
+        </div>
+</div>
+            
             <div class="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden">
                 <div class="bg-gradient-to-r from-gray-800 to-gray-900 px-5 py-4 flex items-center justify-between">
                     <h4 class="text-xs font-black text-white uppercase tracking-widest flex items-center gap-2">
@@ -749,6 +798,137 @@
             }
         }
     });
+
+    // ─── 举报功能控制脚本 ───
+    let currentReportData = {
+        content_type: 'project',
+        content_id: projectId
+    };
+
+    const REPORT_MODAL_TITLES = {
+        project: 'Report This Project',
+        comment: 'Report This Comment'
+    };
+
+function openReportModal(contentType, contentId) {
+    if (!currentUserId) {
+        alert('Please log in to report content.');
+        window.location.href = '/login';
+        return;
+    }
+
+    currentReportData.content_type = contentType || 'project';
+    currentReportData.content_id = contentId != null ? contentId : projectId;
+
+    const titleEl = document.getElementById('report-modal-title');
+    if (titleEl) {
+        const label = REPORT_MODAL_TITLES[currentReportData.content_type] || 'Report Content';
+        titleEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> ${label}`;
+    }
+
+    document.getElementById('report-modal').classList.remove('hidden');
+}
+
+function closeReportModal() {
+    document.getElementById('report-modal').classList.add('hidden');
+    
+    // 关闭弹窗时重置 Other 输入框状态
+    document.getElementById('other-reason-container').classList.add('hidden');
+    const otherInput = document.getElementById('other_reason_text');
+    otherInput.removeAttribute('required');
+    otherInput.value = '';
+    
+    // 将单选框恢复到第一个默认勾选
+    const firstRadio = document.querySelector('input[name="report_reason"]');
+    if (firstRadio) firstRadio.checked = true;
+}
+
+// 监听单选框的切换事件，动态显示/隐藏文本框
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('input[name="report_reason"]').forEach((radio) => {
+        radio.addEventListener('change', function() {
+            const otherContainer = document.getElementById('other-reason-container');
+            const otherInput = document.getElementById('other_reason_text');
+            
+            if (this.value === 'Other') {
+                otherContainer.classList.remove('hidden'); // 显示输入框
+                otherInput.setAttribute('required', 'required'); // 变成必填
+                otherInput.focus(); // 自动聚焦
+            } else {
+                otherContainer.classList.add('hidden'); // 隐藏输入框
+                otherInput.removeAttribute('required'); // 取消必填
+                otherInput.value = ''; // 清空内容
+            }
+        });
+    });
+});
+
+async function submitReport(event) {
+    event.preventDefault();
+
+    const checkedRadio = document.querySelector('input[name="report_reason"]:checked');
+    if (!checkedRadio) {
+        alert('Please select a reason.');
+        return;
+    }
+
+    let reason = checkedRadio.value;
+    const otherInput = document.getElementById('other_reason_text');
+    const otherReasonText = otherInput ? otherInput.value.trim() : "";
+    
+    if (reason === 'Other') {
+        if (!otherReasonText) {
+            alert('Please write down your reason.');
+            if (otherInput) otherInput.focus();
+            return;
+        }
+        reason = `Other: ${otherReasonText}`;
+    }
+    
+    const contentId = parseInt(currentReportData.content_id, 10);
+    if (!currentReportData.content_type || isNaN(contentId)) {
+        alert('Error: Report target is not defined.');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/report-content', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                content_type: currentReportData.content_type,
+                content_id: contentId,
+                reason: reason,
+                description: 'User reported via modal'
+            })
+        });
+
+        // ─── 新增防御逻辑：如果后端重定向到了登录页（HTML），fetch 的 redirected 属性会为 true ───
+        if (response.redirected) {
+            alert('Your session has expired. Redirecting to login page...');
+            window.location.href = response.url; // 引导用户去登录
+            return;
+        }
+
+        // 检查返回的是否是 JSON
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+            alert(`Error: Server didn't return JSON. (Status: ${response.status})`);
+            return;
+        }
+
+        const data = await response.json();
+        if (response.ok) {
+            alert('Thank you! Your report has been submitted. Admin will review it shortly.');
+            closeReportModal();
+        } else {
+            alert(`Error: ${data.error || 'Unknown error occurred'}`);
+        }
+    } catch (error) {
+        console.error("Fetch 发生错误:", error);
+        alert('Failed to send report. Please ensure you are logged in and try again.');
+    }
+}
 
     // ────────────────────────────────────────────────────────────────────
     // Navigation & General
@@ -1251,12 +1431,20 @@ function createCommentHTML(comment) {
         </button>
     ` : '';
 
-    const actionsHTML = (isOwner && isAuthor) ? ownerAuthorActions
+    const reportAction = !isAuthor ? `
+        <button onclick="openReportModal('comment', ${comment.id})"
+            class="bg-gray-50 text-gray-600 px-2 py-1 rounded text-xs font-semibold hover:bg-red-50 hover:text-red-700 transition"
+            title="Report this comment">
+            <i class="fas fa-flag"></i> Report
+        </button>
+    ` : '';
+
+    const actionsHTML = ((isOwner && isAuthor) ? ownerAuthorActions
         : isOwner ? ownerModActions
         : isAuthor ? authorActions
-        : '';
+        : '') + reportAction;
 
-    const actionBar = actionsHTML ? `
+    const actionBar = actionsHTML.trim() ? `
         <div class="absolute top-4 right-4 flex gap-2 flex-wrap opacity-0 group-hover:opacity-100 transition">
             ${actionsHTML}
         </div>` : '';
