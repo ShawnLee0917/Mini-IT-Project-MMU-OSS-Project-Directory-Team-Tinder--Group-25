@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Moderation Panel | MMU OSSD</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen font-sans">
+
+    <div class="container mx-auto px-4 py-8 max-w-7xl">
+        <div class="flex flex-col md:flex-row md:justify-between md:items-center border-b border-gray-800 pb-5 mb-8 gap-4">
+            <div>
+                <h1 class="text-3xl font-extrabold text-red-500 tracking-tight">
+                    <i class="fa-solid fa-shield-halved mr-2"></i>OSSD Admin Shield
+                </h1>
+                <p class="text-gray-400 text-sm mt-1">Review reports and moderate student community content.</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="px-3 py-1.5 bg-red-950/50 text-red-400 border border-red-900/40 rounded-lg text-xs font-bold">
+                    {{ pending_count }} pending report{{ 's' if pending_count != 1 else '' }}
+                </span>
+                <a href="/" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm transition">
+                    <i class="fa-solid fa-arrow-left mr-2"></i>Back to Directory
+                </a>
+            </div>
+        </div>
+
+        <!-- Pending Reports -->
+        <div class="bg-gray-800 border border-gray-700 rounded-2xl shadow-xl overflow-hidden mb-8">
+            <div class="bg-gradient-to-r from-red-950 to-gray-900 px-6 py-4 border-b border-gray-800 flex items-center justify-between">
+                <h2 class="text-base font-bold text-red-400 uppercase tracking-wider flex items-center gap-2">
+                    <i class="fa-solid fa-triangle-exclamation"></i> Pending Reports
+                </h2>
+                <span class="text-xs bg-red-950 text-red-400 border border-red-900/30 px-2.5 py-0.5 rounded-full font-bold">
+                    Moderation Required
+                </span>
+            </div>
+            <div class="p-6">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm border-collapse">
+                        <thead>
+                            <tr class="border-b border-gray-700 text-gray-400 font-semibold text-xs uppercase tracking-wider">
+                                <th class="pb-3 w-20">ID</th>
+                                <th class="pb-3 w-28">Type</th>
+                                <th class="pb-3">Target / Preview</th>
+                                <th class="pb-3 w-32">Reporter</th>
+                                <th class="pb-3">Reason</th>
+                                <th class="pb-3 w-44 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-800 text-gray-300">
+                            {% for report in pending_reports %}
+                            <tr id="report-row-{{ report.id }}" class="hover:bg-gray-750/50 transition">
+                                <td class="py-4 font-mono text-xs text-gray-500">#{{ report.id }}</td>
+                                <td class="py-4">
+                                    <span class="px-2 py-1 bg-gray-700 text-gray-200 rounded-md text-xs font-semibold">
+                                        {{ report.type_label }}
+                                    </span>
+                                </td>
+                                <td class="py-4">
+                                    <a href="{{ report.target_link }}" target="_blank" class="font-semibold text-red-400/90 hover:underline flex items-center gap-1.5 mb-1">
+                                        <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>{{ report.target_label }}
+                                    </a>
+                                    {% if report.target_preview %}
+                                    <p class="text-xs text-gray-500 line-clamp-2">{{ report.target_preview }}</p>
+                                    {% endif %}
+                                    {% if report.description %}
+                                    <p class="text-xs text-gray-600 mt-1 italic">{{ report.description }}</p>
+                                    {% endif %}
+                                </td>
+                                <td class="py-4 text-xs text-gray-400">{{ report.reporter_name }}</td>
+                                <td class="py-4">
+                                    <span class="px-2.5 py-1 bg-red-950/40 text-red-400 border border-red-900/30 rounded-lg text-xs font-medium">
+                                        {{ report.reason }}
+                                    </span>
+                                </td>
+                                <td class="py-4 text-right">
+                                    <div class="flex justify-end gap-2">
+                                        <button onclick="handleReport('take_down', {{ report.id }}, {{ report.content_id }}, '{{ report.content_type }}')"
+                                            class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg transition">
+                                            <i class="fa-solid fa-ban mr-1"></i> Take Down
+                                        </button>
+                                        <button onclick="handleReport('dismiss', {{ report.id }}, {{ report.content_id }}, '{{ report.content_type }}')"
+                                            class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs font-bold rounded-lg transition">
+                                            <i class="fa-solid fa-circle-check mr-1"></i> Dismiss
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="py-10 text-center text-gray-500 italic text-xs">
+                                    <i class="fa-solid fa-circle-check text-emerald-500 mr-1"></i> No pending reports. All clear!
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
+            <!-- Projects -->
+            <div class="bg-gray-800 rounded-xl p-6 shadow-xl border border-gray-700">
+                <h2 class="text-xl font-bold text-white mb-4">
+                    <i class="fa-solid fa-folder text-yellow-500 mr-2"></i> Student Projects
+                </h2>
+                <div class="overflow-x-auto max-h-96 overflow-y-auto">
+                    <table class="w-full text-left text-sm text-gray-300">
+                        <thead class="text-gray-400 uppercase text-xs border-b border-gray-700 sticky top-0 bg-gray-800">
+                            <tr>
+                                <th class="py-3 px-2">Project</th>
+                                <th class="py-3 px-2 text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-700">
+                            {% for p in projects %}
+                            <tr id="project-row-{{ p.id }}" class="hover:bg-gray-750 transition">
+                                <td class="py-3 px-2">
+                                    <a href="/project/{{ p.id }}" target="_blank" class="font-semibold text-white hover:text-red-400 transition">
+                                        {{ p.project_name }}
+                                    </a>
+                                </td>
+                                <td class="py-3 px-2 text-right">
+                                    <button onclick="deleteContent('project', '{{ p.id }}')" class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white font-medium rounded-md text-xs transition">
+                                        <i class="fa-solid fa-trash mr-1"></i> Delete
+                                    </button>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="2" class="py-4 text-center text-gray-500">No active projects found.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Comments -->
+            <div class="bg-gray-800 rounded-xl p-6 shadow-xl border border-gray-700">
+                <h2 class="text-xl font-bold text-white mb-4">
+                    <i class="fa-solid fa-comment text-blue-500 mr-2"></i> Recent Project Comments
+                </h2>
+                <div class="space-y-3 max-h-96 overflow-y-auto">
+                    {% for c in comments %}
+                    <div id="comment-row-{{ c.id }}" class="flex justify-between items-start bg-gray-750 p-4 rounded-lg border border-gray-700 hover:border-gray-600 transition">
+                        <div class="flex-1 pr-4 min-w-0">
+                            <p class="text-gray-200 text-sm break-words">{{ c.content }}</p>
+                            <p class="text-xs text-gray-500 mt-2">
+                                {% if c.project %}
+                                <a href="/project/{{ c.project_id }}" target="_blank" class="hover:text-red-400 transition">
+                                    Project: {{ c.project.project_name }}
+                                </a>
+                                {% else %}
+                                Project #{{ c.project_id }}
+                                {% endif %}
+                                · {{ c.created_at.strftime('%Y-%m-%d %H:%M') if c.created_at else '' }}
+                            </p>
+                        </div>
+                        <button onclick="deleteContent('comment', '{{ c.id }}')" class="flex-shrink-0 px-3 py-1 bg-red-600/80 hover:bg-red-700 text-white text-xs font-medium rounded-md transition">
+                            <i class="fa-solid fa-trash mr-1"></i> Delete
+                        </button>
+                    </div>
+                    {% else %}
+                    <p class="text-gray-500 text-sm text-center py-4">No recent comments found.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Community Posts -->
+        <div class="bg-gray-800 rounded-xl p-6 shadow-xl border border-gray-700 mb-8">
+            <h2 class="text-xl font-bold text-white mb-4">
+                <i class="fa-solid fa-users text-purple-400 mr-2"></i> Recent Community Posts
+            </h2>
+            <div class="space-y-3 max-h-80 overflow-y-auto">
+                {% for post in posts %}
+                <div id="post-row-{{ post.id }}" class="flex justify-between items-start bg-gray-750 p-4 rounded-lg border border-gray-700 hover:border-gray-600 transition">
+                    <div class="flex-1 pr-4 min-w-0">
+                        <p class="text-gray-200 text-sm break-words">{{ post.content[:200] }}{% if post.content|length > 200 %}…{% endif %}</p>
+                        <p class="text-xs text-gray-500 mt-2">
+                            {{ post.category }} · {{ post.created_at.strftime('%Y-%m-%d %H:%M') if post.created_at else '' }}
+                        </p>
+                    </div>
+                    <button onclick="deleteContent('post', '{{ post.id }}')" class="flex-shrink-0 px-3 py-1 bg-red-600/80 hover:bg-red-700 text-white text-xs font-medium rounded-md transition">
+                        <i class="fa-solid fa-trash mr-1"></i> Delete
+                    </button>
+                </div>
+                {% else %}
+                <p class="text-gray-500 text-sm text-center py-4">No community posts found.</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Recent Admin Logs -->
+        {% if recent_logs %}
+        <div class="bg-gray-800 rounded-xl p-6 shadow-xl border border-gray-700">
+            <h2 class="text-xl font-bold text-white mb-4">
+                <i class="fa-solid fa-clock-rotate-left text-gray-400 mr-2"></i> Recent Admin Actions
+            </h2>
+            <div class="space-y-2 max-h-64 overflow-y-auto">
+                {% for log in recent_logs %}
+                <div class="flex items-start gap-3 text-sm border-b border-gray-700/50 pb-2">
+                    <span class="text-gray-500 font-mono text-xs whitespace-nowrap">{{ log.created_at.strftime('%m-%d %H:%M') if log.created_at else '' }}</span>
+                    <span class="text-gray-300">
+                        <span class="text-red-400 font-semibold">{{ log.admin.name if log.admin else 'System' }}</span>
+                        · {{ log.action }}
+                        {% if log.target_type %}({{ log.target_type }} #{{ log.target_id }}){% endif %}
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        const CONTENT_TYPE_LABELS = {
+            project: 'project',
+            comment: 'comment',
+            post: 'community post',
+            question: 'question',
+            post_comment: 'post comment'
+        };
+
+        async function handleReport(actionType, reportId, contentId, contentType) {
+            if (!reportId) {
+                alert('Error: Missing report ID.');
+                return;
+            }
+
+            const label = CONTENT_TYPE_LABELS[contentType] || 'content';
+            const confirmMsg = actionType === 'take_down'
+                ? `Permanently remove this reported ${label}?`
+                : `Dismiss this report? The ${label} will remain visible.`;
+
+            if (!confirm(confirmMsg)) return;
+
+            const apiUrl = actionType === 'take_down'
+                ? `/api/admin/approve-report/${reportId}`
+                : '/api/admin/dismiss-report';
+
+            const requestBody = actionType === 'take_down'
+                ? { comment: 'Removed via admin dashboard' }
+                : { report_id: reportId };
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                });
+
+                const data = await response.json().catch(() => ({}));
+
+                if (response.ok) {
+                    removeRow(`report-row-${reportId}`);
+                    if (actionType === 'take_down' && contentType && contentId) {
+                        removeRow(`${contentType === 'post_comment' ? 'post_comment' : contentType}-row-${contentId}`);
+                        if (contentType === 'comment') removeRow(`comment-row-${contentId}`);
+                        if (contentType === 'project') removeRow(`project-row-${contentId}`);
+                        if (contentType === 'post') removeRow(`post-row-${contentId}`);
+                    }
+                } else {
+                    alert(`Server Alert: ${data.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Report action failed:', error);
+                alert('Connection error. Failed to complete moderation action.');
+            }
+        }
+
+        async function deleteContent(type, id) {
+            if (!confirm(`Are you sure you want to delete this ${type}? This action cannot be undone.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/admin/delete-content', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: type, id: id })
+                });
+
+                const data = await response.json().catch(() => ({}));
+
+                if (response.ok) {
+                    removeRow(`${type}-row-${id}`);
+                } else {
+                    alert(`Error: ${data.error || 'Failed to delete.'}`);
+                }
+            } catch (error) {
+                console.error('Delete content failed:', error);
+                alert('Connection error. Failed to communicate with admin API.');
+            }
+        }
+
+        function removeRow(rowId) {
+            const row = document.getElementById(rowId);
+            if (!row) return;
+            row.style.opacity = '0';
+            row.style.transform = 'translateX(12px)';
+            row.style.transition = 'all 0.3s ease';
+            setTimeout(() => row.remove(), 300);
+        }
+    </script>
+</body>
+</html>
