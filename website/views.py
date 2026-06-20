@@ -263,6 +263,89 @@ def _enrich_pending_reports(reports):
         items.append(item)
     return items
 
+    # =====================================================================
+# ─── ADMIN BADGE MANAGEMENT APIs ───
+# =====================================================================
+
+@views.route('/api/admin/users/badges', methods=['GET'])
+def admin_get_user_badges():
+    """Admin endpoint to view all users and their badges"""
+    is_admin, _ = check_admin_permission()
+    if not is_admin: 
+        return jsonify({'error': 'Admin permission required'}), 403
+        
+    users = User.query.all()
+    user_data = []
+    for u in users:
+        user_data.append({
+            'id': u.id,
+            'name': u.name,
+            'email': u.email,
+            'badges': [{'id': b.id, 'name': b.badge} for b in u.badges]
+        })
+    return jsonify(user_data)
+
+@views.route('/api/admin/users/<int:user_id>/badge', methods=['POST'])
+def admin_award_badge(user_id):
+    """Admin endpoint to award a badge to a specific user"""
+    is_admin, admin_user = check_admin_permission()
+    if not is_admin:
+        return jsonify({'error': 'Admin permission required'}), 403
+    
+    data = request.get_json(silent=True) or {}
+    badge_name = data.get('badge_name', '').strip()
+    
+    if not badge_name:
+        return jsonify({'error': 'Badge name is required'}), 400
+        
+    # Check if user exists
+    user = User.query.get_or_404(user_id)
+        
+    # Check if they already have this exact badge
+    existing = Badge.query.filter_by(user_id=user_id, badge=badge_name).first()
+    if existing:
+        return jsonify({'error': f'{user.name} already has the {badge_name} badge.'}), 409
+        
+    new_badge = Badge(user_id=user_id, badge=badge_name)
+    
+    # Log the action
+    log = AdminLog(
+        admin_id=admin_user.id, 
+        action='award_badge', 
+        target_type='user', 
+        target_id=user_id, 
+        details=f"Awarded badge '{badge_name}' to {user.name}"
+    )
+    db.session.add(log)
+    db.session.add(new_badge)
+    db.session.commit()
+    
+    return jsonify({'success': True, 'message': 'Badge awarded successfully!', 'badge_id': new_badge.id})
+
+@views.route('/api/admin/badges/<int:badge_id>', methods=['DELETE'])
+def admin_delete_badge(badge_id):
+    """Admin endpoint to remove a badge from a user"""
+    is_admin, admin_user = check_admin_permission()
+    if not is_admin:
+        return jsonify({'error': 'Admin permission required'}), 403
+        
+    badge = Badge.query.get_or_404(badge_id)
+    
+    # Log the action
+    log = AdminLog(
+        admin_id=admin_user.id, 
+        action='remove_badge', 
+        target_type='user', 
+        target_id=badge.user_id, 
+        details=f"Removed badge '{badge.badge}' from User #{badge.user_id}"
+    )
+    
+    db.session.add(log)
+    db.session.delete(badge)
+    db.session.commit()
+    
+    return jsonify({'success': True, 'message': 'Badge removed successfully'})
+
 
 @views.route('/api/admin/reports', methods=['GET'])
 def api_get_reports():
@@ -1066,6 +1149,37 @@ def list_project():
                 db.session.add(new_image)
 
         db.session.commit()
+
+        # Handle screenshots upload
+        files = request.files.getlist('screenshots') 
+        for file in files:
+            if file and file.filename != '':
+                ext = os.path.splitext(file.filename)[1]
+                filename = str(uuid.uuid4()) + ext 
+                
+                file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+                file.save(file_path)
+
+                new_image = ProjectImage()
+                new_image.filename = filename
+                new_image.project_id = new_project.id
+                db.session.add(new_image)
+
+        db.session.commit() # <-- FIND THIS LINE
+
+        # =============================================================
+        # 🏆 AUTO-ASSIGN "FIRST PROJECT" BADGE
+        # =============================================================
+        project_count = Project.query.filter_by(user_id=current_user.id).count()
+        if project_count == 1:
+            # Prevent duplicates just in case
+            existing_badge = Badge.query.filter_by(user_id=current_user.id, badge='First Project').first()
+            if not existing_badge:
+                first_badge = Badge(user_id=current_user.id, badge='First Project')
+                db.session.add(first_badge)
+                db.session.commit()
+                flash("Congratulations! You earned the 'First Project' badge! 🏆", "success")
+
         return redirect(url_for('views.upload_success'))
     
     return render_template("List_Your_Project.html")
@@ -2204,11 +2318,19 @@ def add_member(project_id):
 
 @views.route('/api/my-invitations', methods=['GET'])
 def get_my_invitations():
-    """Get all pending invitations for the current logged-in user"""
+    """Get all pending invitations for the current logged-in user.
+    Respects the notify_project_invites user setting — returns empty list if disabled.
+    """
     err = require_login()
     if err: return err
     
     current_user = get_current_user()
+    
+    # Check whether the user has disabled project invite notifications
+    settings = current_user.settings
+    if settings and not settings.notify_project_invites:
+        # Return empty list with a flag so the frontend knows it's disabled
+        return jsonify([])
     
     invitations = JoinRequest.query.filter_by(
         user_id=current_user.id, 
