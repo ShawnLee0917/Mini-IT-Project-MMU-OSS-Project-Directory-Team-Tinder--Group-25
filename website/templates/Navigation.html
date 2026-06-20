@@ -600,17 +600,20 @@
                 mobileBadge.classList.remove('hidden');
                 
                 list.innerHTML = invs.map(inv => `
-                    <div class="p-4 hover:bg-gray-50 transition border-b border-gray-50 last:border-0">
+                    <div class="p-4 hover:bg-gray-50 transition border-b border-gray-50 last:border-0" id="inv-card-${inv.id}">
                         <p class="text-xs text-gray-800 mb-3 leading-relaxed">
                             <span class="font-bold text-gray-900">${escapeHtml(inv.owner_name)}</span> invited you to join the team for <span class="font-bold text-red-600">${escapeHtml(inv.project_name)}</span>
                         </p>
                         <div class="flex gap-2">
-                            <a href="/project/${inv.project_id}" class="flex-1 flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-1.5 rounded-lg transition shadow-sm">View Details</a>
+                            <button onclick="respondToInvitation(${inv.id}, 'accept')" class="flex-1 flex items-center justify-center gap-1 bg-green-500 hover:bg-green-600 text-white text-xs font-bold py-1.5 rounded-lg transition shadow-sm">
+                                <i class="fas fa-check text-[10px]"></i> Accept
+                            </button>
+                            <a href="/project/${inv.project_id}" class="flex-1 flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-1.5 rounded-lg transition shadow-sm">View</a>
                             <button onclick="respondToInvitation(${inv.id}, 'reject')" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold py-1.5 rounded-lg transition">Decline</button>
                         </div>
                     </div>
                 `).join('');            } else {
-                // Hide badges if empty
+                // Hide badges if empty (also covers the case where notify_project_invites is OFF)
                 badge.classList.add('hidden');
                 mobileBadge.classList.add('hidden');
                 countText.textContent = `0`;
