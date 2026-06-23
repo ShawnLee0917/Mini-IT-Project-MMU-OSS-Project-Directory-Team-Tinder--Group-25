@@ -4027,7 +4027,7 @@ def hottest_projects():
             
         primary_lang = p.languages.split(',')[0].strip() if p.languages else 'N/A'
         
-        total_score = (views * 1) + (post_like_count * 5) + (project_comment_count * 10) + (project_star_count * 20)
+        total_score = (views * 1) + (post_like_count * 5) + (project_comment_count * 1) + (project_star_count * 20)
         
         project_dict_all_time = {
             'id': p.id,
@@ -4064,7 +4064,7 @@ def hottest_projects():
             ProjectStar.created_at >= seven_days_ago
         ).count()
             
-        trending_score = (recent_views * 1) + (recent_likes * 5) + (recent_comments * 10) + (recent_stars * 20)
+        trending_score = (recent_views * 1) + (recent_likes * 5) + (recent_comments * 1) + (recent_stars * 20)
         
         if trending_score > 0:
             project_dict_trending = {
