@@ -256,19 +256,46 @@
                             {% for badge in profile_user.badges %}
                             <button type="button"
                                 onclick="showBadgeModal('{{ badge.badge | e }}')"
-                                class="group flex flex-col items-center gap-1.5 focus:outline-none"
-                                title="Click to see badge details">
-
-                                <!-- icon pill -->
-                                {% set bn = badge.badge %}
-                                <span class="w-12 h-12 rounded-full flex items-center justify-center transition ring-2 ring-transparent group-hover:ring-yellow-400
-                                    {% if bn == 'First Project' %}bg-purple-900{% elif bn == 'Early Adopter' %}bg-orange-900{% elif bn == 'Top Contributor' %}bg-green-900{% elif bn == 'Python Expert' %}bg-blue-900{% elif bn == 'JavaScript Expert' %}bg-yellow-800{% elif bn == 'React Expert' %}bg-cyan-900{% elif bn == 'HTML Expert' %}bg-red-900{% elif bn == 'CSS Expert' %}bg-blue-900{% else %}bg-gray-700{% endif %}">
-                                    <i class="text-xl
-                                        {% if bn == 'First Project' %}fas fa-scroll text-purple-300{% elif bn == 'Early Adopter' %}fas fa-fire-alt text-orange-300{% elif bn == 'Top Contributor' %}fas fa-handshake text-green-300{% elif bn == 'Python Expert' %}fa-brands fa-python text-blue-300{% elif bn == 'JavaScript Expert' %}fa-brands fa-js text-yellow-300{% elif bn == 'React Expert' %}fa-brands fa-react text-cyan-300{% elif bn == 'HTML Expert' %}fa-brands fa-html5 text-red-300{% elif bn == 'CSS Expert' %}fa-brands fa-css3-alt text-blue-300{% else %}fas fa-medal text-yellow-300{% endif %}"></i>
-                                </span>
-
-                                <!-- label -->
-                                <span class="text-[10px] text-gray-400 group-hover:text-white transition font-semibold text-center leading-tight max-w-[52px]">{{ badge.badge }}</span>
+                                class="focus:outline-none hover:scale-125 transition-transform"
+                                title="{{ badge.badge }}">
+                                {% set bn = badge.badge | lower %}
+                                <i class="text-2xl
+                                    {% if bn == 'python expert' %}fa-brands fa-python text-blue-400
+                                    {% elif bn == 'javascript expert' or bn == 'js expert' %}fa-brands fa-js text-yellow-400
+                                    {% elif bn == 'react expert' %}fa-brands fa-react text-cyan-400
+                                    {% elif bn == 'html expert' %}fa-brands fa-html5 text-red-400
+                                    {% elif bn == 'css expert' %}fa-brands fa-css3-alt text-sky-400
+                                    {% elif bn == 'php expert' %}fa-brands fa-php text-indigo-400
+                                    {% elif bn == 'go expert' %}fa-brands fa-golang text-cyan-300
+                                    {% elif bn == 'first project' %}fas fa-scroll text-purple-400
+                                    {% elif bn == 'early adopter' %}fas fa-fire-alt text-orange-400
+                                    {% elif bn == 'top contributor' or bn == 'top contribution' %}fas fa-trophy text-yellow-400
+                                    {% elif bn == 'moderator' %}fas fa-shield-halved text-green-400
+                                    {% elif bn == 'admin' %}fas fa-shield text-red-400
+                                    {% elif bn == 'mmu ossd member' %}fas fa-star text-yellow-400
+                                    {% elif bn == 'tester' %}fas fa-flask text-gray-300
+                                    {% elif bn == 'beta tester' %}fas fa-vial text-purple-300
+                                    {% elif bn == 'mmu alumni' %}fas fa-graduation-cap text-blue-300
+                                    {% elif bn == 'mmu staff' %}fas fa-chalkboard-user text-orange-300
+                                    {% elif bn == 'lecturer' %}fas fa-person-chalkboard text-orange-400
+                                    {% elif bn == 'special thanks' %}fas fa-heart text-pink-400
+                                    {% elif bn == 'community helper' %}fas fa-hands-helping text-green-400
+                                    {% elif bn == 'first comment' %}fas fa-comment text-blue-400
+                                    {% elif bn == 'ten comments' %}fas fa-comment-dots text-green-400
+                                    {% elif bn == 'fifty comments' %}fas fa-comments text-yellow-400
+                                    {% elif bn == 'hundred comments' %}fas fa-message text-red-400
+                                    {% elif bn == 'hottest project' %}fas fa-fire text-red-400
+                                    {% elif bn == 'post first feed' %}fas fa-paper-plane text-blue-400
+                                    {% elif bn == 'trending project' %}fas fa-arrow-trend-up text-purple-400
+                                    {% elif bn == 'owner' %}fas fa-crown text-yellow-400
+                                    {% elif bn == 'c++ expert' %}fas fa-code text-blue-300
+                                    {% elif bn == 'dart expert' %}fas fa-bullseye text-blue-400
+                                    {% elif bn == 'rust expert' %}fas fa-gear text-orange-300
+                                    {% elif bn == 'typescript expert' %}fas fa-t text-blue-400
+                                    {% elif bn == 'first user join mmu ossd' %}fas fa-user text-blue-400
+                                    {% else %}fas fa-medal text-yellow-400
+                                    {% endif %}">
+                                </i>
                             </button>
                             {% endfor %}
                         {% else %}
