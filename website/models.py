@@ -431,6 +431,13 @@ class ProjectUpdate(db.Model):
 
     author = db.relationship('User', backref='project_updates')
     project = db.relationship('Project', backref=db.backref('updates', lazy='dynamic'))
+    images = db.relationship('ProjectUpdateImage', backref='update', lazy=True, cascade='all, delete-orphan')  
+class ProjectUpdateImage(db.Model):
+    __tablename__ = 'project_update_images'
+    
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    update_id = db.Column(db.Integer, db.ForeignKey('project_update.id', ondelete='CASCADE'), nullable=False)
+    image_path = db.Column(db.String(255), nullable=False)
 
 
 # ---------------------------------------------------------------------------
@@ -459,8 +466,8 @@ class ContentReport(db.Model):
     admin_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
     admin_comment = db.Column(db.Text, nullable=True)
     
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT))
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT), onupdate=datetime.now(MYT))
     
     # Relationships
     reporter = db.relationship('User', foreign_keys=[reporter_id], backref='reported_contents')
@@ -484,7 +491,7 @@ class AdminLog(db.Model):
     target_id = db.Column(db.Integer, nullable=True)
     
     details = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT))
     
     # Relationships
     admin = db.relationship('User', backref='admin_logs')
@@ -503,7 +510,7 @@ class SuspendedUser(db.Model):
     reason = db.Column(db.Text, nullable=False)
     is_active = db.Column(db.Boolean, default=True)  # False = unsuspended
     
-    suspended_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    suspended_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT))
     unsuspended_at = db.Column(db.DateTime, nullable=True)
     
     # Relationships
@@ -521,4 +528,4 @@ class ContentFlagKeyword(db.Model):
     severity = db.Column(db.Integer, default=1)  # 1-5, higher = more severe
     is_active = db.Column(db.Boolean, default=True)
     added_by = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT))

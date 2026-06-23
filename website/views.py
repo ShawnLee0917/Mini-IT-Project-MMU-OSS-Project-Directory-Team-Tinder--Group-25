@@ -10,7 +10,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 import uuid
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify, session
-from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, QuestionCommentImage, QuestionImage, JoinRequest, LeaveRequest, MemberHistory, ProjectCommentImage, UserSettings, ProjectMember, CommunityPostComment, CommunityPost, CommunityPostLike, CommunityPostImage, CommunityPostFavorite, CommunityPostCommentImage, ProjectViewLog, ProjectUpdate, ContentReport, AdminLog, SuspendedUser, ContentFlagKeyword
+from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, QuestionCommentImage, QuestionImage, JoinRequest, LeaveRequest, MemberHistory, ProjectCommentImage, UserSettings, ProjectMember, CommunityPostComment, CommunityPost, CommunityPostLike, CommunityPostImage, CommunityPostFavorite, CommunityPostCommentImage, ProjectViewLog, ProjectUpdate, ContentReport, AdminLog, SuspendedUser, ContentFlagKeyword, ProjectStar
 from datetime import datetime, timezone, timedelta
 
 views = Blueprint('views', __name__)
@@ -990,19 +990,15 @@ def project_page(project_id):
     
     if project_id_str in viewed_projects:
         try:
-            
             last_viewed_str = viewed_projects[project_id_str]
             last_viewed_time = datetime.fromisoformat(last_viewed_str)
-            
             
             if last_viewed_time.tzinfo is None:
                 last_viewed_time = last_viewed_time.replace(tzinfo=timezone.utc)
                 
-            
             if now - last_viewed_time < timedelta(hours=COOLDOWN_HOURS):
                 should_increment = False
         except (ValueError, TypeError):
-            
             pass
             
     if should_increment:
@@ -1039,15 +1035,24 @@ def project_page(project_id):
                     is_invited = True
                     invitation_id = invite.id
 
+    total_stars = ProjectStar.query.filter_by(project_id=project.id).count()
+    
+    user_has_starred = False
+    if current_user:
+        star_record = ProjectStar.query.filter_by(user_id=current_user.id, project_id=project.id).first()
+        if star_record:
+            user_has_starred = True
+
     return render_template(
         "Project_Page.html", 
         project=project, 
         current_user=current_user, 
         current_user_role=current_user_role,
         is_invited=is_invited,
-        invitation_id=invitation_id
+        invitation_id=invitation_id,
+        total_stars=total_stars,          
+        user_has_starred=user_has_starred  
     )
-
 @views.route('/upload-success')
 def upload_success():
     return render_template("Upload_Success.html")
@@ -3864,8 +3869,6 @@ def delete_community_post_comment(post_id, comment_id):
 
 @views.route('/hottest')
 def hottest_projects():
-    from datetime import datetime, timezone, timedelta
-    
     all_projects = Project.query.filter(Project.status != 'Archived').all()
     
     all_time_data = []
@@ -3876,20 +3879,19 @@ def hottest_projects():
     
     for p in all_projects:
         project_comment_count = ProjectComment.query.filter_by(project_id=p.id).count()
+        views = p.views or 0
         
         attached_posts = CommunityPost.query.filter_by(attached_project_id=p.id).all()
         post_ids = [post.id for post in attached_posts]
-        
-        post_save_count = 0
         post_like_count = 0
         if post_ids:
-            post_save_count = CommunityPostFavorite.query.filter(CommunityPostFavorite.post_id.in_(post_ids)).count()
             post_like_count = CommunityPostLike.query.filter(CommunityPostLike.post_id.in_(post_ids)).count()
             
-        views = p.views or 0
+        project_star_count = ProjectStar.query.filter_by(project_id=p.id).count()
+            
         primary_lang = p.languages.split(',')[0].strip() if p.languages else 'N/A'
         
-        total_score = (views * 1) + (post_like_count * 5) + (project_comment_count * 10) + (post_save_count * 20)
+        total_score = (views * 1) + (post_like_count * 5) + (project_comment_count * 10) + (project_star_count * 20)
         
         project_dict_all_time = {
             'id': p.id,
@@ -3899,7 +3901,7 @@ def hottest_projects():
             'views': views,            
             'comments': project_comment_count,
             'likes': post_like_count,  
-            'saves': post_save_count,  
+            'saves': project_star_count,  
             'total_score': total_score
         }
         all_time_data.append(project_dict_all_time)
@@ -3914,20 +3916,19 @@ def hottest_projects():
             ProjectViewLog.created_at >= seven_days_ago
         ).count()
         
-        recent_saves = 0
         recent_likes = 0
         if post_ids:
-            recent_saves = CommunityPostFavorite.query.filter(
-                CommunityPostFavorite.post_id.in_(post_ids),
-                CommunityPostFavorite.created_at >= seven_days_ago
-            ).count()
-            
             recent_likes = CommunityPostLike.query.filter(
                 CommunityPostLike.post_id.in_(post_ids),
                 CommunityPostLike.created_at >= seven_days_ago
             ).count()
             
-        trending_score = (recent_views * 1) + (recent_likes * 5) + (recent_comments * 10) + (recent_saves * 20)
+        recent_stars = ProjectStar.query.filter(
+            ProjectStar.project_id == p.id,
+            ProjectStar.created_at >= seven_days_ago
+        ).count()
+            
+        trending_score = (recent_views * 1) + (recent_likes * 5) + (recent_comments * 10) + (recent_stars * 20)
         
         if trending_score > 0:
             project_dict_trending = {
@@ -3938,7 +3939,7 @@ def hottest_projects():
                 'views': views, 
                 'comments': project_comment_count,
                 'likes': post_like_count,  
-                'saves': post_save_count,  
+                'saves': project_star_count,  
                 'total_score': total_score,
                 'trending_score': trending_score 
             }
@@ -3976,6 +3977,14 @@ def manage_project_updates(project_id):
                 is_appr = True
                 
             if is_appr or current_user_role in ['owner', 'admin'] or (current_user and u.user_id == current_user.id):
+                images_data = []
+                if hasattr(u, 'images'):
+                    for img in u.images:
+                        images_data.append({
+                            'id': img.id,
+                            'url': url_for('static', filename=f'uploads/{img.image_path}')
+                        })
+
                 result.append({
                     'id': u.id,
                     'title': u.title,
@@ -3983,7 +3992,8 @@ def manage_project_updates(project_id):
                     'content': u.content,
                     'author_name': u.author.name if u.author else 'Unknown',
                     'created_at': u.created_at.isoformat(),
-                    'is_approved': is_appr
+                    'is_approved': is_appr,
+                    'images': images_data  # 新增：将图片数据返回给前端
                 })
         return jsonify(result)
 
@@ -3991,10 +4001,15 @@ def manage_project_updates(project_id):
         if current_user_role not in ['owner', 'admin', 'member']:
             return jsonify({'error': 'Only project members can post updates'}), 403
 
-        data = request.get_json(silent=True) or {}
-        title = data.get('title', '').strip()
-        status = data.get('status', 'On Track')
-        content = data.get('content', '').strip()
+        if request.content_type and 'multipart' in request.content_type:
+            title = request.form.get('title', '').strip()
+            status = request.form.get('status', 'On Track')
+            content = request.form.get('content', '').strip()
+        else:
+            data = request.get_json(silent=True) or {}
+            title = data.get('title', '').strip()
+            status = data.get('status', 'On Track')
+            content = data.get('content', '').strip()
 
         if not title or not content:
             return jsonify({'error': 'Title and content are required'}), 400
@@ -4010,11 +4025,37 @@ def manage_project_updates(project_id):
             is_approved=auto_approve
         )
         db.session.add(new_update)
+        db.session.flush() 
+
+        if 'images' in request.files:
+            import uuid
+            import os
+            
+            ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+            def allowed_file(filename):
+                return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+            files = request.files.getlist('images')
+            upload_folder = current_app.config.get('UPLOAD_FOLDER', 'static/uploads')
+            os.makedirs(upload_folder, exist_ok=True)
+            
+            for file in files:
+                if file and file.filename != '' and allowed_file(file.filename):
+                    ext = os.path.splitext(file.filename)[1]
+                    filename = str(uuid.uuid4()) + ext
+                    file.save(os.path.join(upload_folder, filename))
+                    
+                    try:
+                        from .models import ProjectUpdateImage
+                        img = ProjectUpdateImage(update_id=new_update.id, image_path=filename)
+                        db.session.add(img)
+                    except ImportError:
+                        pass 
+
         db.session.commit()
 
         msg = 'Update posted successfully' if auto_approve else 'Update submitted for approval'
         return jsonify({'success': True, 'message': msg})
-
 @views.route('/api/project/<int:project_id>/updates/<int:update_id>/<action>', methods=['POST'])
 def review_project_update(project_id, update_id, action):
     err = require_login()
@@ -4100,3 +4141,139 @@ def admin_dashboard_page():
         admin_user=user,
     )
 
+@views.route('/api/timeline_feed', methods=['GET'])
+def get_timeline_feed():
+    current_user = get_current_user()
+    current_user_id = current_user.id if current_user else None
+    
+    # 1. 提取当前用户所有关注（Star）的项目 ID 集合
+    starred_project_ids = set()
+    if current_user_id:
+        from .models import ProjectStar, MYT  # 确保引入对应模型与区时
+        stars = ProjectStar.query.filter_by(user_id=current_user_id).all()
+        starred_project_ids = {s.project_id for s in stars}
+
+    unified_feed = []
+    # 统一采用模型的 MYT 区时作为当前时间基准，防止跨时区引发时差计算错误
+    from .models import MYT
+    now = datetime.now(MYT)
+
+    # 2. 汇入数据源 A：社区讨论与提问帖子
+    posts = CommunityPost.query.order_by(CommunityPost.created_at.desc()).limit(30).all()
+    for p in posts:
+        proj_id = p.attached_project_id
+        # 核心权重一：只要项目在关注集合中，即赋予断层高优级别 (1)，否则为 (0)
+        is_starred = 1 if (proj_id and proj_id in starred_project_ids) else 0
+        
+        # 计算发布时长差（小时）
+        p_created = p.created_at.replace(tzinfo=MYT) if p.created_at.tzinfo is None else p.created_at
+        age_hours = max(0.0, (now - p_created).total_seconds() / 3600.0)
+        
+        # 计算互动热度分
+        like_count = len(p.likes)
+        comment_count = len(p.comments)
+        base_score = 20 + (like_count * 5) + (comment_count * 10)
+        # 核心权重二：流内时间重力衰减
+        feed_score = base_score / ((age_hours + 2) ** 1.5)
+        
+        image_urls = [f"/static/uploads/{img.image_path}" for img in p.images]
+        
+        unified_feed.append({
+            'feed_id': f"post_{p.id}",
+            'id': p.id,
+            'feed_type': 'post',
+            'category': p.category,
+            'user_name': p.author.name if p.author else 'Unknown',
+            'content': p.content,
+            'created_at': p.created_at.isoformat(),
+            'image_urls': image_urls,
+            'link_url': p.link_url,
+            'attached_project': {'id': p.attached_project.id, 'name': p.attached_project.project_name} if p.attached_project else None,
+            'like_count': like_count,
+            'comment_count': comment_count,
+            'user_liked': any(like.user_id == current_user_id for like in p.likes) if current_user_id else False,
+            'user_faved': any(fav.user_id == current_user_id for fav in p.favorites) if current_user_id else False,
+            'is_starred': is_starred,
+            'score': feed_score
+        })
+
+    # =========================================================================
+    # 3. 汇入数据源 B：项目的官方更新进展 (ProjectUpdate)
+    # =========================================================================
+    if starred_project_ids: # 如果用户有关注的项目，才去查询更新
+        updates = ProjectUpdate.query.filter(
+            ProjectUpdate.is_approved == True,
+            ProjectUpdate.project_id.in_(starred_project_ids) 
+        ).order_by(ProjectUpdate.created_at.desc()).limit(20).all()
+        
+        for u in updates:
+            is_starred = 1 
+            
+            u_created = u.created_at.replace(tzinfo=MYT) if u.created_at.tzinfo is None else u.created_at
+            age_hours = max(0.0, (now - u_created).total_seconds() / 3600.0)
+            
+            base_score = 50
+            feed_score = base_score / ((age_hours + 2) ** 1.5)
+            
+            # ✨ 新增：提取 Update 的图片 URL
+            image_urls = [f"/static/uploads/{img.image_path}" for img in u.images] if hasattr(u, 'images') else []
+            
+            unified_feed.append({
+                'feed_id': f"update_{u.id}",
+                'id': u.id,
+                'feed_type': 'update',
+                'category': 'Project Update',
+                'user_name': u.author.name if u.author else 'Unknown',
+                'title': u.title,
+                'status': u.status,
+                'content': u.content,
+                'image_urls': image_urls,  # ✨ 新增：将图片发给前端
+                'created_at': u.created_at.isoformat(),
+                'attached_project': {'id': u.project.id, 'name': u.project.project_name} if u.project else None,
+                'is_starred': is_starred,
+                'score': feed_score
+            })
+            
+    # 4. 执行级联精准排序：reverse=True 确保 is_starred 从 1 到 0 递减，score 从高到低递减
+    unified_feed.sort(key=lambda x: (x['is_starred'], x['score']), reverse=True)
+
+    return jsonify(unified_feed[:30])
+
+@views.route('/api/project/<int:project_id>/star', methods=['POST'])
+def toggle_project_star(project_id):
+    # 1. 验证用户是否登录 (请根据你实际 views.py 里获取登录用户的方法调整)
+    email = session.get('user_email')
+    if not email:
+        return jsonify({'error': 'Please login to star a project.'}), 401
+        
+    current_user = User.query.filter_by(email=email).first()
+    if not current_user:
+        return jsonify({'error': 'User not found.'}), 404
+
+    # 2. 验证项目是否存在
+    project = Project.query.get_or_404(project_id)
+    
+    # 3. 检查是否已经收藏过
+    existing_star = ProjectStar.query.filter_by(user_id=current_user.id, project_id=project.id).first()
+    
+    if existing_star:
+        # 已经收藏过 -> 执行取消收藏 (Unlike)
+        db.session.delete(existing_star)
+        db.session.commit()
+        is_starred = False
+    else:
+        # 尚未收藏 -> 执行收藏 (Like)
+        new_star = ProjectStar(user_id=current_user.id, project_id=project.id)
+        db.session.add(new_star)
+        db.session.commit()
+        is_starred = True
+        
+    # 4. 获取该项目最新的总收藏数，返回给前端实时更新 UI
+    star_count = ProjectStar.query.filter_by(project_id=project.id).count()
+    
+    return jsonify({
+        'success': True,
+        'starred': is_starred,
+        'star_count': star_count,
+        'message': 'Project starred!' if is_starred else 'Project unstarred.'
+    })

@@ -461,10 +461,32 @@
     </div>
 </main>
 
+<div id="imageModal" class="hidden fixed inset-0 z-[100] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity duration-300" onclick="closeModal()">
+    <button class="absolute top-6 right-6 text-gray-300 hover:text-white focus:outline-none transition transform hover:scale-110">
+        <i class="fas fa-times text-4xl"></i>
+    </button>
+    <img id="modalImage" src="" class="max-w-full max-h-[90vh] rounded-xl shadow-2xl object-contain" onclick="event.stopPropagation()">
+</div>
+
+
 <script>
     const IS_FILE = window.location.protocol === 'file:';
     const API = '/api';
     let currentFilter = 'all'; 
+
+    function openModal(imageSrc) {
+        const modal = document.getElementById('imageModal');
+        const modalImg = document.getElementById('modalImage');
+        modalImg.src = imageSrc;
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal() {
+        const modal = document.getElementById('imageModal');
+        modal.classList.add('hidden');
+        document.body.style.overflow = 'auto';
+    }
 
     // ── Theme Toggle Functionality ────────────────────────────────────────────
     function initTheme() {
@@ -639,7 +661,7 @@
         }
     }
 
-    // ── User Projects Automatic Load (For Post Attachment) ──────────────────
+    // ── User Projects Automatic Load ─────────────────────────────────────────
     async function loadUserProjectsForPost() {
         if (IS_FILE) return;
         const select = document.getElementById('post-project-select');
@@ -732,7 +754,7 @@
         }
     }
 
-    // ── Feed Rendering & Filtering ────────────────────────────────────────────
+    // ── Feed Rendering & Filtering (核心重构：多级提权渲染算法) ──────────────────
 
     function changeFilter(filter, btnElement) {
         currentFilter = filter;
@@ -753,19 +775,67 @@
             return;
         }
 
-        container.innerHTML = '<div class="text-center text-gray-400 py-10 bg-white border border-gray-100 rounded-2xl text-sm"><i class="fas fa-spinner fa-spin mr-2"></i>Loading...</div>';
+        container.innerHTML = '<div class="text-center text-gray-400 py-10 bg-white border border-gray-100 rounded-2xl text-sm"><i class="fas fa-circle-notch fa-spin mr-2 text-red-500"></i>Loading...</div>';
 
         try {
-            const res = await fetch(`${API}/community_posts?filter=${currentFilter}`);
-            if (!res.ok) throw new Error('Failed to fetch feed');
-            const posts = await res.json();
+            const targetUrl = currentFilter === 'all' ? `${API}/timeline_feed` : `${API}/community_posts?filter=${currentFilter}`;
+            const res = await fetch(targetUrl);
             
-            if (posts.length === 0) {
-                container.innerHTML = `<div class="text-center text-gray-500 py-10 border border-gray-200 rounded-2xl bg-white text-sm italic">No posts found in this category.</div>`;
+            if (!res.ok) throw new Error('Failed to fetch feed');
+            const items = await res.json();
+            
+            if (items.length === 0) {
+                container.innerHTML = `<div class="text-center text-gray-500 py-10 border border-gray-200 rounded-2xl bg-white text-sm italic">No updates or posts found here.</div>`;
                 return;
             }
 
-            container.innerHTML = posts.map(p => {
+            container.innerHTML = items.map(p => {
+                if (p.feed_type === 'update') {
+                    let statusBadgeColor = 'bg-blue-100 text-blue-700 border-blue-400';
+                    if (p.status === 'Needs Work' || p.status === 'Delayed') statusBadgeColor = 'bg-red-100 text-red-700 border-red-500';
+                    
+                    const starHighlightClass = p.is_starred ? 'border-l-4 border-l-amber-500 bg-amber-50/20' : 'border-l-4 border-l-blue-600';
+                    const starIcon = p.is_starred ? '<i class="fas fa-star text-amber-500 mr-1" title="Starred Project"></i>' : '';
+
+                   let updateImagesHTML = '';
+                    if (p.image_urls && p.image_urls.length > 0) {
+                        const gridClass = p.image_urls.length === 1 ? "grid-cols-1 max-w-md" : p.image_urls.length === 2 ? "grid-cols-2 max-w-xl" : "grid-cols-2 md:grid-cols-3";
+                        updateImagesHTML = `<div class="grid ${gridClass} gap-2 mt-4 pl-2">` + 
+                            p.image_urls.map(url => `<img src="${url}" onclick="openModal('${url}')" class="rounded-xl w-full aspect-video object-cover border border-gray-200 shadow-sm cursor-pointer hover:opacity-90 transition">`).join('') + 
+                            `</div>`;
+                    }
+
+                    return `
+                    <div class="bg-white border border-gray-200 rounded-2xl p-5 hover:border-gray-300 transition shadow-sm ${starHighlightClass}">
+                        <div class="flex justify-between items-start mb-3">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 text-sm font-bold shrink-0">
+                                    <i class="fas fa-bullhorn"></i>
+                                </div>
+                                <div>
+                                    <div class="font-bold text-gray-900 text-sm flex items-center gap-1">
+                                        ${starIcon} ${escapeHtml(p.user_name)} <span class="text-gray-400 font-normal text-xs">posted a project update</span>
+                                    </div>
+                                    <div class="text-xs text-gray-400">${formatTime(p.created_at)}</div>
+                                </div>
+                            </div>
+                            <span class="bg-blue-50 text-blue-600 border border-blue-100 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"><i class="fas fa-bullhorn mr-1"></i> Update</span>
+                        </div>
+                        
+                        <div class="mb-2">
+                            <span class="text-xs ${statusBadgeColor} px-2 py-0.5 rounded font-bold">${escapeHtml(p.status)}</span>
+                            <h4 class="font-bold text-gray-900 text-base mt-1.5">${escapeHtml(p.title || '')}</h4>
+                        </div>
+                        <p class="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap pl-2 border-l border-gray-200">${escapeHtml(p.content)}</p>
+                        
+                        ${updateImagesHTML} ${p.attached_project ? `
+                            <a href="/project/${p.attached_project.id}" class="mt-4 flex items-center gap-2 text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition w-max">
+                                <i class="fas fa-project-diagram text-blue-500"></i> ${escapeHtml(p.attached_project.name)}
+                            </a>` : ''}
+                    </div>
+                    `;
+                }                   
+
                 let badgeHTML = '';
                 if (p.category === 'Question') {
                     badgeHTML = '<span class="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"><i class="fas fa-question-circle mr-1"></i>Question</span>';
@@ -777,16 +847,19 @@
                 
                 let imagesHTML = '';
                 if (p.image_urls && p.image_urls.length > 0) {
-                    const gridClass = p.image_urls.length === 1 ? "grid-cols-1" : p.image_urls.length === 2 ? "grid-cols-2" : "grid-cols-2 md:grid-cols-3";
+                    const gridClass = p.image_urls.length === 1 ? "grid-cols-1 max-w-md" : p.image_urls.length === 2 ? "grid-cols-2 max-w-xl" : "grid-cols-2 md:grid-cols-3";
                     imagesHTML = `<div class="grid ${gridClass} gap-2 mt-3">` + 
-                        p.image_urls.map(url => `<img src="${url}" class="rounded-xl w-full h-48 object-cover border border-gray-100 shadow-sm">`).join('') + 
+                        p.image_urls.map(url => `<img src="${url}" onclick="openModal('${url}')" class="rounded-xl w-full aspect-video object-cover border border-gray-200 shadow-sm cursor-pointer hover:opacity-90 transition">`).join('') + 
                         `</div>`;
                 }
 
                 const deleteBtn = p.is_owner ? `<button onclick="deletePost(${p.id})" class="text-gray-300 hover:text-red-500 transition text-sm ml-2" title="Delete Post"><i class="fas fa-trash"></i></button>` : '';
+                
+                const postStarHighlight = p.is_starred ? 'border-l-4 border-l-amber-500 bg-amber-50/10' : '';
+                const postStarIcon = p.is_starred ? '<i class="fas fa-star text-amber-500 mr-1" title="Starred Project Content"></i>' : '';
 
                 return `
-                <div class="bg-white border border-gray-200 rounded-2xl p-5 hover:border-gray-300 transition shadow-sm group" id="post-${p.id}">
+                <div class="bg-white border border-gray-200 rounded-2xl p-5 hover:border-gray-300 transition shadow-sm group ${postStarHighlight}" id="post-${p.id}">
                     <div class="flex justify-between items-start mb-3">
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-10 rounded-full bg-red-100 border border-red-200 flex items-center justify-center text-red-600 text-sm font-bold shrink-0 uppercase">
@@ -794,7 +867,7 @@
                             </div>
                             <div>
                                 <div class="font-bold text-gray-900 text-sm flex items-center gap-2">
-                                    ${escapeHtml(p.user_name)} ${deleteBtn}
+                                    ${postStarIcon} ${escapeHtml(p.user_name)} ${deleteBtn}
                                 </div>
                                 <div class="text-xs text-gray-400">${formatTime(p.created_at)}</div>
                             </div>
@@ -899,7 +972,6 @@
             }
         } catch (err) { showNotif('Error deleting post', false); }
     }
-
 
     // ── Nested Comments Logic ────────────────────────────────────────────────
     
@@ -1014,7 +1086,6 @@
             if (res.ok) await loadPostComments(postId);
         } catch (err) { showNotif('Error deleting comment', false); }
     }
-
 
     // ── Submit Community Post ───────────────────────────
     async function submitCommunityPost(btnElement) {
@@ -1137,7 +1208,6 @@
         return div.innerHTML;
     }
 
-
     // ── Fetch full profile from Flask ──────────────────────────────────────────
     async function initNav() {
         if (IS_FILE) {
@@ -1157,13 +1227,13 @@
             
             if (document.getElementById('nav-email')) document.getElementById('nav-email').textContent = profile.email;
             if (document.getElementById('nav-email-mobile')) document.getElementById('nav-email-mobile').textContent = profile.email;
-            // 如果后端判定是管理员，移出 hidden 样式将其显现
-                if (profile.is_admin) {
-                    const adminBtn = document.getElementById('admin-nav-btn');
-                    const adminBtnMobile = document.getElementById('admin-nav-btn-mobile');
-                    if (adminBtn) adminBtn.classList.remove('hidden');
-                    if (adminBtnMobile) adminBtnMobile.classList.remove('hidden');
-                }
+            
+            if (profile.is_admin) {
+                const adminBtn = document.getElementById('admin-nav-btn');
+                const adminBtnMobile = document.getElementById('admin-nav-btn-mobile');
+                if (adminBtn) adminBtn.classList.remove('hidden');
+                if (adminBtnMobile) adminBtnMobile.classList.remove('hidden');
+            }
             
             await loadInvitations();
 
@@ -1190,7 +1260,7 @@
     initNav().then(() => {
         loadFeed();
         loadAISuggestions();
-        loadUserProjectsForPost(); // 确保加载页面时抓取用户的项目
+        loadUserProjectsForPost();
     });
 </script>
 </body>
