@@ -491,12 +491,16 @@
                 return;
             }
 
-            badges.forEach(badgeName => {
+            badges.forEach(item => {
+                // API returns either a string or an object like {id, badge}
+                const badgeName = (typeof item === 'object' && item !== null) ? item.badge : item;
+                if (!badgeName) return;
+
                 const info = getBadgeInfo(badgeName);
 
                 const btn = document.createElement('button');
                 btn.type = 'button';
-                btn.className = 'cursor-pointer focus:outline-none';
+                btn.className = 'cursor-pointer focus:outline-none hover:scale-125 transition-transform';
                 btn.title = badgeName;
                 btn.onclick = () => showBadgeModal(badgeName);
 

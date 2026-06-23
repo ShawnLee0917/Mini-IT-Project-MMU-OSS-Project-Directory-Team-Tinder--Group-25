@@ -347,6 +347,138 @@ def admin_delete_badge(badge_id):
     return jsonify({'success': True, 'message': 'Badge removed successfully'})
 
 
+# =============================================================
+# BADGE HELPER FUNCTIONS
+# =============================================================
+
+# Map language names (lowercase) → badge name
+LANG_BADGE_MAP = {
+    'python':        'Python Expert',
+    'javascript':    'JavaScript Expert',
+    'js':            'JavaScript Expert',
+    'html':          'HTML Expert',
+    'css':           'CSS Expert',
+    'react':         'React Expert',
+    'php':           'PHP Expert',
+    'go':            'Go Expert',
+    'golang':        'Go Expert',
+    'c++':           'C++ Expert',
+    'cpp':           'C++ Expert',
+    'dart':          'Dart Expert',
+    'rust':          'Rust Expert',
+    'typescript':    'TypeScript Expert',
+    'ts':            'TypeScript Expert',
+}
+
+def _award_badge(user_id, badge_name):
+    """Award a badge if the user doesn't already have it. Caller must commit."""
+    exists = Badge.query.filter_by(user_id=user_id, badge=badge_name).first()
+    if not exists:
+        db.session.add(Badge(user_id=user_id, badge=badge_name))
+
+def _revoke_badge(user_id, badge_name):
+    """Remove a badge if the user has it. Caller must commit."""
+    badge = Badge.query.filter_by(user_id=user_id, badge=badge_name).first()
+    if badge:
+        db.session.delete(badge)
+
+def _get_lang_badges_for_project(languages_str):
+    """Return a set of badge names earned from a project's language string."""
+    if not languages_str:
+        return set()
+    badges = set()
+    for lang in languages_str.split(','):
+        badge = LANG_BADGE_MAP.get(lang.strip().lower())
+        if badge:
+            badges.add(badge)
+    return badges
+
+def sync_lang_badges(user_id):
+    """
+    Recalculate which language badges the user should have based on ALL
+    their current projects, then award/revoke accordingly.
+    Called after listing, deleting, or editing a project.
+    """
+    all_projects = Project.query.filter_by(user_id=user_id).all()
+
+    # Collect every badge still earned across remaining projects
+    earned = set()
+    for p in all_projects:
+        earned |= _get_lang_badges_for_project(p.languages)
+
+    # All possible language badges
+    all_lang_badges = set(b for b in LANG_BADGE_MAP.values() if b)
+
+    # Award any newly earned ones
+    for badge_name in earned:
+        _award_badge(user_id, badge_name)
+
+    # Revoke any that are no longer earned
+    for badge_name in all_lang_badges - earned:
+        _revoke_badge(user_id, badge_name)
+
+def sync_trending_badges(user_id):
+    """
+    Recalculate Hottest Project / Trending Project badges for a user
+    based on whether any of their projects currently appear in the top 10.
+    Called after deleting a project.
+    """
+    from datetime import datetime, timezone, timedelta
+
+    all_projects = Project.query.filter(Project.status != 'Archived').all()
+    now = datetime.now(timezone.utc)
+    seven_days_ago = now - timedelta(days=7)
+
+    all_time_scores = {}
+    trending_scores = {}
+
+    for p in all_projects:
+        comment_count = ProjectComment.query.filter_by(project_id=p.id).count()
+        attached_posts = CommunityPost.query.filter_by(attached_project_id=p.id).all()
+        post_ids = [post.id for post in attached_posts]
+
+        post_like_count = CommunityPostLike.query.filter(
+            CommunityPostLike.post_id.in_(post_ids)).count() if post_ids else 0
+        post_save_count = CommunityPostFavorite.query.filter(
+            CommunityPostFavorite.post_id.in_(post_ids)).count() if post_ids else 0
+        views = p.views or 0
+
+        total_score = (views * 1) + (post_like_count * 5) + (comment_count * 10) + (post_save_count * 20)
+        all_time_scores[p.id] = (p.user_id, total_score)
+
+        recent_comments = ProjectComment.query.filter(
+            ProjectComment.project_id == p.id,
+            ProjectComment.created_at >= seven_days_ago).count()
+        recent_views = ProjectViewLog.query.filter(
+            ProjectViewLog.project_id == p.id,
+            ProjectViewLog.created_at >= seven_days_ago).count()
+        recent_likes = CommunityPostLike.query.filter(
+            CommunityPostLike.post_id.in_(post_ids),
+            CommunityPostLike.created_at >= seven_days_ago).count() if post_ids else 0
+        recent_saves = CommunityPostFavorite.query.filter(
+            CommunityPostFavorite.post_id.in_(post_ids),
+            CommunityPostFavorite.created_at >= seven_days_ago).count() if post_ids else 0
+
+        t_score = (recent_views * 1) + (recent_likes * 5) + (recent_comments * 10) + (recent_saves * 20)
+        if t_score > 0:
+            trending_scores[p.id] = (p.user_id, t_score)
+
+    top_all_time_owners = {v[0] for _, v in sorted(
+        all_time_scores.items(), key=lambda x: x[1][1], reverse=True)[:3]}
+    top_trending_owners = {v[0] for _, v in sorted(
+        trending_scores.items(), key=lambda x: x[1][1], reverse=True)[:3]}
+
+    if user_id in top_all_time_owners:
+        _award_badge(user_id, 'Hottest Project')
+    else:
+        _revoke_badge(user_id, 'Hottest Project')
+
+    if user_id in top_trending_owners:
+        _award_badge(user_id, 'Trending Project')
+    else:
+        _revoke_badge(user_id, 'Trending Project')
+
+
 @views.route('/api/admin/reports', methods=['GET'])
 def api_get_reports():
     """Get all content reports (paginated)"""
@@ -1155,35 +1287,21 @@ def list_project():
 
         db.session.commit()
 
-        # Handle screenshots upload
-        files = request.files.getlist('screenshots') 
-        for file in files:
-            if file and file.filename != '':
-                ext = os.path.splitext(file.filename)[1]
-                filename = str(uuid.uuid4()) + ext 
-                
-                file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-                file.save(file_path)
-
-                new_image = ProjectImage()
-                new_image.filename = filename
-                new_image.project_id = new_project.id
-                db.session.add(new_image)
-
-        db.session.commit() # <-- FIND THIS LINE
-
         # =============================================================
         # 🏆 AUTO-ASSIGN "FIRST PROJECT" BADGE
         # =============================================================
         project_count = Project.query.filter_by(user_id=current_user.id).count()
         if project_count == 1:
-            # Prevent duplicates just in case
             existing_badge = Badge.query.filter_by(user_id=current_user.id, badge='First Project').first()
             if not existing_badge:
                 first_badge = Badge(user_id=current_user.id, badge='First Project')
                 db.session.add(first_badge)
                 db.session.commit()
                 flash("Congratulations! You earned the 'First Project' badge! 🏆", "success")
+
+        # 🏷️ AUTO-ASSIGN LANGUAGE BADGES
+        sync_lang_badges(current_user.id)
+        db.session.commit()
 
         return redirect(url_for('views.upload_success'))
     
@@ -1244,6 +1362,9 @@ def edit_project(project_id):
                 db.session.add(new_image)
 
         db.session.commit()
+        # 🏷️ Recalculate language badges in case languages changed
+        sync_lang_badges(project.user_id)
+        db.session.commit()
         return redirect(url_for('views.project_page', project_id=project.id))
 
     return render_template("Edit_Project.html", project=project, current_user=current_user, current_user_role=current_user_role)
@@ -1251,14 +1372,30 @@ def edit_project(project_id):
 @views.route('/delete-project/<int:project_id>', methods=['POST'])
 def delete_project(project_id):
     project = Project.query.get_or_404(project_id)
+    owner_id = project.user_id
     try:
+        # Detach community posts (SET NULL) before deleting
+        CommunityPost.query.filter_by(attached_project_id=project.id).update({'attached_project_id': None})
+
         db.session.delete(project)
+        db.session.flush()  # Flush so badge queries see the project as gone
+
+        # 🏷️ Recalculate language badges
+        sync_lang_badges(owner_id)
+
+        # 🏷️ Revoke "First Project" badge if no projects remain
+        if Project.query.filter_by(user_id=owner_id).count() == 0:
+            _revoke_badge(owner_id, 'First Project')
+
+        # 🏷️ Recalculate trending badges
+        sync_trending_badges(owner_id)
+
         db.session.commit()
         flash('Project deleted successfully!', category='success')
     except Exception as e:
         db.session.rollback()
         flash('An error occurred while deleting the project.', category='error')
-        print(f"Error: {e}")
+        print(f"Error deleting project: {e}")
     return redirect(url_for('views.my_projects'))
 
 @views.route('/api/register', methods=['POST'])
@@ -2917,14 +3054,13 @@ def delete_project_comment(project_id, comment_id):
     comment = ProjectComment.query.get_or_404(comment_id)
     current_user = get_current_user()
      
-    # Only owner can delete comments 
-    if current_user.id != project.user_id:
-        return jsonify({'error': 'Only project owner can delete comments'}), 403
-    
+    # ─── FIXED: REMOVED THE PREMATURE BLOCK HERE ───
+
     if comment.project_id != project_id:
         return jsonify({'error': 'Comment not found in this project'}), 404
     
-    # Allow: comment author OR project owner
+    # ─── This check handles both conditions perfectly ───
+    # It allows the action ONLY if the user is either the comment author OR the project owner
     if current_user.id != comment.user_id and current_user.id != project.user_id:
         return jsonify({'error': 'You do not have permission to delete this comment'}), 403
     
@@ -3947,7 +4083,41 @@ def hottest_projects():
             
     top_all_time = sorted(all_time_data, key=lambda x: x['total_score'], reverse=True)[:10]
     top_trending = sorted(trending_data, key=lambda x: x['trending_score'], reverse=True)[:10]
-        
+
+    # =============================================================
+    # 🏆 AUTO-ASSIGN HOTTEST / TRENDING BADGES
+    # =============================================================
+    # Collect owner IDs in each top-10 list
+    top_all_time_owner_ids  = set()
+    top_trending_owner_ids  = set()
+
+    for entry in top_all_time:
+        p = Project.query.get(entry['id'])
+        if p:
+            top_all_time_owner_ids.add(p.user_id)
+
+    for entry in top_trending:
+        p = Project.query.get(entry['id'])
+        if p:
+            top_trending_owner_ids.add(p.user_id)
+
+    # Award to those in the list, revoke from those who dropped out
+    all_users_with_badge = {b.user_id for b in Badge.query.filter(
+        Badge.badge.in_(['Hottest Project', 'Trending Project'])).all()}
+
+    affected_users = top_all_time_owner_ids | top_trending_owner_ids | all_users_with_badge
+    for uid in affected_users:
+        if uid in top_all_time_owner_ids:
+            _award_badge(uid, 'Hottest Project')
+        else:
+            _revoke_badge(uid, 'Hottest Project')
+
+        if uid in top_trending_owner_ids:
+            _award_badge(uid, 'Trending Project')
+        else:
+            _revoke_badge(uid, 'Trending Project')
+
+    db.session.commit()
     return render_template("Trending.html", all_time_projects=top_all_time, trending_projects=top_trending)
 
 @views.route('/api/project/<int:project_id>/updates', methods=['GET', 'POST'])
