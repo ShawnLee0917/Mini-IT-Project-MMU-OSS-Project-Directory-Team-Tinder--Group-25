@@ -180,7 +180,7 @@ class JoinRequest(db.Model):
     
     # Relationships
     user = db.relationship('User', backref='join_requests')
-    project = db.relationship('Project', backref='join_requests')
+    project = db.relationship('Project', backref=db.backref('join_requests', cascade='all, delete-orphan'))
     
     __table_args__ = (db.UniqueConstraint('user_id', 'project_id', name='unique_user_project_request'),)
 
@@ -197,7 +197,7 @@ class MemberHistory(db.Model):
     reason = db.Column(db.String(255), nullable=True)  # Optional reason for leaving
     
     # Relationships
-    project = db.relationship('Project', backref='member_histories')
+    project = db.relationship('Project', backref=db.backref('member_histories', cascade='all, delete-orphan'))
     
     __table_args__ = (db.Index('idx_project_user', 'project_id', 'user_id'),)
 
@@ -217,7 +217,7 @@ class LeaveRequest(db.Model):
     
     # Relationships
     user = db.relationship('User', backref='leave_requests')
-    project = db.relationship('Project', backref='leave_requests')
+    project = db.relationship('Project', backref=db.backref('leave_requests', cascade='all, delete-orphan'))
     
     __table_args__ = (db.UniqueConstraint('user_id', 'project_id', name='unique_user_leave_request'),)
 
@@ -260,7 +260,7 @@ class ProjectComment(db.Model):
     
     # Relationships
     author = db.relationship('User', backref='project_comments')
-    project = db.relationship('Project', backref='project_comments')
+    project = db.relationship('Project', backref=db.backref('project_comments', cascade='all, delete-orphan'))
     images = db.relationship('ProjectCommentImage', backref='comment', lazy=True, cascade='all, delete-orphan')
     
     __table_args__ = (db.Index('idx_project_comments', 'project_id', 'created_at'),)
@@ -421,7 +421,7 @@ class CommunityPostCommentImage(db.Model):
 
 class ProjectUpdate(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id', ondelete='CASCADE'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     title = db.Column(db.String(150), nullable=False)  
     status = db.Column(db.String(50), nullable=False)  
@@ -430,7 +430,7 @@ class ProjectUpdate(db.Model):
     is_approved = db.Column(db.Boolean, default=False)  
 
     author = db.relationship('User', backref='project_updates')
-    project = db.relationship('Project', backref=db.backref('updates', lazy='dynamic'))
+    project = db.relationship('Project', backref=db.backref('updates', lazy='dynamic', cascade='all, delete-orphan'))
 
 
 # ---------------------------------------------------------------------------
