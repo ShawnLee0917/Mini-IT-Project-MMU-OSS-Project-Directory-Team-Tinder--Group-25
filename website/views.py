@@ -3951,6 +3951,19 @@ def admin_dashboard_page():
         return redirect(url_for('views.api_login'))
 
     user = User.query.filter_by(email=email).first()
+
+    # ─── 在这里添加你的硬编码白名单 ───
+    HARDCODED_ADMINS = [
+        'kohkonghao@mmu.edu.my',      # 你自己的 MMU 邮箱
+        'koh.kong.hao@student.mmu.edu.my'     # 你朋友的 MMU 邮箱
+    ]
+
+    # 如果邮箱在白名单里，且数据库中还不是 admin，直接帮他更新并保存到数据库
+    if user and email.strip().lower() in HARDCODED_ADMINS:
+        if not getattr(user, 'is_admin', False):
+            user.is_admin = True
+            db.session.commit() # 自动帮他写进数据库，一劳永逸
+
     if not user or not getattr(user, 'is_admin', False):
         return "Access Denied. Admins Only.", 403
 
