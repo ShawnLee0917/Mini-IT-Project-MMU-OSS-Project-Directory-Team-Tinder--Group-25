@@ -1278,6 +1278,21 @@ async function submitReport(event) {
     }
 
 function createCommentHTML(comment) {
+    // ─── NEW: Intercept and render persistent tombstone if deleted ───
+    if (comment.content === "This message was deleted." || comment.is_deleted) {
+        return `
+            <div class="bg-gray-50 border border-dashed border-gray-200 p-6 rounded-2xl">
+                <div class="flex items-center gap-3 py-1 opacity-60">
+                    <div class="w-8 h-8 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-400 flex-shrink-0">
+                        <i class="fas fa-trash text-xs"></i>
+                    </div>
+                    <p class="text-sm text-gray-400 italic">
+                        <i class="fas fa-ban mr-1 text-xs"></i>This message was deleted.
+                    </p>
+                </div>
+            </div>
+        `;
+    }
     const isOwner = currentUserId === projectOwnerId;
     const isAuthor = currentUserId === comment.author_id;
     const isIssueOrSuggestion = comment.comment_type !== 'normal';
@@ -1711,7 +1726,12 @@ async function deleteComment(commentId) {
         }
 
         // Also remove from local allComments array so filter stays in sync
-        allComments = allComments.filter(c => c.id !== commentId);
+allComments = allComments.map(c => {
+    if (c.id === commentId) {
+        c.content = "This message was deleted.";
+    }
+    return c;
+});
     } catch (err) {
         console.error('Error deleting comment:', err);
         alert('Failed to delete comment');
