@@ -3069,8 +3069,20 @@ def delete_project_comment(project_id, comment_id):
         file_path = os.path.join(UPLOAD_FOLDER, img.image_path)
         if os.path.exists(file_path):
             os.remove(file_path)
+
+# 1. Update the comment text to the placeholder message
+    comment.content = "This message was deleted."
     
-    db.session.delete(comment)
+    # 2. Optional: Set a flag if your model has an 'is_deleted' column
+    if hasattr(comment, 'is_deleted'):
+        comment.is_deleted = True
+
+    # 3. Clear attached images so they don't linger on a deleted message
+    if hasattr(comment, 'images'):
+        for img in comment.images:
+            db.session.delete(img)
+    
+
     db.session.commit()
     
     return jsonify({'success': 'Comment deleted'})

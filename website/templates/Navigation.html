@@ -16,7 +16,7 @@
             --text-secondary: #6b7280;
             --border-color: #e5e7eb;
         }
-        
+
         html[data-theme="dark"] {
             --bg-primary: #0f0f0f;
             --bg-secondary: #1a1a1a;
@@ -136,6 +136,29 @@
         html[data-theme="dark"] #logout-btn:hover,
         html[data-theme="dark"] #logout-btn-mobile:hover {
             background-color: #f3f4f6 !important;
+        }
+
+        /* ─── Dark Mode Specific Accent Overrides ─── */
+        html[data-theme="dark"] #dark-list-btn {
+        /* Changes button to deep Indigo blue in Dark Mode instead of Red */
+            background-color: #dc2626 !important; 
+            box-shadow: none !important;
+        }
+
+        html[data-theme="dark"] #dark-list-btn:hover {
+       /* Hover color state for Dark Mode */
+            background-color: #B91C1C !important; 
+        }
+
+
+        html[data-theme="dark"] #suggestion-list:hover {
+            background-color: #2e2e2e !important;
+
+        }
+
+        html[data-theme="dark"] #badge-card:hover {
+            background-color: #2e2e2e !important;
+            border-bottom: 1px solid #444444 !important;
         }
 
         /* ── Animated Hamburger Button ─────────────────────────── */
@@ -265,10 +288,6 @@
                 </div>
             </div>
 
-            <button id="theme-toggle" class="text-white hover:text-red-200 transition p-2 focus:outline-none" title="Toggle Dark Mode">
-                <i class="fas fa-moon text-lg"></i>
-            </button>
-
             <a href="{{ url_for('views.profile') }}" class="bg-red-800 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-500/50 cursor-pointer hover:bg-red-900 transition">
                 <span id="nav-email" class="text-xs">…</span>
                 <i class="fas fa-user-circle text-lg"></i>
@@ -302,9 +321,6 @@
                 <i class="fa-solid fa-shield-halved text-base w-5"></i>
                 <span>Admin Moderation</span>
             </a>
-            <button id="theme-toggle-mobile" onclick="toggleTheme()" class="text-left text-red-100 hover:text-white transition text-sm border-t border-red-700 pt-4 mt-2">
-                <i class="fas fa-moon mr-2"></i> <span id="theme-toggle-text">Dark Mode</span>
-            </button>
 
             <button id="logout-btn-mobile" class="text-left text-red-200 hover:text-white transition text-sm border-t border-red-700 pt-4 mt-2">
                 <i class="fas fa-sign-out-alt mr-1"></i> Logout
@@ -321,7 +337,7 @@
             Don't let your code die at graduation. Hand over the torch to the next batch of innovators.
         </p>
         <div class="mt-8 flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 justify-center md:justify-start">
-            <a href="{{ url_for('views.list_project') }}" class="bg-red-600 text-white px-8 py-4 rounded-xl font-bold hover:bg-red-700 transform hover:-translate-y-1 transition shadow-lg shadow-red-200 inline-flex items-center justify-center">
+            <a id="dark-list-btn" href="{{ url_for('views.list_project') }}" class="bg-red-600 text-white px-8 py-4 rounded-xl font-bold hover:bg-red-700 transform hover:-translate-y-1 transition shadow-lg shadow-red-200 inline-flex items-center justify-center">
                 <i class="fas fa-plus mr-2"></i> List Your Project
             </a>
             <a href="{{ url_for('views.search') }}" class="bg-white border-2 border-gray-200 text-gray-700 px-8 py-4 rounded-xl font-bold hover:bg-gray-50 transition">
@@ -451,13 +467,6 @@
             </div>
         </div>
 
-        <div class="p-6">
-            <h4 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Resources</h4>
-            <ul class="space-y-3">
-                <li><a href="#" class="text-sm text-gray-600 hover:text-red-600 font-medium transition italic"># How to document for takeover</a></li>
-                <li><a href="#" class="text-sm text-gray-600 hover:text-red-600 font-medium transition italic"># Choosing an OS license</a></li>
-            </ul>
-        </div>
     </div>
 </main>
 
@@ -731,7 +740,7 @@
             const badgeItems = queue.map(entry => {
                 const b = getBadgeIcon(entry.name);
                 return `
-                <div class="p-4 hover:bg-gray-50 transition flex items-start gap-3 border-b border-gray-50">
+                <div id="badge-card" href="entry.id" class="p-4 hover:bg-gray-50 transition flex items-start gap-3 border-b border-gray-50">
                     <div class="w-9 h-9 rounded-full ${b.bg} flex items-center justify-center flex-shrink-0 mt-0.5">
                         <i class="${b.icon} ${b.color} text-base"></i>
                     </div>
@@ -1304,7 +1313,7 @@
             list.innerHTML = data.suggestions.slice(0, 3).map(p => {
                 let scoreColor = p.match_score >= 80 ? 'text-green-600 bg-green-50' : 'text-blue-600 bg-blue-50';
                 return `
-                <a href="/project/${p.id}" class="block p-5 hover:bg-gray-50 transition border-b border-gray-50 last:border-0 group">
+                <a id="suggestion-list" href="/project/${p.id}" class="block p-5 hover:bg-gray-50 transition border-b border-gray-50 last:border-0 group">
                     <div class="flex justify-between items-start mb-1.5">
                         <span class="font-bold text-sm text-gray-800 group-hover:text-red-600 transition line-clamp-1">${escapeHtml(p.project_name)}</span>
                         <span class="text-[10px] font-bold ${scoreColor} px-2 py-0.5 rounded-full whitespace-nowrap">${p.match_score}% Match</span>
