@@ -5,6 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edit Project | MMU OSSD</title>
+    <script>
+        const currentTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', currentTheme);
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" rel="stylesheet">
     <style>
@@ -12,6 +16,89 @@
 
         body {
             font-family: 'Inter', sans-serif;
+        }
+
+                :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f3f4f6;
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --border-color: #e5e7eb;
+        }
+
+        html[data-theme="dark"] {
+            --bg-primary: #0f0f0f;
+            --bg-secondary: #1a1a1a;
+            --text-primary: #e5e7eb;
+            --text-secondary: #a1a1a1;
+            --border-color: #333333;
+        }
+        
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+        
+        html[data-theme="dark"] .border-gray-200 {
+    border-color: var(--border-color) !important;
+}
+        /* Dark theme overrides */
+        html[data-theme="dark"] body {
+            background-color: var(--bg-secondary);
+        }
+        
+        html[data-theme="dark"] header {
+            background-color: var(--bg-primary) !important;
+            border-color: var(--border-color) !important;
+        }
+        
+        html[data-theme="dark"] header h2,
+        html[data-theme="dark"] header p {
+            color: var(--text-primary) !important;
+        }
+        
+        html[data-theme="dark"] .bg-white {
+            background-color: var(--bg-primary) !important;
+            border-color: var(--border-color) !important;
+        }
+        
+        html[data-theme="dark"] .bg-gray-50 {
+            background-color: var(--bg-secondary) !important;
+        }
+        
+        html[data-theme="dark"] .text-gray-900,
+        html[data-theme="dark"] .text-gray-800 {
+            color: var(--text-primary) !important;
+        }
+        
+        html[data-theme="dark"] .text-gray-500,
+        html[data-theme="dark"] .text-gray-600,
+        html[data-theme="dark"] .text-gray-700 {
+            color: var(--text-secondary) !important;
+        }
+        
+        html[data-theme="dark"] .border-gray-200,
+        html[data-theme="dark"] .border-gray-100 {
+            border-color: var(--border-color) !important;
+        }
+        
+        html[data-theme="dark"] .text-gray-400 {
+            color: var(--text-secondary) !important;
+        }
+        
+        html[data-theme="dark"] input,
+        html[data-theme="dark"] textarea,
+        html[data-theme="dark"] select {
+            background-color: var(--bg-secondary) !important;
+            color: var(--text-primary) !important;
+            border-color: var(--border-color) !important;
+        }
+        
+        html[data-theme="dark"] input:focus,
+        html[data-theme="dark"] textarea:focus,
+        html[data-theme="dark"] select:focus {
+            background-color: var(--bg-primary) !important;
         }
 
         /* ── Animated Hamburger Button ─────────────────────────── */
@@ -129,6 +216,9 @@
                         <i class="fas fa-user-circle text-lg"></i>
                     </a>
                 </div>
+                <button id="logout-btn" class="bg-white text-red-700 hover:bg-red-50 text-xs font-bold px-3 py-2 rounded-xl transition">
+                    <i class="fas fa-sign-out-alt mr-1"></i>Logout
+                </button>
             </div>
         </div>
 
@@ -139,6 +229,9 @@
                 <a href="{{ url_for('views.qna_page') }}" class="hover:text-red-200 transition">Q&A</a>
                 <a href="{{ url_for('views.profile') }}" class="hover:text-red-200 transition">My Profile</a>
                 <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
+                <button id="logout-btn-mobile" class="text-left text-red-200 hover:text-white transition text-sm">
+                    <i class="fas fa-sign-out-alt mr-1"></i> Logout
+                </button>
                 <div class="pt-2 border-t border-red-700 text-xs font-light opacity-80" id="nav-email-mobile">{{ session.get('user_email', 'User') }}</div>
             </div>
         </div>
@@ -360,6 +453,14 @@
     {% endif %}
 
     <script>
+        // ── Logout ────────────────────────────────────────────────────────────
+        async function logout() {
+            await fetch('/api/logout', { method: 'POST' });
+            window.location.href = '/';
+        }
+        document.getElementById('logout-btn')?.addEventListener('click', logout);
+        document.getElementById('logout-btn-mobile')?.addEventListener('click', logout);
+
         // ── Mobile menu smooth toggle ─────────────────────────────────────────────
         const menuBtn = document.getElementById('menu-btn');
         const mobileMenu = document.getElementById('mobile-menu');
@@ -393,6 +494,21 @@
                 closeMenu();
             }
         });
+
+        function toggleTheme() {
+    const htmlEl = document.documentElement;
+    const currentTheme = htmlEl.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    
+    // 1. Switch layout attribute
+    htmlEl.setAttribute('data-theme', newTheme);
+    
+    // 2. Critical: Save state so other pages can see it
+    localStorage.setItem('theme', newTheme);
+}
+
+// Attach this function to your dark mode switch button trigger
+document.getElementById('theme-toggle-btn').addEventListener('click', toggleTheme);
 
         // ── Image Drop Zone Logic ──────────────────────────────────────────────────
         const dropZone = document.getElementById('drop-zone');

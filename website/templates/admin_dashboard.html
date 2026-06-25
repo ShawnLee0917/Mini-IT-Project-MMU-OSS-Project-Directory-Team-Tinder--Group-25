@@ -78,11 +78,11 @@
                                 </td>
                                 <td class="py-4 text-right">
                                     <div class="flex justify-end gap-2">
-                                        <button onclick="handleReport('take_down', {{ report.id }}, {{ report.content_id }}, '{{ report.content_type }}')"
+                                        <button onclick="handleReport('take_down', '{{ report.id }}', '{{ report.content_id }}', '{{ report.content_type }}')"
                                             class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg transition">
                                             <i class="fa-solid fa-ban mr-1"></i> Take Down
                                         </button>
-                                        <button onclick="handleReport('dismiss', {{ report.id }}, {{ report.content_id }}, '{{ report.content_type }}')"
+                                        <button onclick="handleReport('dismiss', '{{ report.id }}', '{{ report.content_id }}', '{{ report.content_type }}')"
                                             class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs font-bold rounded-lg transition">
                                             <i class="fa-solid fa-circle-check mr-1"></i> Dismiss
                                         </button>
@@ -226,6 +226,58 @@
         {% endif %}
     </div>
 
+    <div class="bg-gray-800 rounded-xl p-6 shadow-xl border border-gray-700 mb-8 mt-8">
+            <h2 class="text-xl font-bold text-white mb-4">
+                <i class="fa-solid fa-award text-yellow-500 mr-2"></i> User Badge Management
+            </h2>
+            
+            <div class="mb-6">
+                <!-- Row 1: User ID + Award button -->
+                <div class="flex flex-col md:flex-row gap-3 items-end mb-4">
+                    <div class="flex-1 max-w-xs">
+                        <label class="block text-xs font-bold text-gray-400 mb-1">User ID</label>
+                        <input type="number" id="badge-user-id" placeholder="e.g. 1" class="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-yellow-500 focus:outline-none text-sm">
+                    </div>
+                    <button onclick="adminAwardBadge()" class="px-5 py-2 bg-yellow-600 hover:bg-yellow-700 text-white text-sm font-bold rounded-lg transition h-[38px]">
+                        <i class="fa-solid fa-plus mr-1"></i> Award Selected Badge
+                    </button>
+                </div>
+
+                <!-- Row 2: Badge picker -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 mb-2">Select Badge to Award</label>
+                    <div class="flex flex-wrap gap-3" id="badge-picker">
+                        <!-- Rendered by JS -->
+                    </div>
+                    <p id="badge-selected-label" class="text-xs text-yellow-400 mt-2 hidden">
+                        <i class="fa-solid fa-check mr-1"></i> Selected: <span id="badge-selected-name"></span>
+                    </p>
+                </div>
+            </div>
+            
+            <div class="flex justify-between items-center mb-2">
+                <h3 class="text-sm font-bold text-gray-400 uppercase">User Database</h3>
+                <button onclick="loadUserBadges()" class="text-xs text-blue-400 hover:text-blue-300 transition">
+                    <i class="fa-solid fa-arrows-rotate mr-1"></i>Refresh
+                </button>
+            </div>
+            
+            <div class="overflow-x-auto max-h-80 overflow-y-auto border border-gray-700 rounded-lg">
+                <table class="w-full text-left text-sm text-gray-300">
+                    <thead class="bg-gray-900 text-gray-400 text-xs uppercase sticky top-0 border-b border-gray-700 z-10">
+                        <tr>
+                            <th class="py-3 px-4 w-16">ID</th>
+                            <th class="py-3 px-4 w-1/4">Name</th>
+                            <th class="py-3 px-4">Active Badges (Click X to remove)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-badge-list" class="divide-y divide-gray-750 bg-gray-800">
+                        <tr><td colspan="3" class="text-center py-4 italic text-gray-500">Loading user data...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
     <script>
         const CONTENT_TYPE_LABELS = {
             project: 'project',
@@ -315,6 +367,165 @@
             row.style.transition = 'all 0.3s ease';
             setTimeout(() => row.remove(), 300);
         }
+
+        // ==========================================
+        // ADMIN BADGE MANAGEMENT LOGIC
+        // ==========================================
+
+        const BADGE_INFO = {
+            'First Project':     { icon: 'fas fa-scroll',             iconCls: 'text-purple-400',  bg: 'bg-purple-900',  border: 'border-purple-700'  },
+            'Early Adopter':     { icon: 'fas fa-fire-alt',            iconCls: 'text-orange-400',  bg: 'bg-orange-900',  border: 'border-orange-700'  },
+            'Top Contributor':   { icon: 'fas fa-trophy',              iconCls: 'text-yellow-400',  bg: 'bg-yellow-900',  border: 'border-yellow-700'  },
+            'Python Expert':     { icon: 'fa-brands fa-python',        iconCls: 'text-blue-400',    bg: 'bg-blue-900',    border: 'border-blue-700'    },
+            'JavaScript Expert': { icon: 'fa-brands fa-js',            iconCls: 'text-yellow-400',  bg: 'bg-yellow-800',  border: 'border-yellow-700'  },
+            'React Expert':      { icon: 'fa-brands fa-react',         iconCls: 'text-cyan-400',    bg: 'bg-cyan-900',    border: 'border-cyan-700'    },
+            'HTML Expert':       { icon: 'fa-brands fa-html5',         iconCls: 'text-red-400',     bg: 'bg-red-900',     border: 'border-red-700'     },
+            'CSS Expert':        { icon: 'fa-brands fa-css3-alt',      iconCls: 'text-sky-400',     bg: 'bg-sky-900',     border: 'border-sky-700'     },
+            'PHP Expert':        { icon: 'fa-brands fa-php',           iconCls: 'text-indigo-400',  bg: 'bg-indigo-900',  border: 'border-indigo-700'  },
+            'C++ Expert':        { icon: 'fas fa-code',                iconCls: 'text-blue-300',    bg: 'bg-blue-900',    border: 'border-blue-700'    },
+            'Go Expert':         { icon: 'fa-brands fa-golang',        iconCls: 'text-cyan-300',    bg: 'bg-cyan-900',    border: 'border-cyan-700'    },
+            'Dart Expert':       { icon: 'fas fa-bullseye',            iconCls: 'text-blue-400',    bg: 'bg-blue-900',    border: 'border-blue-700'    },
+            'Rust Expert':       { icon: 'fas fa-gear',                iconCls: 'text-orange-300',  bg: 'bg-gray-800',    border: 'border-gray-600'    },
+            'TypeScript Expert': { icon: 'fas fa-t',                   iconCls: 'text-blue-400',    bg: 'bg-blue-900',    border: 'border-blue-700'    },
+            'MMU Alumni':        { icon: 'fas fa-graduation-cap',      iconCls: 'text-blue-300',    bg: 'bg-blue-900',    border: 'border-blue-700'    },
+            'MMU Staff':         { icon: 'fas fa-chalkboard-user',     iconCls: 'text-orange-300',  bg: 'bg-orange-900',  border: 'border-orange-700'  },
+            'Moderator':         { icon: 'fas fa-shield-halved',       iconCls: 'text-green-400',   bg: 'bg-green-900',   border: 'border-green-700'   },
+            'Admin':             { icon: 'fas fa-shield',              iconCls: 'text-red-400',     bg: 'bg-red-900',     border: 'border-red-700'     },
+            'MMU OSSD Member':   { icon: 'fas fa-star',                iconCls: 'text-yellow-400',  bg: 'bg-yellow-900',  border: 'border-yellow-700'  },
+            'Tester':            { icon: 'fas fa-flask',               iconCls: 'text-gray-300',    bg: 'bg-gray-700',    border: 'border-gray-600'    },
+            'Beta Tester':       { icon: 'fas fa-vial',                iconCls: 'text-purple-300',  bg: 'bg-purple-900',  border: 'border-purple-700'  },
+            'Lecturer':          { icon: 'fas fa-person-chalkboard',   iconCls: 'text-orange-400',  bg: 'bg-orange-900',  border: 'border-orange-700'  },
+            'Special Thanks':    { icon: 'fas fa-heart',               iconCls: 'text-pink-400',    bg: 'bg-pink-900',    border: 'border-pink-700'    },
+            'Community Helper':  { icon: 'fas fa-hands-helping',       iconCls: 'text-green-400',   bg: 'bg-green-900',   border: 'border-green-700'   },
+            'First Comment':     { icon: 'fas fa-comment',             iconCls: 'text-blue-400',    bg: 'bg-blue-900',    border: 'border-blue-700'    },
+            'Ten Comments':      { icon: 'fas fa-comment-dots',        iconCls: 'text-green-400',   bg: 'bg-green-900',   border: 'border-green-700'   },
+            'Fifty Comments':    { icon: 'fas fa-comments',            iconCls: 'text-yellow-400',  bg: 'bg-yellow-900',  border: 'border-yellow-700'  },
+            'Hundred Comments':  { icon: 'fas fa-message',             iconCls: 'text-red-400',     bg: 'bg-red-900',     border: 'border-red-700'     },
+            'Hottest Project':   { icon: 'fas fa-fire',                iconCls: 'text-red-400',     bg: 'bg-red-900',     border: 'border-red-700'     },
+            'Post First Feed':   { icon: 'fas fa-paper-plane',         iconCls: 'text-blue-400',    bg: 'bg-blue-900',    border: 'border-blue-700'    },
+            'Trending Project':  { icon: 'fas fa-arrow-trend-up',      iconCls: 'text-purple-400',  bg: 'bg-purple-900',  border: 'border-purple-700'  },
+            'Owner':             { icon: 'fas fa-crown',               iconCls: 'text-yellow-400',  bg: 'bg-yellow-900',  border: 'border-yellow-700'  },
+            'First User Join MMU OSSD': { icon: 'fa-solid fa-user', iconCls: 'text-blue-400', bg: 'bg-blue-900', border: 'border-blue-700' },
+        };
+
+        let selectedBadge = null;
+
+        // Render the clickable badge picker cards
+        function renderBadgePicker() {
+            const picker = document.getElementById('badge-picker');
+            picker.innerHTML = Object.entries(BADGE_INFO).map(([name, b]) => `
+                <button type="button" id="picker-${name.replace(/\s+/g,'-')}"
+                    onclick="selectBadge('${name}')"
+                    class="badge-pick-btn flex flex-col items-center gap-1.5 px-4 py-3 rounded-xl border ${b.border} ${b.bg} hover:brightness-125 transition focus:outline-none min-w-[80px]">
+                    <i class="${b.icon} ${b.iconCls} text-2xl"></i>
+                    <span class="text-[10px] font-bold text-gray-300 text-center leading-tight">${name}</span>
+                </button>
+            `).join('');
+        }
+
+        function selectBadge(name) {
+            selectedBadge = name;
+            // Highlight selected, dim others
+            document.querySelectorAll('.badge-pick-btn').forEach(btn => {
+                btn.classList.remove('ring-2', 'ring-yellow-400', 'brightness-125');
+            });
+            const key = name.replace(/\s+/g, '-');
+            const btn = document.getElementById(`picker-${key}`);
+            if (btn) btn.classList.add('ring-2', 'ring-yellow-400');
+
+            document.getElementById('badge-selected-name').textContent = name;
+            document.getElementById('badge-selected-label').classList.remove('hidden');
+        }
+
+        function getBadgeInfo(name) {
+            // Case-insensitive fallback
+            const lower = name.toLowerCase().trim();
+            const found = Object.entries(BADGE_INFO).find(([k]) => k.toLowerCase() === lower);
+            return found ? found[1] : { icon: 'fas fa-medal', iconCls: 'text-yellow-400', bg: 'bg-gray-700', border: 'border-gray-600' };
+        }
+
+        async function loadUserBadges() {
+            try {
+                const res = await fetch('/api/admin/users/badges');
+                const users = await res.json();
+                const tbody = document.getElementById('admin-badge-list');
+                tbody.innerHTML = '';
+                
+                users.forEach(u => {
+                    const badgesHtml = u.badges.map(b => {
+                        const info = getBadgeInfo(b.name);
+                        return `
+                        <span class="inline-flex items-center gap-1.5 ${info.bg} border ${info.border} px-2.5 py-1 rounded-md text-xs font-semibold mr-2 mb-2">
+                            <i class="${info.icon} ${info.iconCls}"></i>
+                            <span class="text-gray-200">${b.name}</span>
+                            <i class="fa-solid fa-circle-xmark text-red-400 hover:text-red-300 cursor-pointer ml-1 transition" onclick="adminDeleteBadge(${b.id})" title="Revoke Badge"></i>
+                        </span>`;
+                    }).join('');
+                    
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-gray-750 transition">
+                            <td class="py-3 px-4 font-mono text-xs text-gray-500">#${u.id}</td>
+                            <td class="py-3 px-4 font-semibold text-white">
+                                ${u.name}
+                                <div class="text-[10px] text-gray-500 font-normal mt-0.5">${u.email}</div>
+                            </td>
+                            <td class="py-3 px-4 flex flex-wrap pt-4">
+                                ${badgesHtml || '<span class="text-gray-500 italic text-xs">No badges</span>'}
+                            </td>
+                        </tr>`;
+                });
+            } catch (e) {
+                console.error("Error loading user badges", e);
+            }
+        }
+        
+        async function adminAwardBadge() {
+            const userId = document.getElementById('badge-user-id').value;
+
+            if (!userId) return alert("Please enter a User ID.");
+            if (!selectedBadge) return alert("Please select a badge to award.");
+            
+            try {
+                const res = await fetch(`/api/admin/users/${userId}/badge`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ badge_name: selectedBadge })
+                });
+                
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    // Reset selection
+                    selectedBadge = null;
+                    document.getElementById('badge-selected-label').classList.add('hidden');
+                    document.querySelectorAll('.badge-pick-btn').forEach(btn => btn.classList.remove('ring-2', 'ring-yellow-400'));
+                    loadUserBadges();
+                } else {
+                    alert(`Error: ${data.error}`);
+                }
+            } catch(e) { 
+                alert("Connection error. Failed to award badge."); 
+            }
+        }
+        
+        async function adminDeleteBadge(badgeId) {
+            if (!confirm("Are you sure you want to revoke this badge from the user?")) return;
+            try {
+                const res = await fetch(`/api/admin/badges/${badgeId}`, { method: 'DELETE' });
+                if (res.ok) {
+                    loadUserBadges();
+                } else {
+                    const data = await res.json();
+                    alert(`Error: ${data.error}`);
+                }
+            } catch(e) { 
+                alert("Connection error. Failed to revoke badge."); 
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            renderBadgePicker();
+            loadUserBadges();
+        });
     </script>
 </body>
 </html>

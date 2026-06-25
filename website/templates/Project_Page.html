@@ -4,11 +4,98 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ project.project_name }} | MMU OSSD</title>
+    <script>
+        const currentTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', currentTheme);
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" rel="stylesheet">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
         body { font-family: 'Inter', sans-serif; }
+
+                :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f3f4f6;
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --border-color: #e5e7eb;
+        }
+
+        html[data-theme="dark"] {
+            --bg-primary: #0f0f0f;
+            --bg-secondary: #1a1a1a;
+            --text-primary: #e5e7eb;
+            --text-secondary: #a1a1a1;
+            --border-color: #333333;
+        }
+        
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+        
+        html[data-theme="dark"] .border-gray-200 {
+    border-color: var(--border-color) !important;
+}
+        /* Dark theme overrides */
+        html[data-theme="dark"] body {
+            background-color: var(--bg-secondary);
+        }
+        
+        html[data-theme="dark"] header {
+            background-color: var(--bg-primary) !important;
+            border-color: var(--border-color) !important;
+        }
+        
+        html[data-theme="dark"] header h2,
+        html[data-theme="dark"] header p {
+            color: var(--text-primary) !important;
+        }
+        
+        html[data-theme="dark"] .bg-white {
+            background-color: var(--bg-primary) !important;
+            border-color: var(--border-color) !important;
+        }
+        
+        html[data-theme="dark"] .bg-gray-50 {
+            background-color: var(--bg-secondary) !important;
+        }
+        
+        html[data-theme="dark"] .text-gray-900,
+        html[data-theme="dark"] .text-gray-800 {
+            color: var(--text-primary) !important;
+        }
+        
+        html[data-theme="dark"] .text-gray-500,
+        html[data-theme="dark"] .text-gray-600,
+        html[data-theme="dark"] .text-gray-700 {
+            color: var(--text-secondary) !important;
+        }
+        
+        html[data-theme="dark"] .border-gray-200,
+        html[data-theme="dark"] .border-gray-100 {
+            border-color: var(--border-color) !important;
+        }
+        
+        html[data-theme="dark"] .text-gray-400 {
+            color: var(--text-secondary) !important;
+        }
+        
+        html[data-theme="dark"] input,
+        html[data-theme="dark"] textarea,
+        html[data-theme="dark"] select {
+            background-color: var(--bg-secondary) !important;
+            color: var(--text-primary) !important;
+            border-color: var(--border-color) !important;
+        }
+        
+        html[data-theme="dark"] input:focus,
+        html[data-theme="dark"] textarea:focus,
+        html[data-theme="dark"] select:focus {
+            background-color: var(--bg-primary) !important;
+        }
 
         /* ── Animated Hamburger Button ─────────────────────────── */
         .hamburger {
@@ -173,6 +260,11 @@
             <h2 class="text-4xl font-black text-gray-900 leading-tight">{{ project.project_name }}</h2>
             
             <div class="flex gap-3 mt-6 flex-wrap">
+                <button id="star-btn" onclick="toggleProjectStar()" class="bg-amber-50 text-amber-600 px-6 py-3 rounded-xl font-bold hover:bg-amber-100 transition flex items-center gap-2 border border-amber-200 shadow-sm">
+                    <i id="star-icon" class="{% if user_has_starred %}fas{% else %}far{% endif %} fa-star text-xl transition-transform duration-300"></i> 
+                    <span id="star-text">{% if user_has_starred %}Starred{% else %}Star{% endif %}</span>
+                    <span id="star-count" class="ml-1 bg-white/60 text-amber-700 px-2 py-0.5 rounded-lg text-sm border border-amber-200">{{ total_stars }}</span>
+                </button>
                 {% if current_user_role in ['owner', 'admin'] %}
                     <a href="{{ url_for('views.edit_project', project_id=project.id) }}" class="bg-yellow-100 text-yellow-700 px-6 py-3 rounded-xl font-bold hover:bg-yellow-200 transition flex items-center gap-2 border border-yellow-300">
                         <i class="fas fa-edit text-xl"></i> Edit
@@ -214,70 +306,9 @@
                     <div class="h-px bg-gray-200 flex-grow ml-4"></div>
                 </div>
 
-                <div class="flex gap-8 mb-4 border-b border-gray-100 px-2">
-                    <button id="btn-project-details" onclick="switchAboutTab('details')" 
-                            class="pb-2 text-sm font-bold border-b-2 border-blue-600 text-blue-600 transition-all">
-                        Project Details
-                    </button>
-                    <button id="btn-progress-updates" onclick="switchAboutTab('updates')" 
-                            class="pb-2 text-sm font-bold border-b-2 border-transparent text-gray-400 hover:text-gray-600 transition-all">
-                        Updates
-                    </button>
-                </div>
-
                 <div class="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm text-gray-600 leading-relaxed">
-                    
                     <div id="content-project-details" class="block">
                         <p class="whitespace-pre-line">{{ project.description }}</p>
-                    </div>
-
-                    <div id="content-progress-updates" class="hidden">
-                                {% if current_user_role in ['owner', 'admin', 'member'] %}
-                                <div class="flex justify-end mb-6 pb-4 border-b border-gray-100">
-                                    <button onclick="openUpdateModal()" class="bg-blue-50 text-blue-600 border border-blue-200 px-4 py-2 rounded-xl text-sm font-bold hover:bg-blue-100 transition flex items-center gap-2">
-                                        <i class="fas fa-plus"></i> Add Update
-                                    </button>
-                                </div>
-                                {% endif %}
-                                
-                                <div id="updates-list" class="space-y-6">
-                                    <div class="text-center text-gray-400 py-4"><i class="fas fa-spinner fa-spin mr-2"></i>Loading updates...</div>
-                                </div>
-                            </div>
-
-                    <div id="add-update-modal" class="hidden fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-                        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6">
-                            <h3 class="text-lg font-bold text-gray-900 mb-4"><i class="fas fa-bullhorn mr-2 text-blue-500"></i>Post Progress Update</h3>
-                            
-                            <div class="mb-4">
-                                <label class="block text-sm font-semibold text-gray-700 mb-2">Progress Title</label>
-                                <input type="text" id="update-title" placeholder="e.g. Version 1.2" class="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-400 text-sm">
-                            </div>
-                            
-                            <div class="mb-4">
-                                <label class="block text-sm font-semibold text-gray-700 mb-2">Status</label>
-                                <select id="update-status" class="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-400 text-sm">
-                                    <option value="On Track">On Track</option>
-                                    <option value="Needs Work">Needs Work</option>
-                                    <option value="Delayed">Delayed</option>
-                                </select>
-                            </div>
-                            
-                            <div class="mb-4">
-                                <label class="block text-sm font-semibold text-gray-700 mb-2">Feedback & Details</label>
-                                <textarea id="update-content" rows="4" placeholder="List what was done..." class="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-400 resize-none text-sm"></textarea>
-                                <p class="text-xs text-gray-400 mt-1">Use new lines to create bullet points.</p>
-                            </div>
-
-                            <div class="flex gap-3">
-                                <button onclick="submitUpdate()" class="flex-1 bg-blue-600 text-white font-bold py-2 rounded-xl hover:bg-blue-700 transition">
-                                    <i class="fas fa-paper-plane mr-2"></i>Post
-                                </button>
-                                <button onclick="closeUpdateModal()" class="flex-1 bg-gray-100 text-gray-700 font-bold py-2 rounded-xl hover:bg-gray-200 transition">
-                                    Cancel
-                                </button>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </section>
@@ -335,13 +366,13 @@
             <section>
                 <div class="flex items-center mb-6">
                     <h3 class="text-xs font-bold text-red-600 uppercase tracking-[0.2em] whitespace-nowrap">
-                        Comments & Discussion
+                        Comments & Updates
                     </h3>
                     <div class="h-px bg-gray-200 flex-grow ml-4"></div>
                 </div>
 
                 <div class="flex gap-2 mb-6 border-b border-gray-200">
-                    <button class="comment-tab px-4 py-2 font-semibold text-sm border-b-2 border-transparent hover:border-red-400 transition" data-type="all">
+                    <button class="comment-tab px-4 py-2 font-semibold text-sm border-b-2 border-red-600 text-red-600 transition" data-type="all">
                         <i class="fas fa-comments mr-2"></i>All
                     </button>
                     <button class="comment-tab px-4 py-2 font-semibold text-sm border-b-2 border-transparent hover:border-red-400 transition" data-type="normal">
@@ -353,9 +384,12 @@
                     <button class="comment-tab px-4 py-2 font-semibold text-sm border-b-2 border-transparent hover:border-red-400 transition" data-type="suggestion">
                         <i class="fas fa-lightbulb mr-2"></i>Suggestions
                     </button>
+                    <button class="comment-tab px-4 py-2 font-semibold text-sm border-b-2 border-transparent hover:border-red-400 transition" data-type="updates">
+                        <i class="fas fa-bullhorn mr-2"></i>Updates
+                    </button>
                 </div>
 
-                <div class="bg-white p-6 rounded-2xl border border-gray-100 mb-6">
+                <div id="comment-form-container" class="bg-white p-6 rounded-2xl border border-gray-100 mb-6">
                     <div class="mb-4">
                         <label class="block text-sm font-semibold text-gray-700 mb-2">Add Comment</label>
                         <textarea id="comment-input" placeholder="Share your thoughts..." 
@@ -381,19 +415,16 @@
                         </select>
                     </div>
 
-                    <!-- Image upload: add one-by-one with removable thumbnails -->
                     <div class="mb-4">
                         <label class="block text-sm font-semibold text-gray-700 mb-2">
                             <i class="fas fa-images mr-1 text-gray-400"></i>Attach Images
                             <span class="text-gray-400 font-normal">(optional)</span>
                         </label>
-                        <!-- Hidden file input, triggered by button -->
                         <input type="file" id="comment-images" accept="image/*" class="hidden">
                         <button type="button" onclick="document.getElementById('comment-images').click()"
                             class="inline-flex items-center gap-2 text-sm bg-gray-50 border border-dashed border-gray-300 text-gray-600 px-4 py-2 rounded-xl hover:border-red-400 hover:text-red-600 transition">
                             <i class="fas fa-plus-circle"></i> Add Image
                         </button>
-                        <!-- Thumbnails strip -->
                         <div id="comment-image-preview" class="flex flex-wrap gap-2 mt-3"></div>
                     </div>
 
@@ -402,51 +433,16 @@
                     </button>
                 </div>
 
-                <!-- Edit Comment Modal -->
                 <div id="edit-comment-modal" class="hidden fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
                     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6">
                         <h3 class="text-lg font-bold text-gray-900 mb-4"><i class="fas fa-edit mr-2 text-red-500"></i>Edit Comment</h3>
                         <textarea id="edit-comment-input" rows="4"
                             class="w-full p-4 border border-gray-200 rounded-xl focus:outline-none focus:border-red-400 resize-none mb-4"></textarea>
 
-                        <!-- Existing and New Images -->
                         <div class="mb-3">
                             <p class="text-xs font-semibold text-gray-500 mb-2">Attached Images</p>
                             <div id="edit-existing-images" class="flex flex-wrap gap-2 mb-2"></div>
                             
-                            <!-- Add new image during edit -->
-                            <input type="file" id="edit-comment-images" accept="image/*" class="hidden">
-                            <button type="button" onclick="document.getElementById('edit-comment-images').click()"
-                                class="inline-flex items-center gap-2 text-xs bg-gray-50 border border-dashed border-gray-300 text-gray-600 px-3 py-1.5 rounded-lg hover:border-red-400 hover:text-red-600 transition">
-                                <i class="fas fa-plus-circle"></i> Add New Image
-                            </button>
-                            <div id="edit-new-image-preview" class="flex flex-wrap gap-2 mt-2"></div>
-                        </div>
-
-                        <div class="flex gap-3">
-                            <button onclick="saveEditComment()" class="flex-1 bg-red-600 text-white font-bold py-2 rounded-xl hover:bg-red-700 transition">
-                                <i class="fas fa-save mr-2"></i>Save
-                            </button>
-                            <button onclick="closeEditModal()" class="flex-1 bg-gray-100 text-gray-700 font-bold py-2 rounded-xl hover:bg-gray-200 transition">
-                                Cancel
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Edit Comment Modal --> 
-                <div id="edit-comment-modal" class="hidden fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6">
-                        <h3 class="text-lg font-bold text-gray-900 mb-4"><i class="fas fa-edit mr-2 text-red-500"></i>Edit Comment</h3>
-                        <textarea id="edit-comment-input" rows="4"
-                            class="w-full p-4 border border-gray-200 rounded-xl focus:outline-none focus:border-red-400 resize-none mb-4"></textarea>
-
-                        <!-- Existing and New Images -->
-                        <div class="mb-3">
-                            <p class="text-xs font-semibold text-gray-500 mb-2">Attached Images</p>
-                            <div id="edit-existing-images" class="flex flex-wrap gap-2 mb-2"></div>
-                            
-                            <!-- Add new image during edit -->
                             <input type="file" id="edit-comment-images" accept="image/*" class="hidden">
                             <button type="button" onclick="document.getElementById('edit-comment-images').click()"
                                 class="inline-flex items-center gap-2 text-xs bg-gray-50 border border-dashed border-gray-300 text-gray-600 px-3 py-1.5 rounded-lg hover:border-red-400 hover:text-red-600 transition">
@@ -472,6 +468,69 @@
                         <p>Loading comments...</p>
                     </div>
                 </div>
+
+                <div id="updates-list-container" class="hidden">
+                    {% if current_user_role in ['owner', 'admin', 'member'] %}
+                    <div class="flex justify-end mb-6 pb-4 border-b border-gray-100">
+                        <button onclick="openUpdateModal()" class="bg-blue-50 text-blue-600 border border-blue-200 px-4 py-2 rounded-xl text-sm font-bold hover:bg-blue-100 transition flex items-center gap-2">
+                            <i class="fas fa-plus"></i> Add Update
+                        </button>
+                    </div>
+                    {% endif %}
+                    
+                    <div id="updates-list" class="space-y-6">
+                        <div class="text-center text-gray-400 py-4"><i class="fas fa-spinner fa-spin mr-2"></i>Loading updates...</div>
+                    </div>
+                </div>
+                
+                <div id="add-update-modal" class="hidden fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6">
+                        <h3 class="text-lg font-bold text-gray-900 mb-4"><i class="fas fa-bullhorn mr-2 text-blue-500"></i>Post Progress Update</h3>
+                        
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Progress Title</label>
+                            <input type="text" id="update-title" placeholder="e.g. Version 1.2" class="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-400 text-sm">
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Status</label>
+                            <select id="update-status" class="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-400 text-sm">
+                                <option value="On Track">On Track</option>
+                                <option value="Needs Work">Needs Work</option>
+                                <option value="Delayed">Delayed</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Feedback & Details</label>
+                            <textarea id="update-content" rows="4" placeholder="List what was done..." class="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:border-blue-400 resize-none text-sm"></textarea>
+                            <p class="text-xs text-gray-400 mt-1">Use new lines to create bullet points.</p>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                <i class="fas fa-images mr-1 text-gray-400"></i>Attach Images
+                                <span class="text-gray-400 font-normal">(optional)</span>
+                            </label>
+                            <input type="file" id="update-images" accept="image/*" class="hidden">
+                            <button type="button" onclick="document.getElementById('update-images').click()"
+                                class="inline-flex items-center gap-2 text-sm bg-blue-50 border border-dashed border-blue-200 text-blue-600 px-4 py-2 rounded-xl hover:border-blue-400 hover:text-blue-700 transition">
+                                <i class="fas fa-plus-circle"></i> Add Image
+                            </button>
+                            <div id="update-image-preview" class="flex flex-wrap gap-2 mt-3"></div>
+                        </div>
+
+                        <div class="flex gap-3">
+                            <button onclick="submitUpdate()" class="flex-1 bg-blue-600 text-white font-bold py-2 rounded-xl hover:bg-blue-700 transition">
+                                <i class="fas fa-paper-plane mr-2"></i>Post
+                            </button>
+                            <button onclick="closeUpdateModal()" class="flex-1 bg-gray-100 text-gray-700 font-bold py-2 rounded-xl hover:bg-gray-200 transition">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
             </section>
 
         </div>
@@ -942,33 +1001,6 @@ async function submitReport(event) {
         window.location.href = '/login';
     }
 
-    function switchAboutTab(tabName) {
-    const btnDetails = document.getElementById('btn-project-details');
-    const btnUpdates = document.getElementById('btn-progress-updates');
-    const contentDetails = document.getElementById('content-project-details');
-    const contentUpdates = document.getElementById('content-progress-updates');
-
-    if (tabName === 'details') {
-        btnDetails.classList.add('border-blue-600', 'text-blue-600');
-        btnDetails.classList.remove('border-transparent', 'text-gray-400');
-        
-        btnUpdates.classList.remove('border-blue-600', 'text-blue-600');
-        btnUpdates.classList.add('border-transparent', 'text-gray-400');
-
-        contentDetails.classList.remove('hidden');
-        contentUpdates.classList.add('hidden');
-    } else {
-        btnUpdates.classList.add('border-blue-600', 'text-blue-600');
-        btnUpdates.classList.remove('border-transparent', 'text-gray-400');
-        
-        btnDetails.classList.remove('border-blue-600', 'text-blue-600');
-        btnDetails.classList.add('border-transparent', 'text-gray-400');
-
-        contentDetails.classList.add('hidden');
-        contentUpdates.classList.remove('hidden');
-    }
-}
-
     document.addEventListener('DOMContentLoaded', () => {
         const menuBtn    = document.getElementById('menu-btn');
         const mobileMenu = document.getElementById('mobile-menu');
@@ -1333,6 +1365,21 @@ async function submitReport(event) {
     }
 
 function createCommentHTML(comment) {
+    // ─── NEW: Intercept and render persistent tombstone if deleted ───
+    if (comment.content === "This message was deleted." || comment.is_deleted) {
+        return `
+            <div class="bg-gray-50 border border-dashed border-gray-200 p-6 rounded-2xl">
+                <div class="flex items-center gap-3 py-1 opacity-60">
+                    <div class="w-8 h-8 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-400 flex-shrink-0">
+                        <i class="fas fa-trash text-xs"></i>
+                    </div>
+                    <p class="text-sm text-gray-400 italic">
+                        <i class="fas fa-ban mr-1 text-xs"></i>This message was deleted.
+                    </p>
+                </div>
+            </div>
+        `;
+    }
     const isOwner = currentUserId === projectOwnerId;
     const isAuthor = currentUserId === comment.author_id;
     const isIssueOrSuggestion = comment.comment_type !== 'normal';
@@ -1482,6 +1529,7 @@ function createCommentHTML(comment) {
 // ── Pending files queue for new comment ─────────────────────────────────────
 let pendingFiles = [];
 let pendingEditFiles = [];
+let pendingUpdateFiles = []; 
 
 // Add images to the queue one-by-one via hidden input
 document.addEventListener('DOMContentLoaded', () => {
@@ -1493,6 +1541,17 @@ document.addEventListener('DOMContentLoaded', () => {
             pendingFiles.push(file);
             renderPendingPreviews();
             imgInput.value = '';  // reset so same file can be added again if needed
+        }); 
+    }
+
+    const updateImgInput = document.getElementById('update-images');
+    if (updateImgInput) {
+        updateImgInput.addEventListener('change', () => {
+            const file = updateImgInput.files[0];
+            if (!file) return;
+            pendingUpdateFiles.push(file);
+            renderPendingUpdatePreviews();
+            updateImgInput.value = ''; 
         });
     }
 
@@ -1507,6 +1566,33 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+    
+function renderPendingUpdatePreviews() {
+    const preview = document.getElementById('update-image-preview');
+    if (!preview) return;
+    preview.innerHTML = '';
+    pendingUpdateFiles.forEach((file, idx) => {
+        const reader = new FileReader();
+        reader.onload = e => {
+            const wrap = document.createElement('div');
+            wrap.className = 'relative rounded-xl overflow-hidden border border-gray-200 flex-shrink-0';
+            wrap.style.cssText = 'width:72px;height:56px';
+            wrap.innerHTML = `
+                <img src="${e.target.result}" class="w-full h-full object-cover">
+                <button type="button" onclick="removePendingUpdateFile(${idx})"
+                    class="absolute top-0.5 right-0.5 w-5 h-5 bg-red-600 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-700 transition leading-none">
+                    &times;
+                </button>`;
+            preview.appendChild(wrap);
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+function removePendingUpdateFile(idx) {
+    pendingUpdateFiles.splice(idx, 1);
+    renderPendingUpdatePreviews();
+}
 
 function renderPendingPreviews() {
     const preview = document.getElementById('comment-image-preview');
@@ -1727,7 +1813,12 @@ async function deleteComment(commentId) {
         }
 
         // Also remove from local allComments array so filter stays in sync
-        allComments = allComments.filter(c => c.id !== commentId);
+allComments = allComments.map(c => {
+    if (c.id === commentId) {
+        c.content = "This message was deleted.";
+    }
+    return c;
+});
     } catch (err) {
         console.error('Error deleting comment:', err);
         alert('Failed to delete comment');
@@ -1772,8 +1863,21 @@ async function deleteComment(commentId) {
         tab.addEventListener('click', () => {
             document.querySelectorAll('.comment-tab').forEach(t => t.classList.remove('border-red-600', 'text-red-600'));
             tab.classList.add('border-red-600', 'text-red-600');
+            
             currentCommentFilter = tab.dataset.type;
-            renderComments();
+            
+            if (currentCommentFilter === 'updates') {
+                document.getElementById('comments-list').classList.add('hidden');
+                const formContainer = document.getElementById('comment-form-container');
+                if (formContainer) formContainer.classList.add('hidden');
+                document.getElementById('updates-list-container').classList.remove('hidden');
+            } else {
+                document.getElementById('comments-list').classList.remove('hidden');
+                const formContainer = document.getElementById('comment-form-container');
+                if (formContainer) formContainer.classList.remove('hidden');
+                document.getElementById('updates-list-container').classList.add('hidden');
+                renderComments();
+            }
         });
     });
 
@@ -2003,7 +2107,7 @@ function showLeaveTeamButton() {
 
 // Update member status indicators (show pending leave requests)
 async function updateMemberStatuses() {
-    if (currentUserId !== projectOwnerId) return; // Only owner sees this
+    if (currentUserId !== projectOwnerId) return;
     
     try {
         const res = await fetch(`${API}/project/${projectId}/leave-requests`);
@@ -2308,13 +2412,20 @@ async function rejectLeaveRequest(projectId, requestId) {
     function openUpdateModal() {
         document.getElementById('add-update-modal').classList.remove('hidden');
     }
-    function closeUpdateModal() {
+
+function closeUpdateModal() {
         document.getElementById('add-update-modal').classList.add('hidden');
         document.getElementById('update-title').value = '';
         document.getElementById('update-content').value = '';
+        
+        if (typeof pendingUpdateFiles !== 'undefined') {
+            pendingUpdateFiles = [];
+        }
+        const preview = document.getElementById('update-image-preview');
+        if (preview) preview.innerHTML = '';
     }
 
-async function submitUpdate() {
+    async function submitUpdate() {
         const title = document.getElementById('update-title').value.trim();
         const status = document.getElementById('update-status').value;
         const content = document.getElementById('update-content').value.trim();
@@ -2325,10 +2436,18 @@ async function submitUpdate() {
         }
 
         try {
+            const formData = new FormData();
+            formData.append('title', title);
+            formData.append('status', status);
+            formData.append('content', content);
+            
+            if (typeof pendingUpdateFiles !== 'undefined') {
+                pendingUpdateFiles.forEach(file => formData.append('images', file));
+            }
+
             const res = await fetch(`${API}/project/${projectId}/updates`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title, status, content })
+                body: formData
             });
             const data = await res.json();
             
@@ -2350,6 +2469,7 @@ async function submitUpdate() {
             await showAlertModal('Error', 'An error occurred.');
         }
     }
+    
     async function loadUpdates() {
         const list = document.getElementById('updates-list');
         if (!list) return;
@@ -2377,6 +2497,17 @@ async function submitUpdate() {
                         .filter(line => line.trim() !== '')
                         .map(line => `<li>${escapeHtml(line)}</li>`)
                         .join('');
+
+                    const updateImagesHTML = (u.images && u.images.length > 0) ? `
+                        <div class="flex flex-wrap gap-2 mt-4">
+                            ${u.images.map(img => `
+                                <div class="gallery-img rounded-xl overflow-hidden border border-gray-200 cursor-pointer shadow-sm"
+                                    data-src="${img.url}" style="width:120px;height:80px">
+                                    <img src="${img.url}" class="w-full h-full object-cover hover:scale-105 transition duration-300">
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : '';
 
                     let pendingUI = '';
                     let actionUI = '';
@@ -2411,7 +2542,8 @@ async function submitUpdate() {
                             <ul class="list-disc ml-4 space-y-1 text-gray-500">
                                 ${bulletPoints}
                             </ul>
-                            ${actionUI}
+                            
+                            ${updateImagesHTML} ${actionUI}
                         </div>
                     </div>
                     `;
@@ -2423,7 +2555,7 @@ async function submitUpdate() {
         }
     }
 
-async function reviewUpdate(updateId, action) {
+    async function reviewUpdate(updateId, action) {
         if (action === 'reject') {
             const confirmed = await showConfirmModal(
                 'Reject Update', 
@@ -2450,6 +2582,71 @@ async function reviewUpdate(updateId, action) {
             await showAlertModal('Error', 'An error occurred during review.');
         }   
     }
+
+    // ────────────────────────────────────────────────────────────────────
+    // Project Star / Favorite System
+    // ────────────────────────────────────────────────────────────────────
+    async function toggleProjectStar() {
+        if (!currentUserId) {
+            await showAlertModal('Login Required', 'Please log in to star this project.');
+            window.location.href = '/login';
+            return;
+        }
+
+        const btn = document.getElementById('star-btn');
+        const icon = document.getElementById('star-icon');
+        const text = document.getElementById('star-text');
+        const countSpan = document.getElementById('star-count');
+
+        btn.disabled = true;
+
+        try {
+            const res = await fetch(`${API}/project/${projectId}/star`, {
+                method: 'POST'
+            });
+            const data = await res.json();
+            
+            if (res.ok) {
+                if (data.starred) {
+                    icon.classList.remove('far');
+                    icon.classList.add('fas');
+                    text.textContent = 'Starred';
+                } else {
+                    icon.classList.remove('fas');
+                    icon.classList.add('far');
+                    text.textContent = 'Star';
+                }
+                
+                icon.classList.add('scale-150');
+                setTimeout(() => icon.classList.remove('scale-150'), 250);
+                
+                countSpan.textContent = data.star_count;
+            } else {
+                await showAlertModal('Error', data.error || 'Failed to toggle star');
+            }
+        } catch (err) {
+            console.error('Error toggling project star:', err);
+            await showAlertModal('Error', 'A network error occurred.');
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    function toggleTheme() {
+    const htmlEl = document.documentElement;
+    const currentTheme = htmlEl.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    
+    // 1. Switch layout attribute
+    htmlEl.setAttribute('data-theme', newTheme);
+    
+    // 2. Critical: Save state so other pages can see it
+    localStorage.setItem('theme', newTheme);
+}
+
+// Attach this function to your dark mode switch button trigger
+document.getElementById('theme-toggle-btn').addEventListener('click', toggleTheme);
+
 </script>
 </body>
 </html>

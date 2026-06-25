@@ -10,7 +10,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 import uuid
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify, session
-from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, QuestionCommentImage, QuestionImage, JoinRequest, LeaveRequest, MemberHistory, ProjectCommentImage, UserSettings, ProjectMember, CommunityPostComment, CommunityPost, CommunityPostLike, CommunityPostImage, CommunityPostFavorite, CommunityPostCommentImage, ProjectViewLog, ProjectUpdate, ContentReport, AdminLog, SuspendedUser, ContentFlagKeyword
+from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, QuestionCommentImage, QuestionImage, JoinRequest, LeaveRequest, MemberHistory, ProjectCommentImage, UserSettings, ProjectMember, CommunityPostComment, CommunityPost, CommunityPostLike, CommunityPostImage, CommunityPostFavorite, CommunityPostCommentImage, ProjectViewLog, ProjectUpdate, ContentReport, AdminLog, SuspendedUser, ContentFlagKeyword, ProjectStar
 from datetime import datetime, timezone, timedelta
 
 views = Blueprint('views', __name__)
@@ -264,6 +264,221 @@ def _enrich_pending_reports(reports):
 
         items.append(item)
     return items
+
+    # =====================================================================
+# ─── ADMIN BADGE MANAGEMENT APIs ───
+# =====================================================================
+
+@views.route('/api/admin/users/badges', methods=['GET'])
+def admin_get_user_badges():
+    """Admin endpoint to view all users and their badges"""
+    is_admin, _ = check_admin_permission()
+    if not is_admin: 
+        return jsonify({'error': 'Admin permission required'}), 403
+        
+    users = User.query.all()
+    user_data = []
+    for u in users:
+        user_data.append({
+            'id': u.id,
+            'name': u.name,
+            'email': u.email,
+            'badges': [{'id': b.id, 'name': b.badge} for b in u.badges]
+        })
+    return jsonify(user_data)
+
+@views.route('/api/admin/users/<int:user_id>/badge', methods=['POST'])
+def admin_award_badge(user_id):
+    """Admin endpoint to award a badge to a specific user"""
+    is_admin, admin_user = check_admin_permission()
+    if not is_admin:
+        return jsonify({'error': 'Admin permission required'}), 403
+    
+    data = request.get_json(silent=True) or {}
+    badge_name = data.get('badge_name', '').strip()
+    
+    if not badge_name:
+        return jsonify({'error': 'Badge name is required'}), 400
+        
+    # Check if user exists
+    user = User.query.get_or_404(user_id)
+        
+    # Check if they already have this exact badge
+    existing = Badge.query.filter_by(user_id=user_id, badge=badge_name).first()
+    if existing:
+        return jsonify({'error': f'{user.name} already has the {badge_name} badge.'}), 409
+        
+    new_badge = Badge(user_id=user_id, badge=badge_name)
+    
+    # Log the action
+    log = AdminLog(
+        admin_id=admin_user.id, 
+        action='award_badge', 
+        target_type='user', 
+        target_id=user_id, 
+        details=f"Awarded badge '{badge_name}' to {user.name}"
+    )
+    db.session.add(log)
+    db.session.add(new_badge)
+    db.session.commit()
+    
+    return jsonify({'success': True, 'message': 'Badge awarded successfully!', 'badge_id': new_badge.id})
+
+@views.route('/api/admin/badges/<int:badge_id>', methods=['DELETE'])
+def admin_delete_badge(badge_id):
+    """Admin endpoint to remove a badge from a user"""
+    is_admin, admin_user = check_admin_permission()
+    if not is_admin:
+        return jsonify({'error': 'Admin permission required'}), 403
+        
+    badge = Badge.query.get_or_404(badge_id)
+    
+    # Log the action
+    log = AdminLog(
+        admin_id=admin_user.id, 
+        action='remove_badge', 
+        target_type='user', 
+        target_id=badge.user_id, 
+        details=f"Removed badge '{badge.badge}' from User #{badge.user_id}"
+    )
+    
+    db.session.add(log)
+    db.session.delete(badge)
+    db.session.commit()
+    
+    return jsonify({'success': True, 'message': 'Badge removed successfully'})
+
+
+# =============================================================
+# BADGE HELPER FUNCTIONS
+# =============================================================
+
+# Map language names (lowercase) → badge name
+LANG_BADGE_MAP = {
+    'python':        'Python Expert',
+    'javascript':    'JavaScript Expert',
+    'js':            'JavaScript Expert',
+    'html':          'HTML Expert',
+    'css':           'CSS Expert',
+    'react':         'React Expert',
+    'php':           'PHP Expert',
+    'go':            'Go Expert',
+    'golang':        'Go Expert',
+    'c++':           'C++ Expert',
+    'cpp':           'C++ Expert',
+    'dart':          'Dart Expert',
+    'rust':          'Rust Expert',
+    'typescript':    'TypeScript Expert',
+    'ts':            'TypeScript Expert',
+}
+
+def _award_badge(user_id, badge_name):
+    """Award a badge if the user doesn't already have it. Caller must commit."""
+    exists = Badge.query.filter_by(user_id=user_id, badge=badge_name).first()
+    if not exists:
+        db.session.add(Badge(user_id=user_id, badge=badge_name))
+
+def _revoke_badge(user_id, badge_name):
+    """Remove a badge if the user has it. Caller must commit."""
+    badge = Badge.query.filter_by(user_id=user_id, badge=badge_name).first()
+    if badge:
+        db.session.delete(badge)
+
+def _get_lang_badges_for_project(languages_str):
+    """Return a set of badge names earned from a project's language string."""
+    if not languages_str:
+        return set()
+    badges = set()
+    for lang in languages_str.split(','):
+        badge = LANG_BADGE_MAP.get(lang.strip().lower())
+        if badge:
+            badges.add(badge)
+    return badges
+
+def sync_lang_badges(user_id):
+    """
+    Recalculate which language badges the user should have based on ALL
+    their current projects, then award/revoke accordingly.
+    Called after listing, deleting, or editing a project.
+    """
+    all_projects = Project.query.filter_by(user_id=user_id).all()
+
+    # Collect every badge still earned across remaining projects
+    earned = set()
+    for p in all_projects:
+        earned |= _get_lang_badges_for_project(p.languages)
+
+    # All possible language badges
+    all_lang_badges = set(b for b in LANG_BADGE_MAP.values() if b)
+
+    # Award any newly earned ones
+    for badge_name in earned:
+        _award_badge(user_id, badge_name)
+
+    # Revoke any that are no longer earned
+    for badge_name in all_lang_badges - earned:
+        _revoke_badge(user_id, badge_name)
+
+def sync_trending_badges(user_id):
+    """
+    Recalculate Hottest Project / Trending Project badges for a user
+    based on whether any of their projects currently appear in the top 10.
+    Called after deleting a project.
+    """
+    from datetime import datetime, timezone, timedelta
+
+    all_projects = Project.query.filter(Project.status != 'Archived').all()
+    now = datetime.now(timezone.utc)
+    seven_days_ago = now - timedelta(days=7)
+
+    all_time_scores = {}
+    trending_scores = {}
+
+    for p in all_projects:
+        comment_count = ProjectComment.query.filter_by(project_id=p.id).count()
+        attached_posts = CommunityPost.query.filter_by(attached_project_id=p.id).all()
+        post_ids = [post.id for post in attached_posts]
+
+        post_like_count = CommunityPostLike.query.filter(
+            CommunityPostLike.post_id.in_(post_ids)).count() if post_ids else 0
+        post_save_count = CommunityPostFavorite.query.filter(
+            CommunityPostFavorite.post_id.in_(post_ids)).count() if post_ids else 0
+        views = p.views or 0
+
+        total_score = (views * 1) + (post_like_count * 5) + (comment_count * 10) + (post_save_count * 20)
+        all_time_scores[p.id] = (p.user_id, total_score)
+
+        recent_comments = ProjectComment.query.filter(
+            ProjectComment.project_id == p.id,
+            ProjectComment.created_at >= seven_days_ago).count()
+        recent_views = ProjectViewLog.query.filter(
+            ProjectViewLog.project_id == p.id,
+            ProjectViewLog.created_at >= seven_days_ago).count()
+        recent_likes = CommunityPostLike.query.filter(
+            CommunityPostLike.post_id.in_(post_ids),
+            CommunityPostLike.created_at >= seven_days_ago).count() if post_ids else 0
+        recent_saves = CommunityPostFavorite.query.filter(
+            CommunityPostFavorite.post_id.in_(post_ids),
+            CommunityPostFavorite.created_at >= seven_days_ago).count() if post_ids else 0
+
+        t_score = (recent_views * 1) + (recent_likes * 5) + (recent_comments * 10) + (recent_saves * 20)
+        if t_score > 0:
+            trending_scores[p.id] = (p.user_id, t_score)
+
+    top_all_time_owners = {v[0] for _, v in sorted(
+        all_time_scores.items(), key=lambda x: x[1][1], reverse=True)[:3]}
+    top_trending_owners = {v[0] for _, v in sorted(
+        trending_scores.items(), key=lambda x: x[1][1], reverse=True)[:3]}
+
+    if user_id in top_all_time_owners:
+        _award_badge(user_id, 'Hottest Project')
+    else:
+        _revoke_badge(user_id, 'Hottest Project')
+
+    if user_id in top_trending_owners:
+        _award_badge(user_id, 'Trending Project')
+    else:
+        _revoke_badge(user_id, 'Trending Project')
 
 
 @views.route('/api/admin/reports', methods=['GET'])
@@ -976,15 +1191,24 @@ def project_page(project_id):
                     is_invited = True
                     invitation_id = invite.id
 
+    total_stars = ProjectStar.query.filter_by(project_id=project.id).count()
+    
+    user_has_starred = False
+    if current_user:
+        star_record = ProjectStar.query.filter_by(user_id=current_user.id, project_id=project.id).first()
+        if star_record:
+            user_has_starred = True
+
     return render_template(
         "Project_Page.html", 
         project=project, 
         current_user=current_user, 
         current_user_role=current_user_role,
         is_invited=is_invited,
-        invitation_id=invitation_id
+        invitation_id=invitation_id,
+        total_stars=total_stars,          
+        user_has_starred=user_has_starred  
     )
-
 @views.route('/upload-success')
 def upload_success():
     return render_template("Upload_Success.html")
@@ -1086,6 +1310,23 @@ def list_project():
                 db.session.add(new_image)
 
         db.session.commit()
+
+        # =============================================================
+        # 🏆 AUTO-ASSIGN "FIRST PROJECT" BADGE
+        # =============================================================
+        project_count = Project.query.filter_by(user_id=current_user.id).count()
+        if project_count == 1:
+            existing_badge = Badge.query.filter_by(user_id=current_user.id, badge='First Project').first()
+            if not existing_badge:
+                first_badge = Badge(user_id=current_user.id, badge='First Project')
+                db.session.add(first_badge)
+                db.session.commit()
+                flash("Congratulations! You earned the 'First Project' badge! 🏆", "success")
+
+        # 🏷️ AUTO-ASSIGN LANGUAGE BADGES
+        sync_lang_badges(current_user.id)
+        db.session.commit()
+
         return redirect(url_for('views.upload_success'))
     
     return render_template("List_Your_Project.html")
@@ -1145,6 +1386,9 @@ def edit_project(project_id):
                 db.session.add(new_image)
 
         db.session.commit()
+        # 🏷️ Recalculate language badges in case languages changed
+        sync_lang_badges(project.user_id)
+        db.session.commit()
         return redirect(url_for('views.project_page', project_id=project.id))
 
     return render_template("Edit_Project.html", project=project, current_user=current_user, current_user_role=current_user_role)
@@ -1154,10 +1398,25 @@ def delete_project(project_id):
     # 也可以改用下面的方式，防止已经软删除的项目被重复查询出来：
     # project = Project.query.filter_by(id=project_id).filter(Project.status != 'Deleted').first_or_404()
     project = Project.query.get_or_404(project_id)
-    
+    owner_id = project.user_id
     try:
+        # Detach community posts (SET NULL) before deleting
+        CommunityPost.query.filter_by(attached_project_id=project.id).update({'attached_project_id': None})
+
         # ❌ 注释掉或删掉这一行硬删除代码：
         # db.session.delete(project)
+        db.session.flush()  # Flush so badge queries see the project as gone
+
+        # 🏷️ Recalculate language badges
+        sync_lang_badges(owner_id)
+
+        # 🏷️ Revoke "First Project" badge if no projects remain
+        if Project.query.filter_by(user_id=owner_id).count() == 0:
+            _revoke_badge(owner_id, 'First Project')
+
+        # 🏷️ Recalculate trending badges
+        sync_trending_badges(owner_id)
+
         
         #  替换为这行软删除代码：把状态改为 'Deleted' 即可
         project.status = 'Deleted'
@@ -1167,8 +1426,7 @@ def delete_project(project_id):
     except Exception as e:
         db.session.rollback()
         flash('An error occurred while deleting the project.', category='error')
-        print(f"Error: {e}")
-        
+        print(f"Error deleting project: {e}")
     return redirect(url_for('views.my_projects'))
 
 @views.route('/api/register', methods=['POST'])
@@ -2233,11 +2491,19 @@ def add_member(project_id):
 
 @views.route('/api/my-invitations', methods=['GET'])
 def get_my_invitations():
-    """Get all pending invitations for the current logged-in user"""
+    """Get all pending invitations for the current logged-in user.
+    Respects the notify_project_invites user setting — returns empty list if disabled.
+    """
     err = require_login()
     if err: return err
     
     current_user = get_current_user()
+    
+    # Check whether the user has disabled project invite notifications
+    settings = current_user.settings
+    if settings and not settings.notify_project_invites:
+        # Return empty list with a flag so the frontend knows it's disabled
+        return jsonify([])
     
     invitations = JoinRequest.query.filter_by(
         user_id=current_user.id, 
@@ -2819,14 +3085,13 @@ def delete_project_comment(project_id, comment_id):
     comment = ProjectComment.query.get_or_404(comment_id)
     current_user = get_current_user()
      
-    # Only owner can delete comments 
-    if current_user.id != project.user_id:
-        return jsonify({'error': 'Only project owner can delete comments'}), 403
-    
+    # ─── FIXED: REMOVED THE PREMATURE BLOCK HERE ───
+
     if comment.project_id != project_id:
         return jsonify({'error': 'Comment not found in this project'}), 404
     
-    # Allow: comment author OR project owner
+    # ─── This check handles both conditions perfectly ───
+    # It allows the action ONLY if the user is either the comment author OR the project owner
     if current_user.id != comment.user_id and current_user.id != project.user_id:
         return jsonify({'error': 'You do not have permission to delete this comment'}), 403
     
@@ -2835,8 +3100,20 @@ def delete_project_comment(project_id, comment_id):
         file_path = os.path.join(UPLOAD_FOLDER, img.image_path)
         if os.path.exists(file_path):
             os.remove(file_path)
+
+# 1. Update the comment text to the placeholder message
+    comment.content = "This message was deleted."
     
-    db.session.delete(comment)
+    # 2. Optional: Set a flag if your model has an 'is_deleted' column
+    if hasattr(comment, 'is_deleted'):
+        comment.is_deleted = True
+
+    # 3. Clear attached images so they don't linger on a deleted message
+    if hasattr(comment, 'images'):
+        for img in comment.images:
+            db.session.delete(img)
+    
+
     db.session.commit()
     
     return jsonify({'success': 'Comment deleted'})
@@ -3771,8 +4048,6 @@ def delete_community_post_comment(post_id, comment_id):
 
 @views.route('/hottest')
 def hottest_projects():
-    from datetime import datetime, timezone, timedelta
-    
     all_projects = Project.query.filter(Project.status != 'Archived').all()
     
     all_time_data = []
@@ -3783,20 +4058,19 @@ def hottest_projects():
     
     for p in all_projects:
         project_comment_count = ProjectComment.query.filter_by(project_id=p.id).count()
+        views = p.views or 0
         
         attached_posts = CommunityPost.query.filter_by(attached_project_id=p.id).all()
         post_ids = [post.id for post in attached_posts]
-        
-        post_save_count = 0
         post_like_count = 0
         if post_ids:
-            post_save_count = CommunityPostFavorite.query.filter(CommunityPostFavorite.post_id.in_(post_ids)).count()
             post_like_count = CommunityPostLike.query.filter(CommunityPostLike.post_id.in_(post_ids)).count()
             
-        views = p.views or 0
+        project_star_count = ProjectStar.query.filter_by(project_id=p.id).count()
+            
         primary_lang = p.languages.split(',')[0].strip() if p.languages else 'N/A'
         
-        total_score = (views * 1) + (post_like_count * 5) + (project_comment_count * 10) + (post_save_count * 20)
+        total_score = (views * 1) + (post_like_count * 5) + (project_comment_count * 1) + (project_star_count * 20)
         
         project_dict_all_time = {
             'id': p.id,
@@ -3806,7 +4080,7 @@ def hottest_projects():
             'views': views,            
             'comments': project_comment_count,
             'likes': post_like_count,  
-            'saves': post_save_count,  
+            'saves': project_star_count,  
             'total_score': total_score
         }
         all_time_data.append(project_dict_all_time)
@@ -3821,20 +4095,19 @@ def hottest_projects():
             ProjectViewLog.created_at >= seven_days_ago
         ).count()
         
-        recent_saves = 0
         recent_likes = 0
         if post_ids:
-            recent_saves = CommunityPostFavorite.query.filter(
-                CommunityPostFavorite.post_id.in_(post_ids),
-                CommunityPostFavorite.created_at >= seven_days_ago
-            ).count()
-            
             recent_likes = CommunityPostLike.query.filter(
                 CommunityPostLike.post_id.in_(post_ids),
                 CommunityPostLike.created_at >= seven_days_ago
             ).count()
             
-        trending_score = (recent_views * 1) + (recent_likes * 5) + (recent_comments * 10) + (recent_saves * 20)
+        recent_stars = ProjectStar.query.filter(
+            ProjectStar.project_id == p.id,
+            ProjectStar.created_at >= seven_days_ago
+        ).count()
+            
+        trending_score = (recent_views * 1) + (recent_likes * 5) + (recent_comments * 1) + (recent_stars * 20)
         
         if trending_score > 0:
             project_dict_trending = {
@@ -3845,7 +4118,7 @@ def hottest_projects():
                 'views': views, 
                 'comments': project_comment_count,
                 'likes': post_like_count,  
-                'saves': post_save_count,  
+                'saves': project_star_count,  
                 'total_score': total_score,
                 'trending_score': trending_score 
             }
@@ -3853,7 +4126,41 @@ def hottest_projects():
             
     top_all_time = sorted(all_time_data, key=lambda x: x['total_score'], reverse=True)[:10]
     top_trending = sorted(trending_data, key=lambda x: x['trending_score'], reverse=True)[:10]
-        
+
+    # =============================================================
+    # 🏆 AUTO-ASSIGN HOTTEST / TRENDING BADGES
+    # =============================================================
+    # Collect owner IDs in each top-10 list
+    top_all_time_owner_ids  = set()
+    top_trending_owner_ids  = set()
+
+    for entry in top_all_time:
+        p = Project.query.get(entry['id'])
+        if p:
+            top_all_time_owner_ids.add(p.user_id)
+
+    for entry in top_trending:
+        p = Project.query.get(entry['id'])
+        if p:
+            top_trending_owner_ids.add(p.user_id)
+
+    # Award to those in the list, revoke from those who dropped out
+    all_users_with_badge = {b.user_id for b in Badge.query.filter(
+        Badge.badge.in_(['Hottest Project', 'Trending Project'])).all()}
+
+    affected_users = top_all_time_owner_ids | top_trending_owner_ids | all_users_with_badge
+    for uid in affected_users:
+        if uid in top_all_time_owner_ids:
+            _award_badge(uid, 'Hottest Project')
+        else:
+            _revoke_badge(uid, 'Hottest Project')
+
+        if uid in top_trending_owner_ids:
+            _award_badge(uid, 'Trending Project')
+        else:
+            _revoke_badge(uid, 'Trending Project')
+
+    db.session.commit()
     return render_template("Trending.html", all_time_projects=top_all_time, trending_projects=top_trending)
 
 @views.route('/api/project/<int:project_id>/updates', methods=['GET', 'POST'])
@@ -3883,6 +4190,14 @@ def manage_project_updates(project_id):
                 is_appr = True
                 
             if is_appr or current_user_role in ['owner', 'admin'] or (current_user and u.user_id == current_user.id):
+                images_data = []
+                if hasattr(u, 'images'):
+                    for img in u.images:
+                        images_data.append({
+                            'id': img.id,
+                            'url': url_for('static', filename=f'uploads/{img.image_path}')
+                        })
+
                 result.append({
                     'id': u.id,
                     'title': u.title,
@@ -3890,7 +4205,8 @@ def manage_project_updates(project_id):
                     'content': u.content,
                     'author_name': u.author.name if u.author else 'Unknown',
                     'created_at': u.created_at.isoformat(),
-                    'is_approved': is_appr
+                    'is_approved': is_appr,
+                    'images': images_data  # 新增：将图片数据返回给前端
                 })
         return jsonify(result)
 
@@ -3898,10 +4214,15 @@ def manage_project_updates(project_id):
         if current_user_role not in ['owner', 'admin', 'member']:
             return jsonify({'error': 'Only project members can post updates'}), 403
 
-        data = request.get_json(silent=True) or {}
-        title = data.get('title', '').strip()
-        status = data.get('status', 'On Track')
-        content = data.get('content', '').strip()
+        if request.content_type and 'multipart' in request.content_type:
+            title = request.form.get('title', '').strip()
+            status = request.form.get('status', 'On Track')
+            content = request.form.get('content', '').strip()
+        else:
+            data = request.get_json(silent=True) or {}
+            title = data.get('title', '').strip()
+            status = data.get('status', 'On Track')
+            content = data.get('content', '').strip()
 
         if not title or not content:
             return jsonify({'error': 'Title and content are required'}), 400
@@ -3917,11 +4238,37 @@ def manage_project_updates(project_id):
             is_approved=auto_approve
         )
         db.session.add(new_update)
+        db.session.flush() 
+
+        if 'images' in request.files:
+            import uuid
+            import os
+            
+            ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+            def allowed_file(filename):
+                return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+            files = request.files.getlist('images')
+            upload_folder = current_app.config.get('UPLOAD_FOLDER', 'static/uploads')
+            os.makedirs(upload_folder, exist_ok=True)
+            
+            for file in files:
+                if file and file.filename != '' and allowed_file(file.filename):
+                    ext = os.path.splitext(file.filename)[1]
+                    filename = str(uuid.uuid4()) + ext
+                    file.save(os.path.join(upload_folder, filename))
+                    
+                    try:
+                        from .models import ProjectUpdateImage
+                        img = ProjectUpdateImage(update_id=new_update.id, image_path=filename)
+                        db.session.add(img)
+                    except ImportError:
+                        pass 
+
         db.session.commit()
 
         msg = 'Update posted successfully' if auto_approve else 'Update submitted for approval'
         return jsonify({'success': True, 'message': msg})
-
 @views.route('/api/project/<int:project_id>/updates/<int:update_id>/<action>', methods=['POST'])
 def review_project_update(project_id, update_id, action):
     err = require_login()
@@ -4023,3 +4370,139 @@ def admin_dashboard_page():
         admin_user=user,
     )
 
+@views.route('/api/timeline_feed', methods=['GET'])
+def get_timeline_feed():
+    current_user = get_current_user()
+    current_user_id = current_user.id if current_user else None
+    
+    # 1. 提取当前用户所有关注（Star）的项目 ID 集合
+    starred_project_ids = set()
+    if current_user_id:
+        from .models import ProjectStar, MYT  # 确保引入对应模型与区时
+        stars = ProjectStar.query.filter_by(user_id=current_user_id).all()
+        starred_project_ids = {s.project_id for s in stars}
+
+    unified_feed = []
+    # 统一采用模型的 MYT 区时作为当前时间基准，防止跨时区引发时差计算错误
+    from .models import MYT
+    now = datetime.now(MYT)
+
+    # 2. 汇入数据源 A：社区讨论与提问帖子
+    posts = CommunityPost.query.order_by(CommunityPost.created_at.desc()).limit(30).all()
+    for p in posts:
+        proj_id = p.attached_project_id
+        # 核心权重一：只要项目在关注集合中，即赋予断层高优级别 (1)，否则为 (0)
+        is_starred = 1 if (proj_id and proj_id in starred_project_ids) else 0
+        
+        # 计算发布时长差（小时）
+        p_created = p.created_at.replace(tzinfo=MYT) if p.created_at.tzinfo is None else p.created_at
+        age_hours = max(0.0, (now - p_created).total_seconds() / 3600.0)
+        
+        # 计算互动热度分
+        like_count = len(p.likes)
+        comment_count = len(p.comments)
+        base_score = 20 + (like_count * 5) + (comment_count * 10)
+        # 核心权重二：流内时间重力衰减
+        feed_score = base_score / ((age_hours + 2) ** 1.5)
+        
+        image_urls = [f"/static/uploads/{img.image_path}" for img in p.images]
+        
+        unified_feed.append({
+            'feed_id': f"post_{p.id}",
+            'id': p.id,
+            'feed_type': 'post',
+            'category': p.category,
+            'user_name': p.author.name if p.author else 'Unknown',
+            'content': p.content,
+            'created_at': p.created_at.isoformat(),
+            'image_urls': image_urls,
+            'link_url': p.link_url,
+            'attached_project': {'id': p.attached_project.id, 'name': p.attached_project.project_name} if p.attached_project else None,
+            'like_count': like_count,
+            'comment_count': comment_count,
+            'user_liked': any(like.user_id == current_user_id for like in p.likes) if current_user_id else False,
+            'user_faved': any(fav.user_id == current_user_id for fav in p.favorites) if current_user_id else False,
+            'is_starred': is_starred,
+            'score': feed_score
+        })
+
+    # =========================================================================
+    # 3. 汇入数据源 B：项目的官方更新进展 (ProjectUpdate)
+    # =========================================================================
+    if starred_project_ids: # 如果用户有关注的项目，才去查询更新
+        updates = ProjectUpdate.query.filter(
+            ProjectUpdate.is_approved == True,
+            ProjectUpdate.project_id.in_(starred_project_ids) 
+        ).order_by(ProjectUpdate.created_at.desc()).limit(20).all()
+        
+        for u in updates:
+            is_starred = 1 
+            
+            u_created = u.created_at.replace(tzinfo=MYT) if u.created_at.tzinfo is None else u.created_at
+            age_hours = max(0.0, (now - u_created).total_seconds() / 3600.0)
+            
+            base_score = 50
+            feed_score = base_score / ((age_hours + 2) ** 1.5)
+            
+            # ✨ 新增：提取 Update 的图片 URL
+            image_urls = [f"/static/uploads/{img.image_path}" for img in u.images] if hasattr(u, 'images') else []
+            
+            unified_feed.append({
+                'feed_id': f"update_{u.id}",
+                'id': u.id,
+                'feed_type': 'update',
+                'category': 'Project Update',
+                'user_name': u.author.name if u.author else 'Unknown',
+                'title': u.title,
+                'status': u.status,
+                'content': u.content,
+                'image_urls': image_urls,  # ✨ 新增：将图片发给前端
+                'created_at': u.created_at.isoformat(),
+                'attached_project': {'id': u.project.id, 'name': u.project.project_name} if u.project else None,
+                'is_starred': is_starred,
+                'score': feed_score
+            })
+            
+    # 4. 执行级联精准排序：reverse=True 确保 is_starred 从 1 到 0 递减，score 从高到低递减
+    unified_feed.sort(key=lambda x: (x['is_starred'], x['score']), reverse=True)
+
+    return jsonify(unified_feed[:30])
+
+@views.route('/api/project/<int:project_id>/star', methods=['POST'])
+def toggle_project_star(project_id):
+    # 1. 验证用户是否登录 (请根据你实际 views.py 里获取登录用户的方法调整)
+    email = session.get('user_email')
+    if not email:
+        return jsonify({'error': 'Please login to star a project.'}), 401
+        
+    current_user = User.query.filter_by(email=email).first()
+    if not current_user:
+        return jsonify({'error': 'User not found.'}), 404
+
+    # 2. 验证项目是否存在
+    project = Project.query.get_or_404(project_id)
+    
+    # 3. 检查是否已经收藏过
+    existing_star = ProjectStar.query.filter_by(user_id=current_user.id, project_id=project.id).first()
+    
+    if existing_star:
+        # 已经收藏过 -> 执行取消收藏 (Unlike)
+        db.session.delete(existing_star)
+        db.session.commit()
+        is_starred = False
+    else:
+        # 尚未收藏 -> 执行收藏 (Like)
+        new_star = ProjectStar(user_id=current_user.id, project_id=project.id)
+        db.session.add(new_star)
+        db.session.commit()
+        is_starred = True
+        
+    # 4. 获取该项目最新的总收藏数，返回给前端实时更新 UI
+    star_count = ProjectStar.query.filter_by(project_id=project.id).count()
+    
+    return jsonify({
+        'success': True,
+        'starred': is_starred,
+        'star_count': star_count,
+        'message': 'Project starred!' if is_starred else 'Project unstarred.'
+    })

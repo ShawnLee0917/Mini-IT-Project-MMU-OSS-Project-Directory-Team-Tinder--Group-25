@@ -5,6 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Profile | MMU OSSD</title>
+    <script>
+        const currentTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', currentTheme);
+    </script>
     <meta name="description" content="Your MMU Open Source Student Directory profile">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" rel="stylesheet">
@@ -20,6 +24,89 @@
             to { opacity: 1; transform: translateY(0); }
         }
         .fade-in { animation: fadeIn 0.35s ease both; }
+
+                :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f3f4f6;
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --border-color: #e5e7eb;
+        }
+
+        html[data-theme="dark"] {
+            --bg-primary: #0f0f0f;
+            --bg-secondary: #1a1a1a;
+            --text-primary: #e5e7eb;
+            --text-secondary: #a1a1a1;
+            --border-color: #333333;
+        }
+        
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+        
+        html[data-theme="dark"] .border-gray-200 {
+    border-color: var(--border-color) !important;
+}
+        /* Dark theme overrides */
+        html[data-theme="dark"] body {
+            background-color: var(--bg-secondary);
+        }
+        
+        html[data-theme="dark"] header {
+            background-color: var(--bg-primary) !important;
+            border-color: var(--border-color) !important;
+        }
+        
+        html[data-theme="dark"] header h2,
+        html[data-theme="dark"] header p {
+            color: var(--text-primary) !important;
+        }
+        
+        html[data-theme="dark"] .bg-white {
+            background-color: var(--bg-primary) !important;
+            border-color: var(--border-color) !important;
+        }
+        
+        html[data-theme="dark"] .bg-gray-50 {
+            background-color: var(--bg-secondary) !important;
+        }
+        
+        html[data-theme="dark"] .text-gray-900,
+        html[data-theme="dark"] .text-gray-800 {
+            color: var(--text-primary) !important;
+        }
+        
+        html[data-theme="dark"] .text-gray-500,
+        html[data-theme="dark"] .text-gray-600,
+        html[data-theme="dark"] .text-gray-700 {
+            color: var(--text-secondary) !important;
+        }
+        
+        html[data-theme="dark"] .border-gray-200,
+        html[data-theme="dark"] .border-gray-100 {
+            border-color: var(--border-color) !important;
+        }
+        
+        html[data-theme="dark"] .text-gray-400 {
+            color: var(--text-secondary) !important;
+        }
+        
+        html[data-theme="dark"] input,
+        html[data-theme="dark"] textarea,
+        html[data-theme="dark"] select {
+            background-color: var(--bg-secondary) !important;
+            color: var(--text-primary) !important;
+            border-color: var(--border-color) !important;
+        }
+        
+        html[data-theme="dark"] input:focus,
+        html[data-theme="dark"] textarea:focus,
+        html[data-theme="dark"] select:focus {
+            background-color: var(--bg-primary) !important;
+        }
 
         /* ── Animated Hamburger Button ─────────────────────────── */
         .hamburger {
@@ -203,19 +290,36 @@
                         <i class="fas fa-pen mr-1"></i> Edit Profile
                     </button>
 
+                    <button id="back-to-project-btn" onclick="history.back()" class="hidden mt-3 w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2 rounded-xl border border-gray-200 transition text-sm">
+                        <i class="fas fa-arrow-left mr-1"></i> Go Back
+                    </button>
+
                     <button id="open-settings-modal-btn" class="mt-3 w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2 rounded-xl border border-gray-200 transition text-sm">
                         <i class="fas fa-cog mr-1"></i> Settings
                     </button>
                 </div>
 
-                <div class="bg-gray-900 p-6 rounded-3xl text-white">
-                    <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Badges</h3>
-                    <div class="flex gap-3">
-                        <i class="fas fa-fire-alt text-orange-400 text-2xl" title="Early Adopter"></i>
-                        <i class="fas fa-code text-blue-400 text-2xl" title="Python Expert"></i>
-                        <i class="fas fa-handshake text-green-400 text-2xl" title="Top Contributor"></i>
-                    </div>
-                </div>
+<div class="bg-gray-900 p-6 rounded-3xl text-white">
+    <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Badges</h3>
+    <div id="display-badges" class="flex flex-wrap gap-4">
+        <span class="text-gray-500 text-sm italic">Loading badges...</span>
+    </div>
+</div>
+
+<!-- Badge Detail Modal -->
+<div id="badge-modal" class="hidden fixed inset-0 z-[80] flex items-center justify-center px-4" onclick="if(event.target===this)closeBadgeModal()">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+    <div class="relative bg-gray-900 rounded-3xl p-8 w-full max-w-xs text-center shadow-2xl border border-gray-700 z-10">
+        <button onclick="closeBadgeModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white transition">
+            <i class="fas fa-times text-lg"></i>
+        </button>
+        <div id="badge-modal-icon-wrap" class="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i id="badge-modal-icon" class="text-4xl"></i>
+        </div>
+        <h3 id="badge-modal-title" class="text-xl font-black text-white mb-2"></h3>
+        <p id="badge-modal-desc" class="text-sm text-gray-400 leading-relaxed"></p>
+    </div>
+</div>
             </div>
 
             <div class="lg:col-span-2 space-y-8">
@@ -316,8 +420,8 @@
             <div class="flex flex-col md:flex-row gap-6">
                 <!-- Settings Navigation -->
                 <div class="w-full md:w-1/3 flex flex-row md:flex-col gap-2 overflow-x-auto border-b md:border-b-0 md:border-r border-gray-100 pb-2 md:pb-0 md:pr-4">
-                    <button class="settings-tab-btn active text-left px-4 py-2 rounded-xl text-sm font-bold text-red-600 bg-red-50 transition" data-target="settings-privacy">Privacy</button>
-                    <button class="settings-tab-btn active text-left px-4 py-2 rounded-xl text-sm font-bold text-red-600 bg-red-50 transition" data-target="settings-account">Account</button>
+                    <button class="settings-tab-btn text-left px-4 py-2 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-50 transition" data-target="settings-privacy">Privacy</button>
+                    <button class="settings-tab-btn text-left px-4 py-2 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-50 transition" data-target="settings-account">Account</button>
                     <button class="settings-tab-btn text-left px-4 py-2 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-50 transition" data-target="settings-notifications">Notifications</button>
                     <button class="settings-tab-btn text-left px-4 py-2 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-50 transition" data-target="settings-display">Display</button>
                     <button class="settings-tab-btn text-left px-4 py-2 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-50 transition" data-target="settings-other">Other</button>
@@ -340,7 +444,7 @@
                         </div>
                          
                         <!-- Account -->
-                        <div id="settings-account" class="settings-section space-y-4">
+                        <div id="settings-account" class="settings-section hidden space-y-4">
                             <h3 class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-3">Account</h3>
 
                             <div>
@@ -421,11 +525,99 @@
         const API = '/api';
 
         
+        // Badge appearance + description data — keys are lowercase for case-insensitive matching
+        const BADGE_INFO = {
+            'first project':     { icon: 'fas fa-scroll',             iconCls: 'text-purple-400',  bg: 'bg-purple-900',  desc: 'Awarded for listing your very first project on MMU OSSD.' },
+            'early adopter':     { icon: 'fas fa-fire-alt',            iconCls: 'text-orange-400',  bg: 'bg-orange-900',  desc: 'Joined the platform early and helped grow the community.' },
+            'top contributor':   { icon: 'fas fa-trophy',              iconCls: 'text-yellow-400',  bg: 'bg-yellow-900',  desc: 'Recognised for outstanding contributions across multiple projects.' },
+            'top contribution':  { icon: 'fas fa-trophy',              iconCls: 'text-yellow-400',  bg: 'bg-yellow-900',  desc: 'Recognised for outstanding contributions across multiple projects.' },
+            'python expert':     { icon: 'fa-brands fa-python',        iconCls: 'text-blue-400',    bg: 'bg-blue-900',    desc: 'Demonstrated strong Python skills in open-source projects.' },
+            'javascript expert': { icon: 'fa-brands fa-js',            iconCls: 'text-yellow-400',  bg: 'bg-yellow-800',  desc: 'Demonstrated strong JavaScript skills in open-source projects.' },
+            'js expert':         { icon: 'fa-brands fa-js',            iconCls: 'text-yellow-400',  bg: 'bg-yellow-800',  desc: 'Demonstrated strong JavaScript skills in open-source projects.' },
+            'react expert':      { icon: 'fa-brands fa-react',         iconCls: 'text-cyan-400',    bg: 'bg-cyan-900',    desc: 'Built and contributed to React-based open-source projects.' },
+            'html expert':       { icon: 'fa-brands fa-html5',         iconCls: 'text-red-400',     bg: 'bg-red-900',     desc: 'Skilled in HTML and web structure across multiple projects.' },
+            'css expert':        { icon: 'fa-brands fa-css3-alt',      iconCls: 'text-sky-400',     bg: 'bg-sky-900',     desc: 'Crafted beautiful, well-structured CSS in open-source work.' },
+            'php expert':        { icon: 'fa-brands fa-php',           iconCls: 'text-indigo-400',  bg: 'bg-indigo-900',  desc: 'Demonstrated strong PHP skills in open-source projects.' },
+            'c++ expert':        { icon: 'fas fa-code',                iconCls: 'text-blue-300',    bg: 'bg-blue-900',    desc: 'Demonstrated strong C++ skills in open-source projects.' },
+            'go expert':         { icon: 'fa-brands fa-golang',        iconCls: 'text-cyan-300',    bg: 'bg-cyan-900',    desc: 'Demonstrated strong Go skills in open-source projects.' },
+            'dart expert':       { icon: 'fas fa-bullseye',            iconCls: 'text-blue-400',    bg: 'bg-blue-900',    desc: 'Demonstrated strong Dart skills in open-source projects.' },
+            'rust expert':       { icon: 'fas fa-gear',                iconCls: 'text-orange-300',  bg: 'bg-gray-800',    desc: 'Demonstrated strong Rust skills in open-source projects.' },
+            'typescript expert': { icon: 'fas fa-t',                   iconCls: 'text-blue-400',    bg: 'bg-blue-900',    desc: 'Demonstrated strong TypeScript skills in open-source projects.' },
+            'mmu alumni':        { icon: 'fas fa-graduation-cap',      iconCls: 'text-blue-300',    bg: 'bg-blue-900',    desc: 'Recognised MMU Alumni Member.' },
+            'mmu staff':         { icon: 'fas fa-chalkboard-user',     iconCls: 'text-orange-300',  bg: 'bg-orange-900',  desc: 'Current MMU Staff Member.' },
+            'moderator':         { icon: 'fas fa-shield-halved',       iconCls: 'text-green-400',   bg: 'bg-green-900',   desc: 'Trusted MMU OSSD Moderator.' },
+            'admin':             { icon: 'fas fa-shield',              iconCls: 'text-red-400',     bg: 'bg-red-900',     desc: 'MMU OSSD Admin.' },
+            'mmu ossd member':   { icon: 'fas fa-star',                iconCls: 'text-yellow-400',  bg: 'bg-yellow-900',  desc: 'MMU OSSD Developer.' },
+            'tester':            { icon: 'fas fa-flask',               iconCls: 'text-gray-300',    bg: 'bg-gray-700',    desc: 'Helped to test the website and reported bugs.' },
+            'beta tester':       { icon: 'fas fa-vial',                iconCls: 'text-purple-300',  bg: 'bg-purple-900',  desc: 'Helped test the entire website and reported bugs (Early Tester).' },
+            'lecturer':          { icon: 'fas fa-person-chalkboard',   iconCls: 'text-orange-400',  bg: 'bg-orange-900',  desc: 'MMU Lecturer.' },
+            'special thanks':    { icon: 'fas fa-heart',               iconCls: 'text-pink-400',    bg: 'bg-pink-900',    desc: 'Special thanks for your help to MMU OSSD.' },
+            'community helper':  { icon: 'fas fa-hands-helping',       iconCls: 'text-green-400',   bg: 'bg-green-900',   desc: 'Helped the community by answering questions and assisting other users.' },
+            'first comment':     { icon: 'fas fa-comment',             iconCls: 'text-blue-400',    bg: 'bg-blue-900',    desc: 'Posted your very first comment on a project.' },
+            'ten comments':      { icon: 'fas fa-comment-dots',        iconCls: 'text-green-400',   bg: 'bg-green-900',   desc: 'Reached 10 comments across projects.' },
+            'fifty comments':    { icon: 'fas fa-comments',            iconCls: 'text-yellow-400',  bg: 'bg-yellow-900',  desc: 'Reached 50 comments across projects.' },
+            'hundred comments':  { icon: 'fas fa-message',             iconCls: 'text-red-400',     bg: 'bg-red-900',     desc: 'Reached 100 comments across projects.' },
+            'hottest project':   { icon: 'fas fa-fire',                iconCls: 'text-red-400',     bg: 'bg-red-900',     desc: 'Your project reached the hottest trending spot.' },
+            'post first feed':   { icon: 'fas fa-paper-plane',         iconCls: 'text-blue-400',    bg: 'bg-blue-900',    desc: 'Posted your first community feed.' },
+            'trending project':  { icon: 'fas fa-arrow-trend-up',      iconCls: 'text-purple-400',  bg: 'bg-purple-900',  desc: 'Your project hit the trending list.' },
+            'owner':             { icon: 'fas fa-crown',               iconCls: 'text-yellow-400',  bg: 'bg-yellow-900',  desc: 'MMU OSSD Owner.'},
+            'first user join mmu ossd': { icon: 'fa-solid fa-user', iconCls: 'text-blue-400', bg: 'bg-blue-900', desc: 'The very first user to join MMU OSSD.' }
+        };
+
+        // Always match regardless of how the badge name was typed/stored in the DB
+        function getBadgeInfo(name) {
+            return BADGE_INFO[name.toLowerCase().trim()] || { icon: 'fas fa-medal', iconCls: 'text-yellow-400', bg: 'bg-gray-700', desc: 'A special badge awarded by the MMU OSSD admin.' };
+        }
+
+        function renderBadges(badges) {
+            const el = document.getElementById('display-badges');
+            el.innerHTML = '';
+
+            if (!badges || badges.length === 0) {
+                el.innerHTML = '<span class="text-gray-500 text-sm italic">No badges earned yet.</span>';
+                return;
+            }
+
+            badges.forEach(item => {
+                // API returns either a string or an object like {id, badge}
+                const badgeName = (typeof item === 'object' && item !== null) ? item.badge : item;
+                if (!badgeName) return;
+
+                const info = getBadgeInfo(badgeName);
+
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'cursor-pointer focus:outline-none hover:scale-125 transition-transform';
+                btn.title = badgeName;
+                btn.onclick = () => showBadgeModal(badgeName);
+
+                const icon = document.createElement('i');
+                icon.className = `${info.icon} ${info.iconCls} text-2xl`;
+
+                btn.appendChild(icon);
+                el.appendChild(btn);
+            });
+        }
+
+        function showBadgeModal(name) {
+            const info = getBadgeInfo(name);
+            document.getElementById('badge-modal-icon').className = `${info.icon} ${info.iconCls} text-4xl`;
+            document.getElementById('badge-modal-icon-wrap').className = `w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 ${info.bg}`;
+            document.getElementById('badge-modal-title').textContent = name;
+            document.getElementById('badge-modal-desc').textContent = info.desc;
+            document.getElementById('badge-modal').classList.remove('hidden');
+        }
+
+        function closeBadgeModal() {
+            document.getElementById('badge-modal').classList.add('hidden');
+        }
+
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeBadgeModal(); });
+
         // 1. Function to apply the theme visually
         function applyTheme(theme) {
         if (theme === 'dark') {
         document.documentElement.classList.add('dark');
-        // Optional: Save to localStorage for instant loading on next visit
         localStorage.setItem('theme', 'dark');
         } else {
         document.documentElement.classList.remove('dark');
@@ -433,48 +625,8 @@
         }
 }
 
-// 2. Modify your existing loadSettings function (or wherever you fetch user data)
-async function loadUserSettings() {
-    try {
-        const res = await fetch('/api/settings');
-        const s = await res.json();
-        
-        // ... your other loading logic ...
+// Initial theme check on page load to prevent flash
 
-        // Set the dropdown value and apply the theme
-        const theme = s.display?.theme || 'light';
-        document.getElementById('setting-theme').value = theme;
-        applyTheme(theme);
-        
-    } catch (err) {
-        console.error("Failed to load settings:", err);
-    }
-}
-
-// 3. Update your Settings Form Save logic
-document.getElementById('settings-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const selectedTheme = document.getElementById('setting-theme').value;
-    
-    const settingsUpdate = {
-        display: {
-            theme: selectedTheme
-        },
-        // ... include other fields (privacy, notifications) ...
-    };
-
-    const res = await fetch('/api/settings', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settingsUpdate)
-    });
-
-    if (res.ok) {
-        applyTheme(selectedTheme); // Apply immediately after saving
-        showToast("Settings saved successfully!");
-    }
-});
 
 // 4. Initial check on page load (prevents white flash)
 (function() {
@@ -609,6 +761,7 @@ document.getElementById('settings-form').addEventListener('submit', async (e) =>
                 setAvatar(d.name, d.avatar_url || '');
                 renderSkills(d.skills);
                 renderInterests(d.interests || []);
+                renderBadges(d.badges);
                 
                 document.getElementById('edit-name').value = d.name;
                 document.getElementById('edit-faculty').value = d.faculty;
@@ -905,8 +1058,26 @@ document.getElementById('settings-form').addEventListener('submit', async (e) =>
             
             // Settings Modal
             const settingsModal = document.getElementById('settings-modal');
+
+            // Helper: activate a settings tab by its data-target value
+            function activateSettingsTab(targetId) {
+                document.querySelectorAll('.settings-tab-btn').forEach(b => {
+                    b.classList.remove('active', 'text-red-600', 'bg-red-50');
+                    b.classList.add('text-gray-500');
+                });
+                document.querySelectorAll('.settings-section').forEach(s => s.classList.add('hidden'));
+                const tab = document.querySelector(`.settings-tab-btn[data-target="${targetId}"]`);
+                if (tab) {
+                    tab.classList.add('active', 'text-red-600', 'bg-red-50');
+                    tab.classList.remove('text-gray-500');
+                }
+                const section = document.getElementById(targetId);
+                if (section) section.classList.remove('hidden');
+            }
+
             document.getElementById('open-settings-modal-btn').addEventListener('click', async () => {
                 await loadSettings();
+                activateSettingsTab('settings-notifications'); // Open directly on Notifications tab
                 settingsModal.classList.remove('hidden');
             });
             document.getElementById('close-settings-btn').addEventListener('click', () => settingsModal.classList.add('hidden'));
@@ -919,21 +1090,7 @@ document.getElementById('settings-form').addEventListener('submit', async (e) =>
             document.querySelectorAll('.settings-tab-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     e.preventDefault();
-                    // Remove active from all tabs
-                    document.querySelectorAll('.settings-tab-btn').forEach(b => {
-                        b.classList.remove('active', 'text-red-600', 'bg-red-50');
-                        b.classList.add('text-gray-500');
-                    });
-                    // Hide all sections
-                    document.querySelectorAll('.settings-section').forEach(s => s.classList.add('hidden'));
-                    
-                    // Add active to clicked tab
-                    const target = btn.getAttribute('data-target');
-                    btn.classList.add('active', 'text-red-600', 'bg-red-50');
-                    btn.classList.remove('text-gray-500');
-                    
-                    // Show target section
-                    document.getElementById(target).classList.remove('hidden');
+                    activateSettingsTab(btn.getAttribute('data-target'));
                 });
             });
 
@@ -956,6 +1113,20 @@ document.getElementById('settings-form').addEventListener('submit', async (e) =>
                 document.getElementById('logout-btn-mobile').addEventListener('click', logout);
             }
         });
+        function toggleTheme() {
+    const htmlEl = document.documentElement;
+    const currentTheme = htmlEl.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    
+    // 1. Switch layout attribute
+    htmlEl.setAttribute('data-theme', newTheme);
+    
+    // 2. Critical: Save state so other pages can see it
+    localStorage.setItem('theme', newTheme);
+}
+
+// Attach this function to your dark mode switch button trigger
+document.getElementById('theme-toggle-btn').addEventListener('click', toggleTheme);
     </script>
 </body>
 </html>

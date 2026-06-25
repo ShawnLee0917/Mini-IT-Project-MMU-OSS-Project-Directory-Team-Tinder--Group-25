@@ -1,5 +1,5 @@
 from . import db
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, UTC
 
 MYT = timezone(timedelta(hours=8))
 
@@ -180,7 +180,7 @@ class JoinRequest(db.Model):
     
     # Relationships
     user = db.relationship('User', backref='join_requests')
-    project = db.relationship('Project', backref='join_requests')
+    project = db.relationship('Project', backref=db.backref('join_requests', cascade='all, delete-orphan'))
     
     __table_args__ = (db.UniqueConstraint('user_id', 'project_id', name='unique_user_project_request'),)
 
@@ -197,7 +197,7 @@ class MemberHistory(db.Model):
     reason = db.Column(db.String(255), nullable=True)  # Optional reason for leaving
     
     # Relationships
-    project = db.relationship('Project', backref='member_histories')
+    project = db.relationship('Project', backref=db.backref('member_histories', cascade='all, delete-orphan'))
     
     __table_args__ = (db.Index('idx_project_user', 'project_id', 'user_id'),)
 
@@ -217,7 +217,7 @@ class LeaveRequest(db.Model):
     
     # Relationships
     user = db.relationship('User', backref='leave_requests')
-    project = db.relationship('Project', backref='leave_requests')
+    project = db.relationship('Project', backref=db.backref('leave_requests', cascade='all, delete-orphan'))
     
     __table_args__ = (db.UniqueConstraint('user_id', 'project_id', name='unique_user_leave_request'),)
 
@@ -260,7 +260,7 @@ class ProjectComment(db.Model):
     
     # Relationships
     author = db.relationship('User', backref='project_comments')
-    project = db.relationship('Project', backref='project_comments')
+    project = db.relationship('Project', backref=db.backref('project_comments', cascade='all, delete-orphan'))
     images = db.relationship('ProjectCommentImage', backref='comment', lazy=True, cascade='all, delete-orphan')
     
     __table_args__ = (db.Index('idx_project_comments', 'project_id', 'created_at'),)
@@ -421,16 +421,23 @@ class CommunityPostCommentImage(db.Model):
 
 class ProjectUpdate(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id', ondelete='CASCADE'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     title = db.Column(db.String(150), nullable=False)  
     status = db.Column(db.String(50), nullable=False)  
     content = db.Column(db.Text, nullable=False)       
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), )
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(MYT))
     is_approved = db.Column(db.Boolean, default=False)  
 
     author = db.relationship('User', backref='project_updates')
     project = db.relationship('Project', backref=db.backref('updates', lazy='dynamic'))
+    images = db.relationship('ProjectUpdateImage', backref='update', lazy=True, cascade='all, delete-orphan')  
+class ProjectUpdateImage(db.Model):
+    __tablename__ = 'project_update_images'
+    
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    update_id = db.Column(db.Integer, db.ForeignKey('project_update.id', ondelete='CASCADE'), nullable=False)
+    image_path = db.Column(db.String(255), nullable=False)
 
 
 # ---------------------------------------------------------------------------
@@ -459,8 +466,8 @@ class ContentReport(db.Model):
     admin_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
     admin_comment = db.Column(db.Text, nullable=True)
     
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT))
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT), onupdate=datetime.now(MYT))
     
     # Relationships
     reporter = db.relationship('User', foreign_keys=[reporter_id], backref='reported_contents')
@@ -484,7 +491,7 @@ class AdminLog(db.Model):
     target_id = db.Column(db.Integer, nullable=True)
     
     details = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT))
     
     # Relationships
     admin = db.relationship('User', backref='admin_logs')
@@ -503,7 +510,7 @@ class SuspendedUser(db.Model):
     reason = db.Column(db.Text, nullable=False)
     is_active = db.Column(db.Boolean, default=True)  # False = unsuspended
     
-    suspended_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    suspended_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT))
     unsuspended_at = db.Column(db.DateTime, nullable=True)
     
     # Relationships
@@ -521,4 +528,4 @@ class ContentFlagKeyword(db.Model):
     severity = db.Column(db.Integer, default=1)  # 1-5, higher = more severe
     is_active = db.Column(db.Boolean, default=True)
     added_by = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT))

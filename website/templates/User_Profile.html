@@ -11,13 +11,25 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
 
-        body { font-family: 'Inter', sans-serif; }
+        body {
+            font-family: 'Inter', sans-serif;
+        }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(8px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
-        .fade-in { animation: fadeIn 0.35s ease both; }
+
+        .fade-in {
+            animation: fadeIn 0.35s ease both;
+        }
 
         /* ── Animated Hamburger Button ─────────────────────────── */
         .hamburger {
@@ -36,13 +48,16 @@
             transition: background 0.2s ease;
             position: relative;
         }
+
         .hamburger:hover {
-            background: rgba(255,255,255,0.15);
+            background: rgba(255, 255, 255, 0.15);
         }
+
         .hamburger:focus-visible {
-            outline: 2px solid rgba(255,255,255,0.6);
+            outline: 2px solid rgba(255, 255, 255, 0.6);
             outline-offset: 2px;
         }
+
         .hamburger .bar {
             display: block;
             width: 22px;
@@ -50,18 +65,21 @@
             border-radius: 99px;
             background: #fff;
             transition: transform 0.35s cubic-bezier(0.23, 1, 0.32, 1),
-                        opacity   0.25s ease,
-                        width     0.3s ease;
+                opacity 0.25s ease,
+                width 0.3s ease;
             transform-origin: center;
         }
+
         /* Open state — morph into X */
         .hamburger.is-open .bar:nth-child(1) {
             transform: translateY(7.5px) rotate(45deg);
         }
+
         .hamburger.is-open .bar:nth-child(2) {
             opacity: 0;
             width: 0;
         }
+
         .hamburger.is-open .bar:nth-child(3) {
             transform: translateY(-7.5px) rotate(-45deg);
         }
@@ -73,26 +91,54 @@
             opacity: 0;
             transition: max-height 0.38s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.28s ease;
         }
+
         #mobile-menu.menu-open {
             max-height: 500px;
             opacity: 1;
         }
-        #mobile-menu a, #mobile-menu button, #mobile-menu div {
+
+        #mobile-menu a,
+        #mobile-menu button,
+        #mobile-menu div {
             transform: translateY(-6px);
             opacity: 0;
             transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
         }
-        #mobile-menu.menu-open a, #mobile-menu.menu-open button, #mobile-menu.menu-open div {
+
+        #mobile-menu.menu-open a,
+        #mobile-menu.menu-open button,
+        #mobile-menu.menu-open div {
             transform: translateY(0);
             opacity: 1;
         }
-        #mobile-menu a:nth-child(1)  { transition-delay: 0.05s; }
-        #mobile-menu a:nth-child(2)  { transition-delay: 0.09s; }
-        #mobile-menu a:nth-child(3)  { transition-delay: 0.13s; }
-        #mobile-menu a:nth-child(4)  { transition-delay: 0.17s; }
-        #mobile-menu a:nth-child(5)  { transition-delay: 0.21s; }
-        #mobile-menu button          { transition-delay: 0.25s; }
-        #mobile-menu #nav-email-mobile { transition-delay: 0.29s; }
+
+        #mobile-menu a:nth-child(1) {
+            transition-delay: 0.05s;
+        }
+
+        #mobile-menu a:nth-child(2) {
+            transition-delay: 0.09s;
+        }
+
+        #mobile-menu a:nth-child(3) {
+            transition-delay: 0.13s;
+        }
+
+        #mobile-menu a:nth-child(4) {
+            transition-delay: 0.17s;
+        }
+
+        #mobile-menu a:nth-child(5) {
+            transition-delay: 0.21s;
+        }
+
+        #mobile-menu button {
+            transition-delay: 0.25s;
+        }
+
+        #mobile-menu #nav-email-mobile {
+            transition-delay: 0.29s;
+        }
     </style>
 </head>
 
@@ -118,7 +164,8 @@
                 <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
                 <a href="{{ url_for('views.qna_page') }}" class="hover:text-red-200 transition">Q&A</a>
                 <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
-                <a href="{{ url_for('views.profile') }}" class="bg-red-800 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-500/50 cursor-pointer hover:bg-red-900 transition">
+                <a href="{{ url_for('views.profile') }}"
+                    class="bg-red-800 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-500/50 cursor-pointer hover:bg-red-900 transition">
                     <span id="nav-email" class="text-sm">{{ session.get('user_email', 'Guest') }}</span>
                     <i class="fas fa-user-circle text-lg"></i>
                 </a>
@@ -136,7 +183,8 @@
                 <a href="{{ url_for('views.qna_page') }}" class="hover:text-red-200 transition">Q&A</a>
                 <a href="{{ url_for('views.profile') }}" class="hover:text-red-200 transition">My Profile</a>
                 <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
-                <a href="{{ url_for('views.list_project') }}" class="hover:text-red-200 transition">List Your Project</a>
+                <a href="{{ url_for('views.list_project') }}" class="hover:text-red-200 transition">List Your
+                    Project</a>
                 <button id="logout-btn-mobile" class="text-left text-red-200 hover:text-white transition text-sm">
                     <i class="fas fa-sign-out-alt mr-1"></i> Logout
                 </button>
@@ -150,28 +198,33 @@
     <main class="container mx-auto px-6 py-12 fade-in">
         <!-- Private Profile Message -->
         {% if show_private_message %}
-            <div class="flex flex-col items-center justify-center min-h-96">
-                <div class="text-center">
-                    <i class="fas fa-lock text-gray-300 text-8xl mb-6"></i>
-                    <h2 class="text-3xl font-black text-gray-800 mb-2">Private Account</h2>
-                    <p class="text-gray-500 text-lg mb-6">
-                        This profile is private. You don't have permission to view this profile.
-                    </p>
-                    <a href="{{ url_for('views.home') }}" class="inline-block bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded-xl transition">
-                        <i class="fas fa-arrow-left mr-2"></i>Back to Home
-                    </a>
-                </div>
+        <div class="flex flex-col items-center justify-center min-h-96">
+            <div class="text-center">
+                <i class="fas fa-lock text-gray-300 text-8xl mb-6"></i>
+                <h2 class="text-3xl font-black text-gray-800 mb-2">Private Account</h2>
+                <p class="text-gray-500 text-lg mb-6">
+                    This profile is private. You don't have permission to view this profile.
+                </p>
+                <a href="{{ url_for('views.home') }}"
+                    class="inline-block bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded-xl transition">
+                    <i class="fas fa-arrow-left mr-2"></i>Back to Home
+                </a>
             </div>
+        </div>
         {% else %}
         <!-- Public Profile -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
             <div class="space-y-6">
                 <div class="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 text-center">
                     <div class="relative w-24 h-24 mx-auto mb-4">
-                        <div id="avatar-initials" class="w-24 h-24 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-3xl font-black">
+                        <div id="avatar-initials"
+                            class="w-24 h-24 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-3xl font-black">
                             {{ profile_user.name[0] | upper }}
                         </div>
-                        <img id="avatar-img" src="{% if profile_user.avatar_path %}/static/uploads/{{ profile_user.avatar_path }}{% endif %}" alt="Profile photo" class="{% if not profile_user.avatar_path %}hidden{% endif %} w-24 h-24 rounded-full object-cover absolute inset-0">
+                        <img id="avatar-img"
+                            src="{% if profile_user.avatar_path %}/static/uploads/{{ profile_user.avatar_path }}{% endif %}"
+                            alt="Profile photo"
+                            class="{% if not profile_user.avatar_path %}hidden{% endif %} w-24 h-24 rounded-full object-cover absolute inset-0">
                     </div>
 
                     <h2 class="text-2xl font-black">{{ profile_user.name }}</h2>
@@ -198,27 +251,88 @@
 
                 <div class="bg-gray-900 p-6 rounded-3xl text-white">
                     <h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Badges</h3>
-                    <div class="flex gap-3">
-                        {% for badge in profile_user.badges %}
-                            <i class="fas fa-badge text-yellow-400 text-2xl" title="{{ badge.badge }}"></i>
-                        {% endfor %}
-                        {% if not profile_user.badges %}
+                    <div class="flex flex-wrap gap-3" id="badge-list">
+                        {% if profile_user.badges %}
+                            {% for badge in profile_user.badges %}
+                            <button type="button"
+                                onclick="showBadgeModal('{{ badge.badge | e }}')"
+                                class="focus:outline-none hover:scale-125 transition-transform"
+                                title="{{ badge.badge }}">
+                                {% set bn = badge.badge | lower %}
+                                <i class="text-2xl
+                                    {% if bn == 'python expert' %}fa-brands fa-python text-blue-400
+                                    {% elif bn == 'javascript expert' or bn == 'js expert' %}fa-brands fa-js text-yellow-400
+                                    {% elif bn == 'react expert' %}fa-brands fa-react text-cyan-400
+                                    {% elif bn == 'html expert' %}fa-brands fa-html5 text-red-400
+                                    {% elif bn == 'css expert' %}fa-brands fa-css3-alt text-sky-400
+                                    {% elif bn == 'php expert' %}fa-brands fa-php text-indigo-400
+                                    {% elif bn == 'go expert' %}fa-brands fa-golang text-cyan-300
+                                    {% elif bn == 'first project' %}fas fa-scroll text-purple-400
+                                    {% elif bn == 'early adopter' %}fas fa-fire-alt text-orange-400
+                                    {% elif bn == 'top contributor' or bn == 'top contribution' %}fas fa-trophy text-yellow-400
+                                    {% elif bn == 'moderator' %}fas fa-shield-halved text-green-400
+                                    {% elif bn == 'admin' %}fas fa-shield text-red-400
+                                    {% elif bn == 'mmu ossd member' %}fas fa-star text-yellow-400
+                                    {% elif bn == 'tester' %}fas fa-flask text-gray-300
+                                    {% elif bn == 'beta tester' %}fas fa-vial text-purple-300
+                                    {% elif bn == 'mmu alumni' %}fas fa-graduation-cap text-blue-300
+                                    {% elif bn == 'mmu staff' %}fas fa-chalkboard-user text-orange-300
+                                    {% elif bn == 'lecturer' %}fas fa-person-chalkboard text-orange-400
+                                    {% elif bn == 'special thanks' %}fas fa-heart text-pink-400
+                                    {% elif bn == 'community helper' %}fas fa-hands-helping text-green-400
+                                    {% elif bn == 'first comment' %}fas fa-comment text-blue-400
+                                    {% elif bn == 'ten comments' %}fas fa-comment-dots text-green-400
+                                    {% elif bn == 'fifty comments' %}fas fa-comments text-yellow-400
+                                    {% elif bn == 'hundred comments' %}fas fa-message text-red-400
+                                    {% elif bn == 'hottest project' %}fas fa-fire text-red-400
+                                    {% elif bn == 'post first feed' %}fas fa-paper-plane text-blue-400
+                                    {% elif bn == 'trending project' %}fas fa-arrow-trend-up text-purple-400
+                                    {% elif bn == 'owner' %}fas fa-crown text-yellow-400
+                                    {% elif bn == 'c++ expert' %}fas fa-code text-blue-300
+                                    {% elif bn == 'dart expert' %}fas fa-bullseye text-blue-400
+                                    {% elif bn == 'rust expert' %}fas fa-gear text-orange-300
+                                    {% elif bn == 'typescript expert' %}fas fa-t text-blue-400
+                                    {% elif bn == 'first user join mmu ossd' %}fas fa-user text-blue-400
+                                    {% else %}fas fa-medal text-yellow-400
+                                    {% endif %}">
+                                </i>
+                            </button>
+                            {% endfor %}
+                        {% else %}
                             <p class="text-xs text-gray-500 italic">No badges yet</p>
                         {% endif %}
+                    </div>
+                </div>
+
+                <!-- Badge Detail Modal -->
+                <div id="badge-modal" class="hidden fixed inset-0 z-[80] flex items-center justify-center px-4" onclick="if(event.target===this)closeBadgeModal()">
+                    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+                    <div class="relative bg-gray-900 rounded-3xl p-8 w-full max-w-xs text-center shadow-2xl border border-gray-700 z-10">
+                        <button onclick="closeBadgeModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white transition">
+                            <i class="fas fa-times text-lg"></i>
+                        </button>
+                        <div id="modal-icon-wrap" class="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i id="modal-icon" class="text-4xl"></i>
+                        </div>
+                        <h3 id="modal-title" class="text-xl font-black text-white mb-2"></h3>
+                        <p id="modal-desc" class="text-sm text-gray-400 leading-relaxed"></p>
                     </div>
                 </div>
             </div>
 
             <div class="lg:col-span-2 space-y-8">
                 <section class="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
-                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Skills &amp; Tech Stack</h3>
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Skills &amp; Tech Stack
+                    </h3>
                     <div id="display-skills" class="flex flex-wrap gap-2">
                         {% if profile_user.skills %}
-                            {% for skill in profile_user.skills %}
-                                <span class="bg-gray-100 px-4 py-2 rounded-xl text-sm font-semibold text-gray-700">{{ skill.skill }}</span>
-                            {% endfor %}
+                        {% for skill in profile_user.skills %}
+                        <span class="bg-gray-100 px-4 py-2 rounded-xl text-sm font-semibold text-gray-700">{{
+                            skill.skill }}</span>
+                        {% endfor %}
                         {% else %}
-                            <span class="bg-gray-100 px-4 py-2 rounded-xl text-sm font-semibold text-gray-400 italic">No skills listed</span>
+                        <span class="bg-gray-100 px-4 py-2 rounded-xl text-sm font-semibold text-gray-400 italic">No
+                            skills listed</span>
                         {% endif %}
                     </div>
                 </section>
@@ -227,35 +341,73 @@
                 <section class="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
                     <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Project Interests</h3>
                     <div id="display-interests" class="flex flex-wrap gap-2">
-                        {% if profile_user.interests %}
-                            {% for interest in profile_user.interests.split(',') %}
-                                {% if interest.strip() %}
-                                    <span class="bg-red-100 px-4 py-2 rounded-xl text-sm font-semibold text-red-700">{{ interest.strip() }}</span>
-                                {% endif %}
-                            {% endfor %}
-                        {% else %}
-                            <span class="bg-gray-100 px-4 py-2 rounded-xl text-sm font-semibold text-gray-400 italic">No interests set</span>
-                        {% endif %}
+                        <span class="text-gray-400 text-sm italic">Loading...</span>
                     </div>
                 </section>
+
+                <script id="interests-data" type="application/json">
+                    {{ profile_user.interests | tojson | safe if profile_user.interests else "null" }}
+                </script>
+                <script>
+                (function() {
+                    let raw = null;
+                    try {
+                        raw = JSON.parse(document.getElementById('interests-data').textContent);
+                    } catch(e) {}
+                    
+                    const el = document.getElementById('display-interests');
+                    let tags = [];
+
+                    if (raw) {
+                        try {
+                            const parsed = (typeof raw === 'string') ? JSON.parse(raw) : raw;
+                            if (typeof parsed === 'object' && !Array.isArray(parsed) && parsed !== null) {
+                                // {"dev_interests": [...], "lang_interests": [...]}
+                                Object.values(parsed).forEach(arr => {
+                                    if (Array.isArray(arr)) tags.push(...arr);
+                                    else if (typeof arr === 'string') tags.push(arr);
+                                });
+                            } else if (Array.isArray(parsed)) {
+                                tags = parsed;
+                            } else {
+                                tags = [String(parsed)];
+                            }
+                        } catch(e) {
+                            // Fallback: plain comma-separated string
+                            tags = String(raw).split(',').map(s => s.trim()).filter(Boolean);
+                        }
+                    }
+
+                    if (tags.length) {
+                        el.innerHTML = tags.map(t =>
+                            `<span class="bg-red-100 px-4 py-2 rounded-xl text-sm font-semibold text-red-700">${t}</span>`
+                        ).join('');
+                    } else {
+                        el.innerHTML = '<span class="bg-gray-100 px-4 py-2 rounded-xl text-sm font-semibold text-gray-400 italic">No interests set</span>';
+                    }
+                })();
+                </script>
 
                 <section class="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
                     <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6">Projects</h3>
                     <div id="projects-list" class="space-y-4">
                         {% if profile_user.projects %}
-                            {% for project in profile_user.projects %}
-                            <a href="{{ url_for('views.project_page', project_id=project.id) }}" class="block">
-                                <div class="flex items-center justify-between p-4 border border-gray-100 rounded-2xl hover:bg-red-50 hover:border-red-200 transition cursor-pointer">
-                                    <div>
-                                        <h4 class="font-bold text-gray-800">{{ project.project_name }}</h4>
-                                        <p class="text-xs text-gray-400 mt-1">{{ project.status }} • {{ project.contributors }} Contributors</p>
-                                    </div>
-                                    <i class="fas fa-chevron-right text-gray-300"></i>
+                        {% for project in profile_user.projects %}
+                        <a href="{{ url_for('views.project_page', project_id=project.id) }}" class="block">
+                            <div
+                                class="flex items-center justify-between p-4 border border-gray-100 rounded-2xl hover:bg-red-50 hover:border-red-200 transition cursor-pointer">
+                                <div>
+                                    <h4 class="font-bold text-gray-800">{{ project.project_name }}</h4>
+                                    <p class="text-xs text-gray-400 mt-1">{{ project.status }} • {{ project.contributors
+                                        }} Contributors</p>
                                 </div>
-                            </a>
-                            {% endfor %}
+                                <i class="fas fa-chevron-right text-gray-300"></i>
+                            </div>
+                        </a>
+                        {% endfor %}
                         {% else %}
-                            <div class="text-gray-400 text-sm italic text-center py-4">This user hasn't listed any projects yet.</div>
+                        <div class="text-gray-400 text-sm italic text-center py-4">This user hasn't listed any projects
+                            yet.</div>
                         {% endif %}
                     </div>
                 </section>
@@ -268,7 +420,7 @@
         const API = '/api';
 
         // ── Smooth Mobile Menu Toggle ───────────────────────────────────────────
-        const menuBtn    = document.getElementById('menu-btn');
+        const menuBtn = document.getElementById('menu-btn');
         const mobileMenu = document.getElementById('mobile-menu');
 
         function openMenu() {
@@ -306,6 +458,64 @@
             document.getElementById('logout-btn').addEventListener('click', logout);
             document.getElementById('logout-btn-mobile').addEventListener('click', logout);
         });
+
+        // ── Badge Modal ────────────────────────────────────────────────────────
+        const BADGE_INFO = {
+            'first project':     { icon: 'fas fa-scroll',             iconCls: 'text-purple-400',  bg: 'bg-purple-900',  desc: 'Awarded for listing your very first project on MMU OSSD.' },
+            'early adopter':     { icon: 'fas fa-fire-alt',            iconCls: 'text-orange-400',  bg: 'bg-orange-900',  desc: 'Joined the platform early and helped grow the community.' },
+            'top contributor':   { icon: 'fas fa-trophy',              iconCls: 'text-yellow-400',  bg: 'bg-yellow-900',  desc: 'Recognised for outstanding contributions across multiple projects.' },
+            'top contribution':  { icon: 'fas fa-trophy',              iconCls: 'text-yellow-400',  bg: 'bg-yellow-900',  desc: 'Recognised for outstanding contributions across multiple projects.' },
+            'python expert':     { icon: 'fa-brands fa-python',        iconCls: 'text-blue-400',    bg: 'bg-blue-900',    desc: 'Demonstrated strong Python skills in open-source projects.' },
+            'javascript expert': { icon: 'fa-brands fa-js',            iconCls: 'text-yellow-400',  bg: 'bg-yellow-800',  desc: 'Demonstrated strong JavaScript skills in open-source projects.' },
+            'js expert':         { icon: 'fa-brands fa-js',            iconCls: 'text-yellow-400',  bg: 'bg-yellow-800',  desc: 'Demonstrated strong JavaScript skills in open-source projects.' },
+            'react expert':      { icon: 'fa-brands fa-react',         iconCls: 'text-cyan-400',    bg: 'bg-cyan-900',    desc: 'Built and contributed to React-based open-source projects.' },
+            'html expert':       { icon: 'fa-brands fa-html5',         iconCls: 'text-red-400',     bg: 'bg-red-900',     desc: 'Skilled in HTML and web structure across multiple projects.' },
+            'css expert':        { icon: 'fa-brands fa-css3-alt',      iconCls: 'text-sky-400',     bg: 'bg-sky-900',     desc: 'Crafted beautiful, well-structured CSS in open-source work.' },
+            'php expert':        { icon: 'fa-brands fa-php',           iconCls: 'text-indigo-400',  bg: 'bg-indigo-900',  desc: 'Demonstrated strong PHP skills in open-source projects.' },
+            'c++ expert':        { icon: 'fas fa-code',                iconCls: 'text-blue-300',    bg: 'bg-blue-900',    desc: 'Demonstrated strong C++ skills in open-source projects.' },
+            'go expert':         { icon: 'fa-brands fa-golang',        iconCls: 'text-cyan-300',    bg: 'bg-cyan-900',    desc: 'Demonstrated strong Go skills in open-source projects.' },
+            'dart expert':       { icon: 'fas fa-bullseye',            iconCls: 'text-blue-400',    bg: 'bg-blue-900',    desc: 'Demonstrated strong Dart skills in open-source projects.' },
+            'rust expert':       { icon: 'fas fa-gear',                iconCls: 'text-orange-300',  bg: 'bg-gray-800',    desc: 'Demonstrated strong Rust skills in open-source projects.' },
+            'typescript expert': { icon: 'fas fa-t',                   iconCls: 'text-blue-400',    bg: 'bg-blue-900',    desc: 'Demonstrated strong TypeScript skills in open-source projects.' },
+            'mmu alumni':        { icon: 'fas fa-graduation-cap',      iconCls: 'text-blue-300',    bg: 'bg-blue-900',    desc: 'Recognised MMU Alumni Member.' },
+            'mmu staff':         { icon: 'fas fa-chalkboard-user',     iconCls: 'text-orange-300',  bg: 'bg-orange-900',  desc: 'Current MMU Staff Member.' },
+            'moderator':         { icon: 'fas fa-shield-halved',       iconCls: 'text-green-400',   bg: 'bg-green-900',   desc: 'Trusted MMU OSSD Moderator.' },
+            'admin':             { icon: 'fas fa-shield',              iconCls: 'text-red-400',     bg: 'bg-red-900',     desc: 'MMU OSSD Admin.' },
+            'mmu ossd member':   { icon: 'fas fa-star',                iconCls: 'text-yellow-400',  bg: 'bg-yellow-900',  desc: 'MMU OSSD Developer.' },
+            'tester':            { icon: 'fas fa-flask',               iconCls: 'text-gray-300',    bg: 'bg-gray-700',    desc: 'Helped to test the website and reported bugs.' },
+            'beta tester':       { icon: 'fas fa-vial',                iconCls: 'text-purple-300',  bg: 'bg-purple-900',  desc: 'Helped test the entire website and reported bugs (Early Tester).' },
+            'lecturer':          { icon: 'fas fa-person-chalkboard',   iconCls: 'text-orange-400',  bg: 'bg-orange-900',  desc: 'MMU Lecturer.' },
+            'special thanks':    { icon: 'fas fa-heart',               iconCls: 'text-pink-400',    bg: 'bg-pink-900',    desc: 'Special thanks for your help to MMU OSSD.' },
+            'community helper':  { icon: 'fas fa-hands-helping',       iconCls: 'text-green-400',   bg: 'bg-green-900',   desc: 'Helped the community by answering questions and assisting other users.' },
+            'first comment':     { icon: 'fas fa-comment',             iconCls: 'text-blue-400',    bg: 'bg-blue-900',    desc: 'Posted your very first comment on a project.' },
+            'ten comments':      { icon: 'fas fa-comment-dots',        iconCls: 'text-green-400',   bg: 'bg-green-900',   desc: 'Reached 10 comments across projects.' },
+            'fifty comments':    { icon: 'fas fa-comments',            iconCls: 'text-yellow-400',  bg: 'bg-yellow-900',  desc: 'Reached 50 comments across projects.' },
+            'hundred comments':  { icon: 'fas fa-message',             iconCls: 'text-red-400',     bg: 'bg-red-900',     desc: 'Reached 100 comments across projects.' },
+            'hottest project':   { icon: 'fas fa-fire',                iconCls: 'text-red-400',     bg: 'bg-red-900',     desc: 'Your project reached the hottest trending spot.' },
+            'post first feed':   { icon: 'fas fa-paper-plane',         iconCls: 'text-blue-400',    bg: 'bg-blue-900',    desc: 'Posted your first community feed.' },
+            'trending project':  { icon: 'fas fa-arrow-trend-up',      iconCls: 'text-purple-400',  bg: 'bg-purple-900',  desc: 'Your project hit the trending list.' },
+            'owner':             { icon: 'fas fa-crown',               iconCls: 'text-yellow-400',  bg: 'bg-yellow-900',  desc: 'MMU OSSD Owner.'},
+            'first user join mmu ossd': { icon: 'fa-solid fa-user', iconCls: 'text-blue-400', bg: 'bg-blue-900', desc: 'The very first user to join MMU OSSD.' },
+        };
+
+        function showBadgeModal(name) {
+            // Case-insensitive lookup so any casing from the DB matches
+            const lower = name.toLowerCase().trim();
+            const found = Object.entries(BADGE_INFO).find(([k]) => k === lower);
+            const info = found ? found[1] : { icon: 'fas fa-medal', iconCls: 'text-yellow-300', bg: 'bg-gray-700', desc: 'A special badge awarded by the MMU OSSD admin.' };
+            document.getElementById('modal-icon').className = `${info.icon} ${info.iconCls} text-4xl`;
+            document.getElementById('modal-icon-wrap').className = `w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 ${info.bg}`;
+            document.getElementById('modal-title').textContent = name;
+            document.getElementById('modal-desc').textContent = info.desc;
+            document.getElementById('badge-modal').classList.remove('hidden');
+        }
+
+        function closeBadgeModal() {
+            document.getElementById('badge-modal').classList.add('hidden');
+        }
+
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeBadgeModal(); });
     </script>
 </body>
+
 </html>
