@@ -4345,7 +4345,8 @@ def admin_dashboard_page():
 
     all_projects = Project.query.filter(
         Project.status != 'Archived',
-        Project.status != 'Deleted'
+        Project.status != 'Deleted',
+        Project.status != 'Suspended'
     ).order_by(Project.created_at.desc()).all()
     all_comments = ProjectComment.query.order_by(ProjectComment.created_at.desc()).limit(50).all()
     all_posts = CommunityPost.query.order_by(CommunityPost.created_at.desc()).limit(50).all()
