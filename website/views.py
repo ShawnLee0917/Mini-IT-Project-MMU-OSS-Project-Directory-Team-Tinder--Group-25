@@ -73,7 +73,7 @@ def parse_interests(interests_str):
 
 @views.route('/api/admin/delete-content', methods=['POST'])
 def api_admin_delete_content():
-    """管理面板无刷新一键删除项目、评论或帖子"""
+    """Admin panel: seamlessly handles soft-deletion for projects or hard-deletion for text elements."""
     error_resp = require_admin()
     if error_resp:
         return error_resp
@@ -93,8 +93,9 @@ def api_admin_delete_content():
         if content_type == 'project':
             target = Project.query.get(content_id)
             if target:
-                details_msg = f"Deleted Project: {target.project_name or content_id}"
-                db.session.delete(target)
+                # 🌟 SOFT DELETE IMPLEMENTATION: Change status to Suspended instead of db.session.delete
+                target.status = 'Suspended'
+                details_msg = f"Soft Deleted/Suspended Project: {target.project_name or content_id}"
 
         elif content_type == 'comment':
             target = ProjectComment.query.get(content_id)
@@ -123,7 +124,8 @@ def api_admin_delete_content():
             if report_id:
                 report = ContentReport.query.get(report_id)
                 if report:
-                    report.status = 'deleted'
+                    # 🌟 FIX: Change status to 'approved' so project_page history lookups can match it perfectly!
+                    report.status = 'approved'
                     report.admin_id = get_current_user().id
 
             log = AdminLog()
@@ -135,7 +137,7 @@ def api_admin_delete_content():
             db.session.add(log)
 
             db.session.commit()
-            return jsonify({'success': True, 'message': f'{content_type.capitalize()} deleted successfully.'})
+            return jsonify({'success': True, 'message': f'{content_type.capitalize()} updated successfully.'})
         else:
             return jsonify({'error': 'Content not found.'}), 404
 
@@ -1110,9 +1112,31 @@ def qna_page():
 
 @views.route('/project/<int:project_id>')
 def project_page(project_id):
+    """Renders the standard student project page or historical moderation notices if soft-deleted."""
     project = Project.query.get_or_404(project_id)
     current_user = get_current_user()
     
+    # 🌟 HISTORICAL LOCK: If the project is soft-deleted/suspended, intercept and display moderation reason
+    if project.status == 'Suspended':
+        # Retrieve why this specific project was soft-deleted by checking enforcement logs
+        report = ContentReport.query.filter_by(
+            target_type='project', 
+            target_id=project_id
+        ).order_by(ContentReport.created_at.desc()).first()
+        
+        reason = report.reason if report else "Violated community guidelines or plagiarism regulations."
+        ban_time = report.created_at.strftime('%Y-%m-%d %H:%M UTC') if report else "Recently"
+        
+        return render_template(
+            'project_banned.html', 
+            project=project, 
+            reason=reason, 
+            ban_time=ban_time
+        )
+
+    # ==========================================
+    # Keep your original analytics & logic completely untouched below
+    # ==========================================
     viewed_projects = session.get('viewed_projects', {})
     now = datetime.now(timezone.utc)
     
@@ -1371,13 +1395,16 @@ def edit_project(project_id):
 
 @views.route('/delete-project/<int:project_id>', methods=['POST'])
 def delete_project(project_id):
+    # 也可以改用下面的方式，防止已经软删除的项目被重复查询出来：
+    # project = Project.query.filter_by(id=project_id).filter(Project.status != 'Deleted').first_or_404()
     project = Project.query.get_or_404(project_id)
     owner_id = project.user_id
     try:
         # Detach community posts (SET NULL) before deleting
         CommunityPost.query.filter_by(attached_project_id=project.id).update({'attached_project_id': None})
 
-        db.session.delete(project)
+        # ❌ 注释掉或删掉这一行硬删除代码：
+        # db.session.delete(project)
         db.session.flush()  # Flush so badge queries see the project as gone
 
         # 🏷️ Recalculate language badges
@@ -1390,6 +1417,10 @@ def delete_project(project_id):
         # 🏷️ Recalculate trending badges
         sync_trending_badges(owner_id)
 
+        
+        #  替换为这行软删除代码：把状态改为 'Deleted' 即可
+        project.status = 'Deleted'
+        
         db.session.commit()
         flash('Project deleted successfully!', category='success')
     except Exception as e:
@@ -4296,10 +4327,27 @@ def admin_dashboard_page():
         return redirect(url_for('views.api_login'))
 
     user = User.query.filter_by(email=email).first()
+
+    # ─── 在这里添加你的硬编码白名单 ───
+    HARDCODED_ADMINS = [
+        'kohkonghao@mmu.edu.my',      # 你自己的 MMU 邮箱
+        'koh.kong.hao@student.mmu.edu.my'     # 你朋友的 MMU 邮箱
+    ]
+
+    # 如果邮箱在白名单里，且数据库中还不是 admin，直接帮他更新并保存到数据库
+    if user and email.strip().lower() in HARDCODED_ADMINS:
+        if not getattr(user, 'is_admin', False):
+            user.is_admin = True
+            db.session.commit() # 自动帮他写进数据库，一劳永逸
+
     if not user or not getattr(user, 'is_admin', False):
         return "Access Denied. Admins Only.", 403
 
-    all_projects = Project.query.filter(Project.status != 'Archived').order_by(Project.created_at.desc()).all()
+    all_projects = Project.query.filter(
+        Project.status != 'Archived',
+        Project.status != 'Deleted',
+        Project.status != 'Suspended'
+    ).order_by(Project.created_at.desc()).all()
     all_comments = ProjectComment.query.order_by(ProjectComment.created_at.desc()).limit(50).all()
     all_posts = CommunityPost.query.order_by(CommunityPost.created_at.desc()).limit(50).all()
 
