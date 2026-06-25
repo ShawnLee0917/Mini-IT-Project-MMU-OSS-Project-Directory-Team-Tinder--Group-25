@@ -1151,15 +1151,24 @@ def edit_project(project_id):
 
 @views.route('/delete-project/<int:project_id>', methods=['POST'])
 def delete_project(project_id):
+    # 也可以改用下面的方式，防止已经软删除的项目被重复查询出来：
+    # project = Project.query.filter_by(id=project_id).filter(Project.status != 'Deleted').first_or_404()
     project = Project.query.get_or_404(project_id)
+    
     try:
-        db.session.delete(project)
+        # ❌ 注释掉或删掉这一行硬删除代码：
+        # db.session.delete(project)
+        
+        #  替换为这行软删除代码：把状态改为 'Deleted' 即可
+        project.status = 'Deleted'
+        
         db.session.commit()
         flash('Project deleted successfully!', category='success')
     except Exception as e:
         db.session.rollback()
         flash('An error occurred while deleting the project.', category='error')
         print(f"Error: {e}")
+        
     return redirect(url_for('views.my_projects'))
 
 @views.route('/api/register', methods=['POST'])
@@ -3987,7 +3996,10 @@ def admin_dashboard_page():
     if not user or not getattr(user, 'is_admin', False):
         return "Access Denied. Admins Only.", 403
 
-    all_projects = Project.query.filter(Project.status != 'Archived').order_by(Project.created_at.desc()).all()
+    all_projects = Project.query.filter(
+        Project.status != 'Archived',
+        Project.status != 'Deleted'
+    ).order_by(Project.created_at.desc()).all()
     all_comments = ProjectComment.query.order_by(ProjectComment.created_at.desc()).limit(50).all()
     all_posts = CommunityPost.query.order_by(CommunityPost.created_at.desc()).limit(50).all()
 

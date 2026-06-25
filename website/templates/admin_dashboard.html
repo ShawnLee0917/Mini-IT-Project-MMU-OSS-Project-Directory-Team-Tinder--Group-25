@@ -216,7 +216,7 @@
                     
                     <div class="shrink-0">
                         <span class="px-2.5 py-1 bg-red-950/40 text-red-400 border border-red-900/30 rounded-lg text-xs font-medium">
-                            {{ log.reason if log.reason else 'No reason provided' }}
+                            {{ log.reason or log.details or 'No details available' }}
                         </span>
                     </div>
                 </div>
