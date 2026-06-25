@@ -73,7 +73,7 @@ def parse_interests(interests_str):
 
 @views.route('/api/admin/delete-content', methods=['POST'])
 def api_admin_delete_content():
-    """管理面板无刷新一键删除项目、评论或帖子"""
+    """Admin panel: seamlessly handles soft-deletion for projects or hard-deletion for text elements."""
     error_resp = require_admin()
     if error_resp:
         return error_resp
@@ -93,8 +93,9 @@ def api_admin_delete_content():
         if content_type == 'project':
             target = Project.query.get(content_id)
             if target:
-                details_msg = f"Deleted Project: {target.project_name or content_id}"
-                db.session.delete(target)
+                # 🌟 SOFT DELETE IMPLEMENTATION: Change status to Suspended instead of db.session.delete
+                target.status = 'Suspended'
+                details_msg = f"Soft Deleted/Suspended Project: {target.project_name or content_id}"
 
         elif content_type == 'comment':
             target = ProjectComment.query.get(content_id)
@@ -123,7 +124,8 @@ def api_admin_delete_content():
             if report_id:
                 report = ContentReport.query.get(report_id)
                 if report:
-                    report.status = 'deleted'
+                    # 🌟 FIX: Change status to 'approved' so project_page history lookups can match it perfectly!
+                    report.status = 'approved'
                     report.admin_id = get_current_user().id
 
             log = AdminLog()
@@ -135,7 +137,7 @@ def api_admin_delete_content():
             db.session.add(log)
 
             db.session.commit()
-            return jsonify({'success': True, 'message': f'{content_type.capitalize()} deleted successfully.'})
+            return jsonify({'success': True, 'message': f'{content_type.capitalize()} updated successfully.'})
         else:
             return jsonify({'error': 'Content not found.'}), 404
 
@@ -895,9 +897,31 @@ def qna_page():
 
 @views.route('/project/<int:project_id>')
 def project_page(project_id):
+    """Renders the standard student project page or historical moderation notices if soft-deleted."""
     project = Project.query.get_or_404(project_id)
     current_user = get_current_user()
     
+    # 🌟 HISTORICAL LOCK: If the project is soft-deleted/suspended, intercept and display moderation reason
+    if project.status == 'Suspended':
+        # Retrieve why this specific project was soft-deleted by checking enforcement logs
+        report = ContentReport.query.filter_by(
+            target_type='project', 
+            target_id=project_id
+        ).order_by(ContentReport.created_at.desc()).first()
+        
+        reason = report.reason if report else "Violated community guidelines or plagiarism regulations."
+        ban_time = report.created_at.strftime('%Y-%m-%d %H:%M UTC') if report else "Recently"
+        
+        return render_template(
+            'project_banned.html', 
+            project=project, 
+            reason=reason, 
+            ban_time=ban_time
+        )
+
+    # ==========================================
+    # Keep your original analytics & logic completely untouched below
+    # ==========================================
     viewed_projects = session.get('viewed_projects', {})
     now = datetime.now(timezone.utc)
     
@@ -907,19 +931,15 @@ def project_page(project_id):
     
     if project_id_str in viewed_projects:
         try:
-            
             last_viewed_str = viewed_projects[project_id_str]
             last_viewed_time = datetime.fromisoformat(last_viewed_str)
-            
             
             if last_viewed_time.tzinfo is None:
                 last_viewed_time = last_viewed_time.replace(tzinfo=timezone.utc)
                 
-            
             if now - last_viewed_time < timedelta(hours=COOLDOWN_HOURS):
                 should_increment = False
         except (ValueError, TypeError):
-            
             pass
             
     if should_increment:

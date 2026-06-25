@@ -204,13 +204,21 @@
             </h2>
             <div class="space-y-2 max-h-64 overflow-y-auto">
                 {% for log in recent_logs %}
-                <div class="flex items-start gap-3 text-sm border-b border-gray-700/50 pb-2">
-                    <span class="text-gray-500 font-mono text-xs whitespace-nowrap">{{ log.created_at.strftime('%m-%d %H:%M') if log.created_at else '' }}</span>
-                    <span class="text-gray-300">
-                        <span class="text-red-400 font-semibold">{{ log.admin.name if log.admin else 'System' }}</span>
-                        · {{ log.action }}
-                        {% if log.target_type %}({{ log.target_type }} #{{ log.target_id }}){% endif %}
-                    </span>
+                <div class="flex items-center justify-between gap-3 text-sm border-b border-gray-700/50 pb-2">
+                    <div class="flex items-start gap-3">
+                        <span class="text-gray-500 font-mono text-xs whitespace-nowrap">{{ log.created_at.strftime('%m-%d %H:%M') if log.created_at else '' }}</span>
+                        <span class="text-gray-300">
+                            <span class="text-red-400 font-semibold">{{ log.admin.name if log.admin else 'System' }}</span>
+                            · {{ log.action }}
+                            {% if log.target_type %}({{ log.target_type }} #{{ log.target_id }}){% endif %}
+                        </span>
+                    </div>
+                    
+                    <div class="shrink-0">
+                        <span class="px-2.5 py-1 bg-red-950/40 text-red-400 border border-red-900/30 rounded-lg text-xs font-medium">
+                            {{ log.reason if log.reason else 'No reason provided' }}
+                        </span>
+                    </div>
                 </div>
                 {% endfor %}
             </div>
