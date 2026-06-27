@@ -63,24 +63,21 @@ def _initialize_default_labels():
 
 def _initialize_admin_system():
     """Auto-initialize admin system on app startup"""
-    from .models import User, ContentFlagKeyword, SuspendedUser, AdminLog
+    from .models import User, ContentFlagKeyword
     
     try:
-        # Check if any admin already exists
-        existing_admin = User.query.filter_by(is_admin=True).first()
+        # ─── Hardcoded admin emails ───
+        ADMIN_EMAILS = [
+            'kohkonghao@mmu.edu.my',
+            'koh.kong.hao@student.mmu.edu.my',
+        ]
         
-        if not existing_admin:
-            # If no admin, set the first user as admin
-            first_user = User.query.first()
-            
-            if first_user:
-                first_user.is_admin = True
+        for email in ADMIN_EMAILS:
+            user = User.query.filter_by(email=email).first()
+            if user and not user.is_admin:
+                user.is_admin = True
                 db.session.commit()
-                print(f"[AUTO SETUP] Admin account created: {first_user.email}")
-            else:
-                print("[AUTO SETUP] No users found yet. Admin will be set when first user registers.")
-        else:
-            print(f"[AUTO SETUP] Admin account already exists: {existing_admin.email}")
+                print(f"[AUTO SETUP] Admin granted: {email}")
         
         # Initialize default flagged keywords if not present
         default_keywords = [

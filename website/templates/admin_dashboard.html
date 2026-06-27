@@ -210,7 +210,14 @@
                         <span class="text-gray-300">
                             <span class="text-red-400 font-semibold">{{ log.admin.name if log.admin else 'System' }}</span>
                             · {{ log.action }}
-                            {% if log.target_type %}({{ log.target_type }} #{{ log.target_id }}){% endif %}
+                            {% if log.target_type %}
+    ({{ log.target_type }} #{{ log.target_id }})
+    {% if log.target_type == 'project' %}
+    <a href="/project/{{ log.target_id }}" target="_blank" class="text-blue-400 hover:underline text-xs ml-1">
+        <i class="fa-solid fa-arrow-up-right-from-square"></i> View
+    </a>
+    {% endif %}
+{% endif %}
                         </span>
                     </div>
                     
