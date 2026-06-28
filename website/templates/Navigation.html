@@ -592,57 +592,23 @@
         setTimeout(() => toast.remove(), 3500);
     }
 
-    // ── Badge Notification Queue ───────────────────────────────────────
-    // Strategy: compare current badges vs LAST POLL only.
-    // Badge gone → removed from lastPoll. Re-earned → not in lastPoll → notify.
-    // Works unlimited times regardless of dismiss state.
+    // ── Badge Notification Queue (API-backed) ─────────────────────────────────
+    // Fetches unread badge notifications from /api/badge-notifications.
+    // The server returns [] automatically if the user has turned off badge notifications.
 
-    function getBadgeQueue() {
-        try { return JSON.parse(localStorage.getItem('badge_notif_queue') || '[]'); } catch { return []; }
-    }
-    function saveBadgeQueue(q) {
-        localStorage.setItem('badge_notif_queue', JSON.stringify(q));
-    }
-    function getLastPollSet() {
-        try { return JSON.parse(localStorage.getItem('badge_last_poll') || '[]'); } catch { return []; }
-    }
-    function saveLastPollSet(s) {
-        localStorage.setItem('badge_last_poll', JSON.stringify(s));
+    async function fetchBadgeNotifications() {
+        try {
+            const res = await fetch(`${API}/badge-notifications`);
+            if (!res.ok) return [];
+            return await res.json(); // [{id, badge_name}, ...]
+        } catch { return []; }
     }
 
-    function syncBadgeQueue(currentBadges) {
-        const current  = currentBadges.map(b => b.toLowerCase().trim());
-        const lastPoll = getLastPollSet();
-        let   queue    = getBadgeQueue();
-
-        // New = in current but NOT in lastPoll
-        // Covers: first earn, AND re-earn after deletion (since lastPoll won't have it)
-        const newBadges = current.filter(b => !lastPoll.includes(b));
-        for (const name of newBadges) {
-            const displayName = currentBadges.find(
-                b => b.toLowerCase().trim() === name
-            ) || name;
-            // Only skip if this exact badge is already sitting unread in queue
-            const alreadyQueued = queue.some(e => e.name.toLowerCase().trim() === name);
-            if (!alreadyQueued) {
-                queue.push({
-                    id: name + '_' + Date.now() + '_' + Math.random(),
-                    name: displayName
-                });
-            }
-        }
-
-        // Always update lastPoll to current state
-        // When badge is gone next poll, it won't be in lastPoll → re-earn will notify ✅
-        saveLastPollSet(current);
-        saveBadgeQueue(queue);
-        return queue;
-    }
-
-    function dismissOneBadge(entryId) {
-        const newQueue = getBadgeQueue().filter(e => e.id !== entryId);
-        saveBadgeQueue(newQueue);
-        loadInvitations();
+    async function dismissOneBadge(notifId) {
+        try {
+            await fetch(`${API}/badge-notifications/${notifId}/dismiss`, { method: 'POST' });
+        } catch {}
+        await loadInvitations();
     }
 
     const BADGE_ICONS = {
@@ -688,19 +654,13 @@
     async function loadInvitations() {
         if (IS_FILE) return;
         try {
-            const [invRes, profileRes] = await Promise.all([
+            const [invRes, badgeNotifs] = await Promise.all([
                 fetch(`${API}/my-invitations`),
-                fetch(`${API}/profile`)
+                fetchBadgeNotifications()
             ]);
 
-            const invs    = invRes.ok    ? await invRes.json()    : [];
-            const profile = profileRes.ok ? await profileRes.json() : {};
-
-            // Get current badges, sync queue (detect new ones)
-            const currentBadges = (profile.badges || []).map(b =>
-                typeof b === 'object' ? b.badge : b
-            );
-            const queue = syncBadgeQueue(currentBadges);
+            const invs  = invRes.ok ? await invRes.json() : [];
+            const queue = badgeNotifs; // [{id, badge_name}, ...]
 
             const badgeEl      = document.getElementById('notif-badge');
             const mobileBadge  = document.getElementById('mobile-notif-badge');
@@ -723,16 +683,16 @@
 
             // Badge notifications — one card per queued entry
             const badgeItems = queue.map(entry => {
-                const b = getBadgeIcon(entry.name);
+                const b = getBadgeIcon(entry.badge_name);
                 return `
-                <div id="badge-card" href="entry.id" class="p-4 hover:bg-gray-50 transition flex items-start gap-3 border-b border-gray-50">
+                <div id="badge-card" class="p-4 hover:bg-gray-50 transition flex items-start gap-3 border-b border-gray-50">
                     <div class="w-9 h-9 rounded-full ${b.bg} flex items-center justify-center flex-shrink-0 mt-0.5">
                         <i class="${b.icon} ${b.color} text-base"></i>
                     </div>
                     <div class="flex-1 min-w-0">
                         <p class="text-xs font-bold text-gray-900">🏅 New Badge Earned!</p>
-                        <p class="text-xs text-gray-500 mt-0.5">You earned the <span class="font-semibold text-gray-700">${escapeHtml(entry.name)}</span> badge.</p>
-                        <button onclick="dismissOneBadge('${entry.id}')" class="text-[10px] text-gray-400 hover:text-red-500 mt-1.5 transition font-medium">
+                        <p class="text-xs text-gray-500 mt-0.5">You earned the <span class="font-semibold text-gray-700">${escapeHtml(entry.badge_name)}</span> badge.</p>
+                        <button onclick="dismissOneBadge(${entry.id})" class="text-[10px] text-gray-400 hover:text-red-500 mt-1.5 transition font-medium">
                             <i class="fas fa-check mr-1"></i>Got it
                         </button>
                     </div>
@@ -1379,6 +1339,9 @@
         loadAISuggestions();
         loadUserProjectsForPost();
     });
+
+    // Re-poll badge + invitation notifications every 30 seconds
+    setInterval(loadInvitations, 30000);
 </script>
 </body>
 </html>

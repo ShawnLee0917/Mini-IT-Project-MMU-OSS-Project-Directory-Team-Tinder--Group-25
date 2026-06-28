@@ -10,7 +10,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 import uuid
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify, session
-from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, QuestionCommentImage, QuestionImage, JoinRequest, LeaveRequest, MemberHistory, ProjectCommentImage, UserSettings, ProjectMember, CommunityPostComment, CommunityPost, CommunityPostLike, CommunityPostImage, CommunityPostFavorite, CommunityPostCommentImage, ProjectViewLog, ProjectUpdate, ContentReport, AdminLog, SuspendedUser, ContentFlagKeyword, ProjectStar
+from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, QuestionCommentImage, QuestionImage, JoinRequest, LeaveRequest, MemberHistory, ProjectCommentImage, UserSettings, ProjectMember, CommunityPostComment, CommunityPost, CommunityPostLike, CommunityPostImage, CommunityPostFavorite, CommunityPostCommentImage, ProjectViewLog, ProjectUpdate, ContentReport, AdminLog, SuspendedUser, ContentFlagKeyword, ProjectStar, BadgeNotification
 from datetime import datetime, timezone, timedelta
 
 views = Blueprint('views', __name__)
@@ -372,8 +372,46 @@ def admin_delete_badge(badge_id):
 
 
 # =============================================================
-# BADGE HELPER FUNCTIONS
+# BADGE NOTIFICATION ROUTES
 # =============================================================
+
+@views.route('/api/badge-notifications', methods=['GET'])
+def get_badge_notifications():
+    """Return unread badge notifications for the current user (respects notify_badges setting)."""
+    err = require_login()
+    if err:
+        return err
+
+    user = get_current_user()
+
+    # If the user has turned off badge notifications, return empty list
+    settings = user.settings
+    if settings and not settings.notify_badges:
+        return jsonify([])
+
+    pending = BadgeNotification.query.filter_by(
+        user_id=user.id, is_read=False
+    ).order_by(BadgeNotification.created_at.asc()).all()
+
+    return jsonify([{'id': n.id, 'badge_name': n.badge_name} for n in pending])
+
+
+@views.route('/api/badge-notifications/<int:notif_id>/dismiss', methods=['POST'])
+def dismiss_badge_notification(notif_id):
+    """Mark a badge notification as read/dismissed."""
+    err = require_login()
+    if err:
+        return err
+
+    user = get_current_user()
+    notif = BadgeNotification.query.get_or_404(notif_id)
+
+    if notif.user_id != user.id:
+        return jsonify({'error': 'Forbidden'}), 403
+
+    notif.is_read = True
+    db.session.commit()
+    return jsonify({'success': True})
 
 # Map language names (lowercase) → badge name
 LANG_BADGE_MAP = {
@@ -399,6 +437,8 @@ def _award_badge(user_id, badge_name):
     exists = Badge.query.filter_by(user_id=user_id, badge=badge_name).first()
     if not exists:
         db.session.add(Badge(user_id=user_id, badge=badge_name))
+        # Enqueue a badge notification (respects user's notify_badges setting at display time)
+        db.session.add(BadgeNotification(user_id=user_id, badge_name=badge_name))
 
 def _revoke_badge(user_id, badge_name):
     """Remove a badge if the user has it. Caller must commit."""
@@ -1777,6 +1817,7 @@ def get_settings():
             'project_invites': settings.notify_project_invites,
             'suggestions': settings.notify_new_suggestions,
             'newsletter': settings.notify_newsletter,
+            'badges': settings.notify_badges,
         },
         'display': {
             'theme': settings.theme,
@@ -1834,6 +1875,8 @@ def update_settings():
         settings.notify_new_suggestions = notifications['suggestions']
     if 'newsletter' in notifications:
         settings.notify_newsletter = notifications['newsletter']
+    if 'badges' in notifications:
+        settings.notify_badges = notifications['badges']
     
     # Update display settings
     display = data.get('display', {})
@@ -3328,10 +3371,11 @@ def update_comment_label(project_id, comment_id):
         return jsonify({'error': 'Comment not found in this project'}), 404
     
     data = request.get_json(silent=True) or {}
-    label = data.get('label')
+    label = data.get('label', None)
     
-    if label:
-        comment.label = label
+    # Allow empty string to clear the label (None means key wasn't sent at all)
+    if label is not None:
+        comment.label = label if label else None
     
     db.session.commit()
     
