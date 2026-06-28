@@ -365,6 +365,26 @@
 
     <div id="toast" class="hidden fixed bottom-6 right-6 z-[70] px-6 py-3 rounded-2xl text-white text-sm font-semibold shadow-lg transition-all duration-300"></div>
 
+    <!-- Badge earned notification popup -->
+    <div id="badge-notif-popup" class="hidden fixed bottom-6 left-6 z-[90] w-80 bg-gray-900 border border-yellow-500/40 rounded-2xl shadow-2xl overflow-hidden">
+        <div class="flex items-start gap-3 p-4">
+            <div id="badge-notif-icon-wrap" class="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0">
+                <i id="badge-notif-icon" class="text-2xl"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <p class="text-xs font-bold text-yellow-400 uppercase tracking-widest mb-0.5">🎉 Badge Earned!</p>
+                <p id="badge-notif-name" class="text-sm font-black text-white leading-tight"></p>
+                <p id="badge-notif-desc" class="text-xs text-gray-400 mt-1 leading-snug"></p>
+            </div>
+            <button onclick="dismissBadgeNotif()" class="text-gray-500 hover:text-white transition flex-shrink-0 mt-0.5">
+                <i class="fas fa-times text-sm"></i>
+            </button>
+        </div>
+        <div class="h-1 bg-gray-700 w-full">
+            <div id="badge-notif-progress" class="h-1 bg-yellow-400 transition-all duration-100" style="width:100%"></div>
+        </div>
+    </div>
+
     <div id="edit-profile-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center px-4">
         <div class="bg-white rounded-3xl p-8 w-full max-w-lg shadow-xl transform scale-100 transition-transform">
             <div class="flex justify-between items-center mb-6">
@@ -491,6 +511,11 @@
                             <label class="flex items-center justify-between cursor-pointer group">
                                 <div><p class="text-sm font-bold text-gray-800">Request to join a project</p></div>
                                 <input type="checkbox" id="setting-notif-join-request" class="sr-only peer">
+                                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500 relative"></div>
+                            </label>
+                            <label class="flex items-center justify-between cursor-pointer group">
+                                <div><p class="text-sm font-bold text-gray-800">Badges Earned</p></div>
+                                <input type="checkbox" id="setting-notif-badges" class="sr-only peer">
                                 <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500 relative"></div>
                             </label>
                         </div>
@@ -861,6 +886,9 @@ function applyTheme(theme) {
                 const notifJoinRequest = document.getElementById('setting-notif-join-request');
                 if (notifJoinRequest) notifJoinRequest.checked = s.notifications?.join_request ?? true;
                 
+                const notifBadges = document.getElementById('setting-notif-badges');
+                if (notifBadges) notifBadges.checked = s.notifications?.badges ?? true;
+                
                 const themeSelect = document.getElementById('setting-theme');
                 if (themeSelect) themeSelect.value = s.display?.theme || 'light';
             } catch {
@@ -887,6 +915,7 @@ function applyTheme(theme) {
                         project_invites: document.getElementById('setting-notif-invites').checked,
                         project_published: document.getElementById('setting-notif-project-published').checked,
                         join_request: document.getElementById('setting-notif-join-request').checked,
+                        badges: document.getElementById('setting-notif-badges').checked,
                     },
                     display: {
                         theme: document.getElementById('setting-theme').value,
@@ -1127,6 +1156,91 @@ document.getElementById('setting-theme').addEventListener('change', function () 
 
 // Attach this function to your dark mode switch button trigger
 document.getElementById('theme-toggle-btn').addEventListener('click', toggleTheme);
+
+// ── Badge Notification System ────────────────────────────────────────────────
+const BADGE_NOTIF_DURATION = 6000; // ms each popup stays visible
+let _badgeQueue = [];        // pending notification objects [{id, badge_name}]
+let _badgeShowing = false;   // is a popup currently visible?
+let _badgeProgressTimer = null;
+let _badgeDismissTimer = null;
+let _currentNotifId = null;
+
+async function pollBadgeNotifications() {
+    try {
+        const res = await fetch(`${API}/badge-notifications`);
+        if (!res.ok) return;
+        const data = await res.json();
+        // Add only items not already queued or shown
+        const knownIds = new Set(_badgeQueue.map(n => n.id));
+        data.forEach(n => {
+            if (!knownIds.has(n.id)) _badgeQueue.push(n);
+        });
+        if (!_badgeShowing && _badgeQueue.length > 0) showNextBadgeNotif();
+    } catch (_) {}
+}
+
+function showNextBadgeNotif() {
+    if (_badgeQueue.length === 0) { _badgeShowing = false; return; }
+    _badgeShowing = true;
+
+    const notif = _badgeQueue.shift();
+    _currentNotifId = notif.id;
+
+    const info = getBadgeInfo(notif.badge_name);
+    const popup   = document.getElementById('badge-notif-popup');
+    const iconWrap = document.getElementById('badge-notif-icon-wrap');
+    const icon    = document.getElementById('badge-notif-icon');
+    const nameEl  = document.getElementById('badge-notif-name');
+    const descEl  = document.getElementById('badge-notif-desc');
+    const bar     = document.getElementById('badge-notif-progress');
+
+    iconWrap.className = `w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${info.bg}`;
+    icon.className     = `${info.icon} ${info.iconCls} text-2xl`;
+    nameEl.textContent = notif.badge_name;
+    descEl.textContent = info.desc;
+
+    // Reset progress bar
+    bar.style.transition = 'none';
+    bar.style.width = '100%';
+    popup.classList.remove('hidden');
+
+    // Animate progress bar draining over BADGE_NOTIF_DURATION
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            bar.style.transition = `width ${BADGE_NOTIF_DURATION}ms linear`;
+            bar.style.width = '0%';
+        });
+    });
+
+    clearTimeout(_badgeDismissTimer);
+    _badgeDismissTimer = setTimeout(() => dismissBadgeNotif(), BADGE_NOTIF_DURATION);
+}
+
+async function dismissBadgeNotif() {
+    clearTimeout(_badgeDismissTimer);
+    clearTimeout(_badgeProgressTimer);
+
+    const popup = document.getElementById('badge-notif-popup');
+    popup.classList.add('hidden');
+
+    // Mark as read on server
+    if (_currentNotifId !== null) {
+        try {
+            await fetch(`${API}/badge-notifications/${_currentNotifId}/dismiss`, { method: 'POST' });
+        } catch (_) {}
+        _currentNotifId = null;
+    }
+
+    // Small gap between popups, then show next
+    setTimeout(() => {
+        _badgeShowing = false;
+        if (_badgeQueue.length > 0) showNextBadgeNotif();
+    }, 600);
+}
+
+// Poll every 15 seconds. First poll after a short delay on load.
+setTimeout(pollBadgeNotifications, 2000);
+setInterval(pollBadgeNotifications, 15000);
     </script>
 </body>
 </html>

@@ -71,6 +71,7 @@ class UserSettings(db.Model):
     notify_project_invites = db.Column(db.Boolean, default=True)
     notify_new_suggestions = db.Column(db.Boolean, default=True)
     notify_newsletter = db.Column(db.Boolean, default=False)
+    notify_badges = db.Column(db.Boolean, default=True)  # Show badge earned popup notifications
     
     # Display preferences
     theme = db.Column(db.String(20), nullable=False, default='light')  # 'light', 'dark'
@@ -97,6 +98,19 @@ class Badge(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     badge = db.Column(db.String(255), nullable=False)
+
+
+class BadgeNotification(db.Model):
+    """Queue of badge earned notifications pending display to the user"""
+    __tablename__ = 'badge_notifications'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    badge_name = db.Column(db.String(255), nullable=False)
+    is_read = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT))
+
+    user = db.relationship('User', backref=db.backref('badge_notifications', lazy='dynamic', cascade='all, delete-orphan'))
 
 
 class Comment(db.Model):
