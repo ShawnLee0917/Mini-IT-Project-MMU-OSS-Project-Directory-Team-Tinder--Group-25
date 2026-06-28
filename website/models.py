@@ -255,11 +255,18 @@ class ProjectComment(db.Model):
     # Role-based: 'user', 'team-member', 'owner'
     user_role = db.Column(db.String(20), nullable=False, default='user')
     
+    # Soft-delete audit trail
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False)
+    deleted_by_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    deleted_by_role = db.Column(db.String(20), nullable=True)  # 'admin', 'owner', 'self'
+    deleted_at = db.Column(db.DateTime, nullable=True)
+
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT))
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT), onupdate=datetime.now(MYT))
     
     # Relationships
-    author = db.relationship('User', backref='project_comments')
+    author = db.relationship('User', foreign_keys=[user_id], backref='project_comments')
+    deleted_by = db.relationship('User', foreign_keys=[deleted_by_id])
     project = db.relationship('Project', backref=db.backref('project_comments', cascade='all, delete-orphan'))
     images = db.relationship('ProjectCommentImage', backref='comment', lazy=True, cascade='all, delete-orphan')
     

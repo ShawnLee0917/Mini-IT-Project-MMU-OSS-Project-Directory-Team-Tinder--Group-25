@@ -259,6 +259,11 @@
             
             <h2 class="text-4xl font-black text-gray-900 leading-tight">{{ project.project_name }}</h2>
             
+            <!-- Hidden form for project deletion (POST required) -->
+            {% if current_user_role == 'owner' %}
+            <form id="delete-project-form" action="{{ url_for('views.delete_project', project_id=project.id) }}" method="POST" class="hidden"></form>
+            {% endif %}
+
             <div class="flex gap-3 mt-6 flex-wrap">
                 <button id="star-btn" onclick="toggleProjectStar()" class="bg-amber-50 text-amber-600 px-6 py-3 rounded-xl font-bold hover:bg-amber-100 transition flex items-center gap-2 border border-amber-200 shadow-sm">
                     <i id="star-icon" class="{% if user_has_starred %}fas{% else %}far{% endif %} fa-star text-xl transition-transform duration-300"></i> 
@@ -269,7 +274,13 @@
                     <a href="{{ url_for('views.edit_project', project_id=project.id) }}" class="bg-yellow-100 text-yellow-700 px-6 py-3 rounded-xl font-bold hover:bg-yellow-200 transition flex items-center gap-2 border border-yellow-300">
                         <i class="fas fa-edit text-xl"></i> Edit
                     </a>
-                {% elif current_user and not current_user_role %}
+                {% endif %}
+                {% if current_user_role == 'owner' %}
+                    <button type="button" onclick="confirmDeleteProject()" class="bg-red-100 text-red-700 px-6 py-3 rounded-xl font-bold hover:bg-red-200 transition flex items-center gap-2 border border-red-300">
+                        <i class="fas fa-trash text-xl"></i> Delete Project
+                    </button>
+                {% endif %}
+                {% if current_user and not current_user_role %}
                     
                     {% if is_invited %}
                         <button onclick="respondToProjectInvitation('{{ invitation_id }}', 'accept')" class="bg-green-100 text-green-700 px-6 py-3 rounded-xl font-bold hover:bg-green-200 transition flex items-center gap-2 border border-green-300">
@@ -364,74 +375,82 @@
             </section>
 
             <section>
-                <div class="flex items-center mb-6">
-                    <h3 class="text-xs font-bold text-red-600 uppercase tracking-[0.2em] whitespace-nowrap">
-                        Comments & Updates
-                    </h3>
-                    <div class="h-px bg-gray-200 flex-grow ml-4"></div>
-                </div>
-
-                <div class="flex gap-2 mb-6 border-b border-gray-200">
-                    <button class="comment-tab px-4 py-2 font-semibold text-sm border-b-2 border-red-600 text-red-600 transition" data-type="all">
-                        <i class="fas fa-comments mr-2"></i>All
+                <!-- Tab bar -->
+                <div class="flex gap-1 mb-4 border-b border-gray-200">
+                    <button class="comment-tab px-3 py-2 font-semibold text-xs border-b-2 border-red-600 text-red-600 transition" data-type="all">
+                        <i class="fas fa-comments mr-1"></i>All
                     </button>
-                    <button class="comment-tab px-4 py-2 font-semibold text-sm border-b-2 border-transparent hover:border-red-400 transition" data-type="normal">
-                        <i class="fas fa-comment mr-2"></i>Discussion
+                    <button class="comment-tab px-3 py-2 font-semibold text-xs border-b-2 border-transparent hover:border-red-400 transition" data-type="normal">
+                        <i class="fas fa-comment mr-1"></i>Discussion
                     </button>
-                    <button class="comment-tab px-4 py-2 font-semibold text-sm border-b-2 border-transparent hover:border-red-400 transition" data-type="issue">
-                        <i class="fas fa-exclamation-circle mr-2"></i>Issues
+                    <button class="comment-tab px-3 py-2 font-semibold text-xs border-b-2 border-transparent hover:border-red-400 transition" data-type="issue">
+                        <i class="fas fa-exclamation-circle mr-1"></i>Issues
                     </button>
-                    <button class="comment-tab px-4 py-2 font-semibold text-sm border-b-2 border-transparent hover:border-red-400 transition" data-type="suggestion">
-                        <i class="fas fa-lightbulb mr-2"></i>Suggestions
+                    <button class="comment-tab px-3 py-2 font-semibold text-xs border-b-2 border-transparent hover:border-red-400 transition" data-type="suggestion">
+                        <i class="fas fa-lightbulb mr-1"></i>Suggestions
                     </button>
-                    <button class="comment-tab px-4 py-2 font-semibold text-sm border-b-2 border-transparent hover:border-red-400 transition" data-type="updates">
-                        <i class="fas fa-bullhorn mr-2"></i>Updates
+                    <button class="comment-tab px-3 py-2 font-semibold text-xs border-b-2 border-transparent hover:border-red-400 transition" data-type="updates">
+                        <i class="fas fa-bullhorn mr-1"></i>Updates
                     </button>
                 </div>
 
-                <div id="comment-form-container" class="bg-white p-6 rounded-2xl border border-gray-100 mb-6">
-                    <div class="mb-4">
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Add Comment</label>
-                        <textarea id="comment-input" placeholder="Share your thoughts..." 
-                            class="w-full p-4 border border-gray-200 rounded-xl focus:outline-none focus:border-red-400 resize-none" rows="3"></textarea>
+                <!-- Compact comment panel card -->
+                <div id="comment-panel" class="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col" style="max-height:520px;">
+
+                    <!-- Header with count -->
+                    <div class="flex items-center justify-between px-4 pt-3 pb-2 border-b border-gray-100">
+                        <span class="text-xs font-bold text-gray-700 uppercase tracking-widest">Comments</span>
+                        <span id="comment-count-badge" class="text-xs font-bold bg-gray-100 text-gray-600 rounded-full px-2 py-0.5">0</span>
                     </div>
 
-                    <div class="mb-4">
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Type</label>
-                        <select id="comment-type" class="w-full p-2 border border-gray-200 rounded-xl focus:outline-none focus:border-red-400 text-sm">
-                            <option value="normal">Discussion</option>
-                            <option value="issue">Issue</option>
-                            <option value="suggestion">Suggestion</option>
-                        </select>
-                        <p class="text-xs text-gray-500 mt-1">
-                            <i class="fas fa-info-circle mr-1"></i>Labels will be assigned by the project owner
-                        </p>
+                    <!-- Scrollable list -->
+                    <div id="comments-list" class="flex-1 overflow-y-auto px-3 py-2 space-y-1" style="min-height:120px;">
+                        <div class="text-center text-gray-400 py-6">
+                            <i class="fas fa-spinner fa-spin text-xl mb-2"></i>
+                            <p class="text-xs">Loading comments...</p>
+                        </div>
                     </div>
 
-                    <div id="label-container" class="mb-4 hidden">
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Label <span class="text-gray-400 font-normal">(optional)</span></label>
-                        <select id="comment-label" class="w-full p-2 border border-gray-200 rounded-xl focus:outline-none focus:border-red-400 text-sm">
-                            <option value="">No label</option>
-                        </select>
+                    <!-- Expandable options -->
+                    <div id="comment-options-panel" class="hidden border-t border-gray-100 px-4 py-3 space-y-2 bg-gray-50">
+                        <div class="flex gap-2 items-end">
+                            <div class="flex-1">
+                                <label class="text-xs font-semibold text-gray-500 mb-1 block">Type</label>
+                                <select id="comment-type" class="w-full p-1.5 border border-gray-200 rounded-lg focus:outline-none focus:border-red-400 text-xs">
+                                    <option value="normal">Discussion</option>
+                                    <option value="issue">Issue</option>
+                                    <option value="suggestion">Suggestion</option>
+                                </select>
+                            </div>
+                            <div class="flex-1" id="label-container" style="display:none;">
+                                <label class="text-xs font-semibold text-gray-500 mb-1 block">Label</label>
+                                <select id="comment-label" class="w-full p-1.5 border border-gray-200 rounded-lg focus:outline-none focus:border-red-400 text-xs">
+                                    <option value="">No label</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <input type="file" id="comment-images" accept="image/*" class="hidden">
+                            <button type="button" onclick="document.getElementById('comment-images').click()"
+                                class="inline-flex items-center gap-1 text-xs bg-white border border-dashed border-gray-300 text-gray-500 px-3 py-1 rounded-lg hover:border-red-400 hover:text-red-500 transition">
+                                <i class="fas fa-image"></i> Attach image
+                            </button>
+                            <div id="comment-image-preview" class="flex flex-wrap gap-2 mt-2"></div>
+                        </div>
                     </div>
 
-                    <div class="mb-4">
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">
-                            <i class="fas fa-images mr-1 text-gray-400"></i>Attach Images
-                            <span class="text-gray-400 font-normal">(optional)</span>
-                        </label>
-                        <input type="file" id="comment-images" accept="image/*" class="hidden">
-                        <button type="button" onclick="document.getElementById('comment-images').click()"
-                            class="inline-flex items-center gap-2 text-sm bg-gray-50 border border-dashed border-gray-300 text-gray-600 px-4 py-2 rounded-xl hover:border-red-400 hover:text-red-600 transition">
-                            <i class="fas fa-plus-circle"></i> Add Image
+                    <!-- Always-visible input bar -->
+                    <div id="comment-form-container" class="border-t border-gray-100 px-3 py-2 flex items-center gap-2">
+                        <input id="comment-input" type="text" placeholder="Write a comment..."
+                            class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-red-400 transition"
+                            onfocus="document.getElementById('comment-options-panel').classList.remove('hidden')" />
+                        <button onclick="submitComment(projectId)"
+                            class="w-9 h-9 flex items-center justify-center bg-red-600 hover:bg-red-700 text-white rounded-xl transition flex-shrink-0">
+                            <i class="fas fa-paper-plane text-xs"></i>
                         </button>
-                        <div id="comment-image-preview" class="flex flex-wrap gap-2 mt-3"></div>
                     </div>
 
-                    <button onclick="submitComment(projectId)" class="w-full bg-red-600 text-white font-bold py-2 rounded-xl hover:bg-red-700 transition">
-                        <i class="fas fa-paper-plane mr-2"></i>Post Comment
-                    </button>
-                </div>
+                </div><!-- end comment-panel -->
 
                 <div id="edit-comment-modal" class="hidden fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
                     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6">
@@ -459,13 +478,6 @@
                                 Cancel
                             </button>
                         </div>
-                    </div>
-                </div>
-
-                <div id="comments-list" class="space-y-4">
-                    <div class="text-center text-gray-400 py-8">
-                        <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
-                        <p>Loading comments...</p>
                     </div>
                 </div>
 
@@ -1350,12 +1362,16 @@ async function submitReport(event) {
         let filtered = currentCommentFilter === 'all' 
             ? allComments 
             : allComments.filter(c => c.comment_type === currentCommentFilter);
+
+        // Update count badge
+        const badge = document.getElementById('comment-count-badge');
+        if (badge) badge.textContent = allComments.length;
         
         if (filtered.length === 0) {
             container.innerHTML = `
-                <div class="text-center text-gray-400 py-8">
-                    <i class="fas fa-comments text-3xl mb-2"></i>
-                    <p>No comments yet. Be the first to share!</p>
+                <div class="text-center text-gray-400 py-6">
+                    <i class="fas fa-comments text-2xl mb-2"></i>
+                    <p class="text-xs">No comments yet. Be the first to share!</p>
                 </div>
             `;
             return;
@@ -1365,165 +1381,98 @@ async function submitReport(event) {
     }
 
 function createCommentHTML(comment) {
-    // ─── NEW: Intercept and render persistent tombstone if deleted ───
+    // ─── Tombstone for deleted comments ───
     if (comment.content === "This message was deleted." || comment.is_deleted) {
+        let pillText = 'This comment was deleted';
+        let pillClass = 'bg-gray-100 text-gray-400';
+        let subtextHTML = '';
+        if (comment.deleted_by_role === 'admin') {
+            pillText = 'This comment was deleted by administrator';
+            pillClass = 'bg-red-100 text-red-400';
+            if (comment.deleted_by_name) subtextHTML = `<span class="text-xs text-red-300 block mt-0.5">Admin: ${comment.deleted_by_name}</span>`;
+        } else if (comment.deleted_by_role === 'owner') {
+            pillText = 'This comment was deleted by project owner';
+            pillClass = 'bg-orange-100 text-orange-400';
+            if (comment.deleted_by_name) subtextHTML = `<span class="text-xs text-orange-300 block mt-0.5">Owner: ${comment.deleted_by_name}</span>`;
+        }
+        const deletedTime = comment.deleted_at
+            ? new Date(comment.deleted_at).toLocaleString('en-GB',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'short',year:'numeric'})
+            : (comment.created_at ? new Date(comment.created_at).toLocaleString('en-GB',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'short',year:'numeric'}) : '');
         return `
-            <div class="bg-gray-50 border border-dashed border-gray-200 p-6 rounded-2xl">
-                <div class="flex items-center gap-3 py-1 opacity-60">
-                    <div class="w-8 h-8 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-400 flex-shrink-0">
-                        <i class="fas fa-trash text-xs"></i>
-                    </div>
-                    <p class="text-sm text-gray-400 italic">
-                        <i class="fas fa-ban mr-1 text-xs"></i>This message was deleted.
-                    </p>
+            <div class="flex items-start gap-2 py-2 px-1 border-b border-gray-50 last:border-0">
+                <div class="w-7 h-7 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center font-bold flex-shrink-0 text-xs mt-0.5">
+                    ${comment.author_name ? comment.author_name[0].toUpperCase() : '?'}
                 </div>
-            </div>
-        `;
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                        <span class="font-semibold text-gray-400 text-xs">${comment.author_name || 'Unknown'}</span>
+                        <span class="text-gray-300 text-xs">${deletedTime}</span>
+                    </div>
+                    <span class="inline-block mt-1 px-2 py-0.5 rounded-full text-xs italic ${pillClass}">${pillText}</span>
+                    ${subtextHTML}
+                </div>
+            </div>`;
     }
+
     const isOwner = currentUserId === projectOwnerId;
     const isAuthor = currentUserId === comment.author_id;
+    const isAdmin = window.currentUserIsAdmin || false;
     const isIssueOrSuggestion = comment.comment_type !== 'normal';
-    
-    let typeIcon = '<i class="fas fa-comment text-gray-400"></i>';
-    let typeLabel = 'Discussion';
-    if (comment.comment_type === 'issue') {
-        typeIcon = '<i class="fas fa-exclamation-circle text-orange-500"></i>';
-        typeLabel = 'Issue';
-    } else if (comment.comment_type === 'suggestion') {
-        typeIcon = '<i class="fas fa-lightbulb text-yellow-500"></i>';
-        typeLabel = 'Suggestion';
-    }
-    
-    let roleClass = 'text-gray-500';
-    let roleIcon = '<i class="fas fa-user-circle"></i>';
-    if (comment.user_role === 'owner') {
-        roleClass = 'text-red-600';
-        roleIcon = '<i class="fas fa-crown"></i>';
-    } else if (comment.user_role === 'team-member') {
-        roleClass = 'text-blue-600';
-        roleIcon = '<i class="fas fa-users"></i>';
-    }
-    
-    const labelBadge = (comment.label && comment.comment_type !== 'normal') ? `
-        <span class="inline-block px-2 py-1 bg-gray-200 text-gray-700 text-xs font-semibold rounded-lg ml-2">
-            ${comment.label}
-        </span>
-    ` : '';
 
-    // Images attached to this comment — use {id, url} objects, make clickable (lightbox)
+    let typeTag = '';
+    if (comment.comment_type === 'issue') typeTag = '<span class="text-xs bg-orange-100 text-orange-600 rounded-full px-2 py-0.5 font-semibold">Issue</span>';
+    else if (comment.comment_type === 'suggestion') typeTag = '<span class="text-xs bg-yellow-100 text-yellow-600 rounded-full px-2 py-0.5 font-semibold">Suggestion</span>';
+
+    let nameClass = 'font-semibold text-gray-800 text-xs cursor-pointer hover:text-red-600 transition user-profile-link';
+    if (comment.user_role === 'owner') nameClass = 'font-semibold text-red-600 text-xs cursor-pointer hover:underline user-profile-link';
+    else if (comment.user_role === 'team-member') nameClass = 'font-semibold text-blue-600 text-xs cursor-pointer hover:underline user-profile-link';
+
+    const labelBadge = (comment.label && comment.comment_type !== 'normal')
+        ? `<span class="text-xs bg-gray-200 text-gray-600 rounded px-1.5 py-0.5">${comment.label}</span>` : '';
+
     const imagesHTML = (comment.images && comment.images.length) ? `
-        <div class="flex flex-wrap gap-2 mt-3">
+        <div class="flex flex-wrap gap-1 mt-1">
             ${comment.images.map(img => `
-                <div class="gallery-img rounded-xl overflow-hidden border border-gray-100 cursor-pointer shadow-sm"
-                    data-src="${img.url}" style="width:90px;height:70px">
+                <div class="gallery-img rounded-lg overflow-hidden border border-gray-100 cursor-pointer"
+                    data-src="${img.url}" style="width:60px;height:48px">
                     <img src="${img.url}" class="w-full h-full object-cover hover:scale-105 transition duration-300">
-                </div>
-            `).join('')}
-        </div>
-    ` : '';
-
-    // Actions for the comment author (edit + delete)
-    const authorActions = isAuthor ? `
-        <button onclick="openEditModal(${comment.id}, \`${escapeHtml(comment.content).replace(/`/g,'\\`')}\`)"
-            class="bg-yellow-50 text-yellow-700 px-2 py-1 rounded text-xs font-semibold hover:bg-yellow-100 transition">
-            <i class="fas fa-pen"></i> Edit
-        </button>
-        <button onclick="deleteComment(${comment.id})"
-            class="bg-red-50 text-red-700 px-2 py-1 rounded text-xs font-semibold hover:bg-red-100 transition">
-            <i class="fas fa-trash"></i> Delete
-        </button>
-    ` : '';
-
-    // Owner-only moderation actions (move type / label)
-    const ownerModActions = isOwner && !isAuthor ? `
-        <select class="text-xs bg-gray-100 border border-gray-300 rounded px-2 py-1" onchange="moveCommentType(${comment.id}, this.value)">
-            <option value="">Move to...</option>
-            <option value="normal">Discussion</option>
-            <option value="issue">Issue</option>
-            <option value="suggestion">Suggestion</option>
-        </select>
-        ${isIssueOrSuggestion ? `
-            <select class="text-xs bg-gray-100 border border-gray-300 rounded px-2 py-1" onchange="updateCommentLabel(${comment.id}, this.value)">
-                <option value="">Change label...</option>
-                ${commentLabels.map(l => `<option value="${l.name}" ${comment.label === l.name ? 'selected' : ''}>${l.name}</option>`).join('')}
-            </select>
-        ` : ''}
-        <button onclick="deleteComment(${comment.id})"
-            class="bg-red-50 text-red-700 px-2 py-1 rounded text-xs font-semibold hover:bg-red-100 transition">
-            <i class="fas fa-trash"></i> Delete
-        </button>
-    ` : '';
-
-    // If owner IS the author, show both edit + owner moderation
-    const ownerAuthorActions = (isOwner && isAuthor) ? `
-        <button onclick="openEditModal(${comment.id}, \`${escapeHtml(comment.content).replace(/`/g,'\\`')}\`)"
-            class="bg-yellow-50 text-yellow-700 px-2 py-1 rounded text-xs font-semibold hover:bg-yellow-100 transition">
-            <i class="fas fa-pen"></i> Edit
-        </button>
-        <select class="text-xs bg-gray-100 border border-gray-300 rounded px-2 py-1" onchange="moveCommentType(${comment.id}, this.value)">
-            <option value="">Move to...</option>
-            <option value="normal">Discussion</option>
-            <option value="issue">Issue</option>
-            <option value="suggestion">Suggestion</option>
-        </select>
-        ${isIssueOrSuggestion ? `
-            <select class="text-xs bg-gray-100 border border-gray-300 rounded px-2 py-1" onchange="updateCommentLabel(${comment.id}, this.value)">
-                <option value="">Change label...</option>
-                ${commentLabels.map(l => `<option value="${l.name}" ${comment.label === l.name ? 'selected' : ''}>${l.name}</option>`).join('')}
-            </select>
-        ` : ''}
-        <button onclick="deleteComment(${comment.id})"
-            class="bg-red-50 text-red-700 px-2 py-1 rounded text-xs font-semibold hover:bg-red-100 transition">
-            <i class="fas fa-trash"></i> Delete
-        </button>
-    ` : '';
-
-    const reportAction = !isAuthor ? `
-        <button onclick="openReportModal('comment', ${comment.id})"
-            class="bg-gray-50 text-gray-600 px-2 py-1 rounded text-xs font-semibold hover:bg-red-50 hover:text-red-700 transition"
-            title="Report this comment">
-            <i class="fas fa-flag"></i> Report
-        </button>
-    ` : '';
-
-    const actionsHTML = ((isOwner && isAuthor) ? ownerAuthorActions
-        : isOwner ? ownerModActions
-        : isAuthor ? authorActions
-        : '') + reportAction;
-
-    const actionBar = actionsHTML.trim() ? `
-        <div class="absolute top-4 right-4 flex gap-2 flex-wrap opacity-0 group-hover:opacity-100 transition">
-            ${actionsHTML}
+                </div>`).join('')}
         </div>` : '';
-    
-    return `
-        <div class="bg-white p-6 rounded-2xl border border-gray-100 group relative hover:shadow-md transition">
-            ${actionBar}
-            
-            <div class="flex items-start gap-4">
-                <div class="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-bold flex-shrink-0 cursor-pointer hover:opacity-80 transition user-profile-link" data-user-id="${comment.author_id}" title="Click to view profile">
-                    ${comment.author_name[0].toUpperCase()}
-                </div>
-                
-                <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <span class="font-semibold text-gray-900 cursor-pointer hover:text-red-600 transition user-profile-link" data-user-id="${comment.author_id}" title="Click to view profile">${comment.author_name}</span>
-                        <span class="${roleClass} text-xs font-semibold">${roleIcon} ${comment.user_role}</span>
-                        <span class="text-gray-400 text-xs">${new Date(comment.created_at).toLocaleDateString()}</span>
-                    </div>
-                    
-                    <div class="flex items-center gap-2 mt-2 mb-3">
-                        ${typeIcon}
-                        <span class="text-xs font-semibold text-gray-600">${typeLabel}</span>
-                        ${labelBadge}
-                    </div>
-                    
-                    <p class="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap" id="comment-text-${comment.id}">${escapeHtml(comment.content)}</p>
-                    ${imagesHTML}
-                </div>
-            </div>
-        </div>
+
+    // Actions — only show on hover via parent group
+    const canDelete = isAuthor || isOwner || isAdmin;
+    const canEdit = isAuthor;
+    const actionsHTML = `
+        ${canEdit ? `<button onclick="openEditModal(${comment.id}, \`${escapeHtml(comment.content).replace(/\`/g,'\`')}\`)" class="text-gray-400 hover:text-yellow-600 transition" title="Edit"><i class="fas fa-pen text-xs"></i></button>` : ''}
+        ${canDelete ? `<button onclick="deleteComment(${comment.id})" class="text-gray-400 hover:text-red-500 transition" title="Delete"><i class="fas fa-times text-xs"></i></button>` : ''}
+        ${!isAuthor ? `<button onclick="openReportModal('comment', ${comment.id})" class="text-gray-400 hover:text-red-400 transition" title="Report"><i class="fas fa-flag text-xs"></i></button>` : ''}
+        ${(isOwner && !isAuthor) ? `
+        <select class="text-xs bg-gray-100 border-0 rounded px-1 py-0.5 text-gray-500" onchange="moveCommentType(${comment.id}, this.value)">
+            <option value="">Move...</option>
+            <option value="normal">Discussion</option>
+            <option value="issue">Issue</option>
+            <option value="suggestion">Suggestion</option>
+        </select>` : ''}
     `;
+
+    const ts = new Date(comment.created_at).toLocaleString('en-GB',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'short',year:'numeric'});
+
+    return `
+        <div class="flex items-start gap-2 py-2 px-1 border-b border-gray-50 last:border-0 group">
+            <div class="w-7 h-7 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-bold flex-shrink-0 text-xs mt-0.5 cursor-pointer user-profile-link" data-user-id="${comment.author_id}">
+                ${comment.author_name[0].toUpperCase()}
+            </div>
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                    <span class="${nameClass}" data-user-id="${comment.author_id}">${comment.author_name}</span>
+                    <span class="text-gray-300 text-xs">${ts}</span>
+                    ${typeTag}${labelBadge}
+                    <span class="ml-auto flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition">${actionsHTML}</span>
+                </div>
+                <p class="text-gray-600 text-xs leading-relaxed mt-0.5 whitespace-pre-wrap" id="comment-text-${comment.id}">${escapeHtml(comment.content)}</p>
+                ${imagesHTML}
+            </div>
+        </div>`;
 }
 
 // ── Pending files queue for new comment ─────────────────────────────────────
@@ -1769,7 +1718,19 @@ async function saveEditComment() {
     }
 }
 
-// Delete comment (author or project owner)
+// Delete project (project owner only) — hard delete, removes project entirely
+async function confirmDeleteProject() {
+    const confirmed = await showConfirmModal(
+        'Delete Project',
+        'Are you sure you want to permanently delete this project? This cannot be undone — all comments, members, and data will be removed.',
+        'Yes, Delete Project',
+        'danger'
+    );
+    if (!confirmed) return;
+    document.getElementById('delete-project-form').submit();
+}
+
+// Delete comment (author, project owner, or admin)
 async function deleteComment(commentId) {
     const confirmed = await showConfirmModal(
         'Delete Comment',
@@ -1780,6 +1741,7 @@ async function deleteComment(commentId) {
     if (!confirmed) return;
     
     try {
+        // No ?source param = deletion from project page → role will be 'owner' or 'self'
         const res = await fetch(`${API}/project/${projectId}/comments/${commentId}`, {
             method: 'DELETE'
         });
@@ -1790,35 +1752,8 @@ async function deleteComment(commentId) {
             return;
         }
 
-        // Show "This message was deleted" tombstone in place of the comment
-        // Find the comment card by looking for a button with this commentId
-        const btn = document.querySelector(`[onclick="deleteComment(${commentId})"]`);
-        const card = btn ? btn.closest('.bg-white.p-6.rounded-2xl') : null;
-        if (card) {
-            card.innerHTML = `
-                <div class="flex items-center gap-3 py-1 opacity-60">
-                    <div class="w-8 h-8 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-400 flex-shrink-0">
-                        <i class="fas fa-trash text-xs"></i>
-                    </div>
-                    <p class="text-sm text-gray-400 italic">
-                        <i class="fas fa-ban mr-1 text-xs"></i>This message was deleted.
-                    </p>
-                </div>
-            `;
-            card.classList.remove('hover:shadow-md', 'group');
-            card.classList.add('bg-gray-50', 'border-dashed');
-        } else {
-            // Fallback: reload comments if card not found
-            await loadComments();
-        }
-
-        // Also remove from local allComments array so filter stays in sync
-allComments = allComments.map(c => {
-    if (c.id === commentId) {
-        c.content = "This message was deleted.";
-    }
-    return c;
-});
+        // Reload to get fresh audit data (deleted_by_role, deleted_by_name, deleted_at)
+        await loadComments();
     } catch (err) {
         console.error('Error deleting comment:', err);
         alert('Failed to delete comment');
@@ -1867,14 +1802,10 @@ allComments = allComments.map(c => {
             currentCommentFilter = tab.dataset.type;
             
             if (currentCommentFilter === 'updates') {
-                document.getElementById('comments-list').classList.add('hidden');
-                const formContainer = document.getElementById('comment-form-container');
-                if (formContainer) formContainer.classList.add('hidden');
+                document.getElementById('comment-panel').classList.add('hidden');
                 document.getElementById('updates-list-container').classList.remove('hidden');
             } else {
-                document.getElementById('comments-list').classList.remove('hidden');
-                const formContainer = document.getElementById('comment-form-container');
-                if (formContainer) formContainer.classList.remove('hidden');
+                document.getElementById('comment-panel').classList.remove('hidden');
                 document.getElementById('updates-list-container').classList.add('hidden');
                 renderComments();
             }
@@ -1887,9 +1818,9 @@ allComments = allComments.map(c => {
             const labelContainer = document.getElementById('label-container');
             if (!labelContainer) return;
             if (e.target.value !== 'normal') {
-                labelContainer.classList.remove('hidden');
+                labelContainer.style.display = 'block';
             } else {
-                labelContainer.classList.add('hidden');
+                labelContainer.style.display = 'none';
             }
         });
     }
