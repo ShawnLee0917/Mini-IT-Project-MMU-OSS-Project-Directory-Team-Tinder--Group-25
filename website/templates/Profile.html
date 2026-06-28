@@ -615,14 +615,9 @@
         document.addEventListener('keydown', e => { if (e.key === 'Escape') closeBadgeModal(); });
 
         // 1. Function to apply the theme visually
-        function applyTheme(theme) {
-        if (theme === 'dark') {
-        document.documentElement.classList.add('dark');
-        localStorage.setItem('theme', 'dark');
-        } else {
-        document.documentElement.classList.remove('dark');
-        localStorage.setItem('theme', 'light');
-        }
+function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
 }
 
 // Initial theme check on page load to prevent flash
@@ -1085,6 +1080,11 @@
             settingsModal.addEventListener('click', e => { if (e.target === settingsModal) settingsModal.classList.add('hidden'); });
             
             document.getElementById('save-settings-btn').addEventListener('click', saveSettings);
+
+            // Live theme preview — no save needed
+document.getElementById('setting-theme').addEventListener('change', function () {
+    applyTheme(this.value);
+});
 
             // Settings Tabs
             document.querySelectorAll('.settings-tab-btn').forEach(btn => {
