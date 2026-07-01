@@ -1991,6 +1991,68 @@ def get_all_projects():
     } for p in projects])
 
 
+@views.route('/api/trending-tags', methods=['GET'])
+def get_trending_tags():
+    """Derive trending tech-stack tags from the same activity data used on the
+    Hottest Projects page, so the Search page 'Trending' chips stay in sync."""
+    all_projects = Project.query.filter(Project.status != 'Archived').all()
+
+    now = datetime.now(timezone.utc)
+    seven_days_ago = now - timedelta(days=7)
+
+    tag_scores = {}
+
+    for p in all_projects:
+        if not p.languages:
+            continue
+
+        recent_comments = ProjectComment.query.filter(
+            ProjectComment.project_id == p.id,
+            ProjectComment.created_at >= seven_days_ago
+        ).count()
+
+        recent_views = ProjectViewLog.query.filter(
+            ProjectViewLog.project_id == p.id,
+            ProjectViewLog.created_at >= seven_days_ago
+        ).count()
+
+        attached_posts = CommunityPost.query.filter_by(attached_project_id=p.id).all()
+        post_ids = [post.id for post in attached_posts]
+        recent_likes = 0
+        if post_ids:
+            recent_likes = CommunityPostLike.query.filter(
+                CommunityPostLike.post_id.in_(post_ids),
+                CommunityPostLike.created_at >= seven_days_ago
+            ).count()
+
+        recent_stars = ProjectStar.query.filter(
+            ProjectStar.project_id == p.id,
+            ProjectStar.created_at >= seven_days_ago
+        ).count()
+
+        trending_score = (recent_views * 1) + (recent_likes * 5) + (recent_comments * 1) + (recent_stars * 20)
+
+        if trending_score <= 0:
+            continue
+
+        for lang in [l.strip() for l in p.languages.split(',') if l.strip()]:
+            tag_scores[lang] = tag_scores.get(lang, 0) + trending_score
+
+    top_tags = sorted(tag_scores.items(), key=lambda x: x[1], reverse=True)[:6]
+
+    # Fallback: if nothing has trending activity yet, surface the most-used languages instead
+    if not top_tags:
+        fallback_counts = {}
+        for p in all_projects:
+            if not p.languages:
+                continue
+            for lang in [l.strip() for l in p.languages.split(',') if l.strip()]:
+                fallback_counts[lang] = fallback_counts.get(lang, 0) + 1
+        top_tags = sorted(fallback_counts.items(), key=lambda x: x[1], reverse=True)[:6]
+
+    return jsonify([tag for tag, _ in top_tags])
+
+
 # Suggestions API
 
 

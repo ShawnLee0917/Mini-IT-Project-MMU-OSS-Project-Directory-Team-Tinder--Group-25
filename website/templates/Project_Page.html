@@ -8,9 +8,13 @@
         const currentTheme = localStorage.getItem('theme') || 'light';
         document.documentElement.setAttribute('data-theme', currentTheme);
     </script>
+<!-- This is the Tailwind CSS that i used for the website. -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" rel="stylesheet">
+    <!--https://cdnjs.com/ -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" rel="stylesheet">
     <style>
+
+        /* This is get from Google Fonts. */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
         body { font-family: 'Inter', sans-serif; }
 
@@ -95,6 +99,17 @@
         html[data-theme="dark"] textarea:focus,
         html[data-theme="dark"] select:focus {
             background-color: var(--bg-primary) !important;
+        }
+
+        html[data-theme="dark"] #logout-btn,
+        html[data-theme="dark"] #logout-btn-mobile {
+            background-color: #ffffff !important;
+            color: #dc2626 !important;
+        }
+
+        html[data-theme="dark"] #logout-btn:hover,
+        html[data-theme="dark"] #logout-btn-mobile:hover {
+            background-color: #f3f4f6 !important;
         }
 
         /* ── Animated Hamburger Button ─────────────────────────── */
@@ -276,6 +291,11 @@
                     </a>
                 {% endif %}
                 {% if current_user_role == 'owner' %}
+                    <button onclick="confirmDeleteProject()" class="bg-red-100 text-red-700 px-6 py-3 rounded-xl font-bold hover:bg-red-200 transition flex items-center gap-2 border border-red-300">
+                        <i class="fas fa-trash text-xl"></i> Delete Project
+                    </button>
+                {% endif %}
+                {% if current_user_role in ['owner', 'admin'] %}
                 {% endif %}
                 {% if current_user and not current_user_role %}
                     
