@@ -10,7 +10,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 import uuid
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify, session
-from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, QuestionCommentImage, QuestionImage, JoinRequest, LeaveRequest, MemberHistory, ProjectCommentImage, UserSettings, ProjectMember, CommunityPostComment, CommunityPost, CommunityPostLike, CommunityPostImage, CommunityPostFavorite, CommunityPostCommentImage, ProjectViewLog, ProjectUpdate, ContentReport, AdminLog, SuspendedUser, ContentFlagKeyword, ProjectStar
+from .models import  db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, JoinRequest, LeaveRequest, MemberHistory, ProjectCommentImage, UserSettings, ProjectMember, CommunityPostComment, CommunityPost, CommunityPostLike, CommunityPostImage, CommunityPostFavorite, CommunityPostCommentImage, ProjectViewLog, ProjectUpdate, ContentReport, AdminLog, SuspendedUser, ContentFlagKeyword, ProjectStar
 from datetime import datetime, timezone, timedelta
 
 views = Blueprint('views', __name__)
@@ -262,13 +262,6 @@ def _enrich_pending_reports(reports):
                 item['target_preview'] = (comment.content or '')[:120]
             else:
                 item['target_preview'] = 'Comment may have been removed already.'
-
-        elif report.content_type == 'question':
-            question = Question.query.get(report.content_id)
-            if question:
-                item['target_label'] = question.title
-                item['target_link'] = f'/qna/{report.content_id}'
-                item['target_preview'] = (question.body or '')[:120]
 
         elif report.content_type == 'post':
             post = CommunityPost.query.get(report.content_id)
@@ -633,12 +626,7 @@ def api_approve_report(report_id):
             content = Project.query.get(report.content_id)
             if content:
                 db.session.delete(content)
-                
-        elif report.content_type == 'question':
-            content = Question.query.get(report.content_id)
-            if content:
-                db.session.delete(content)
-                
+                                
         elif report.content_type == 'comment':
             content = ProjectComment.query.get(report.content_id)
             if content:
@@ -2029,471 +2017,6 @@ def accept_suggestion(project_id):
         return jsonify({'error': 'Already suggested'}), 409
     
     return jsonify({'success': True, 'message': 'Project suggested to you!'})
-
-
-# Q&A API
-
-@views.route('/api/questions', methods=['GET'])
-def get_questions():
-    """Return all questions, newest first, with like/fav/comment counts and current user's status."""
-    # We allow unauthenticated reads; current user detected if logged in
-    current_user_id = None
-    if 'user_email' in session:
-        u = User.query.filter_by(email=session['user_email']).first()
-        if u:
-            current_user_id = u.id
-
-    questions = db.session.query(Question, User.name).join(
-        User, Question.user_id == User.id
-    ).order_by(Question.created_at.desc()).limit(100).all()
-
-    result = []
-    for q, author_name in questions:
-        like_count = QuestionLike.query.filter_by(question_id=q.id).count()
-        fav_count  = QuestionFavorite.query.filter_by(question_id=q.id).count()
-        cmt_count  = QuestionComment.query.filter_by(question_id=q.id).count()
-
-        user_liked = False
-        user_faved = False
-        if current_user_id:
-            user_liked = QuestionLike.query.filter_by(
-                user_id=current_user_id, question_id=q.id).first() is not None
-            user_faved = QuestionFavorite.query.filter_by(
-                user_id=current_user_id, question_id=q.id).first() is not None
-
-        image_urls = [f'/static/uploads/{img.image_path}' for img in q.images]
-
-        result.append({
-            'id':           q.id,
-            'user_id':      q.user_id,
-            'author_name':  author_name,
-            'title':        q.title,
-            'body':         q.body,
-            'image_url':    f'/static/uploads/{q.image_path}' if q.image_path else '',
-            'image_urls':   image_urls,
-            'created_at':   q.created_at.isoformat(),
-            'like_count':   like_count,
-            'fav_count':    fav_count,
-            'comment_count': cmt_count,
-            'user_liked':   user_liked,
-            'user_faved':   user_faved,
-            'is_owner':     (current_user_id == q.user_id),
-        })
-
-    return jsonify(result)
-
-
-@views.route('/api/questions', methods=['POST'])
-def post_question():
-    err = require_login()
-    if err:
-        return err
-
-    # Support multipart (with image) and plain JSON
-    if request.content_type and 'multipart' in request.content_type:
-        title = request.form.get('title', '').strip()
-        body  = request.form.get('body', '').strip()
-    else:
-        data  = request.get_json(silent=True) or {}
-        title = data.get('title', '').strip()
-        body  = data.get('body', '').strip()
-
-    if not title:
-        return jsonify({'error': 'Title is required'}), 400
-    if not body:
-        return jsonify({'error': 'Question body is required'}), 400
-    if len(title) > 300:
-        return jsonify({'error': 'Title too long (max 300 chars)'}), 400
-    if len(body) > 5000:
-        return jsonify({'error': 'Body too long (max 5000 chars)'}), 400
-
-    user = User.query.filter_by(email=session['user_email']).first()
-    q = Question()
-    q.user_id = user.id
-    q.title = title
-    q.body = body
-
-    # Handle optional multiple images
-    if 'images' in request.files:
-        files = request.files.getlist('images')
-        for file in files:
-            if file and file.filename and allowed_file(file.filename):
-                ext = file.filename.rsplit('.', 1)[1].lower()
-                filename = f"q_{uuid.uuid4().hex}.{ext}"
-                file.save(os.path.join(UPLOAD_FOLDER, filename))
-                img = QuestionImage()
-                img.image_path = filename
-                q.images.append(img)
-
-    db.session.add(q)
-    db.session.commit()
-    return jsonify({'success': True, 'id': q.id})
-
-
-@views.route('/api/questions/<int:question_id>', methods=['DELETE'])
-def delete_question(question_id):
-    err = require_login()
-    if err:
-        return err
-
-    user = User.query.filter_by(email=session['user_email']).first()
-    q = Question.query.get(question_id)
-
-    if not q:
-        return jsonify({'error': 'Question not found'}), 404
-    if q.user_id != user.id:
-        return jsonify({'error': 'Not authorised'}), 403
-
-    db.session.delete(q)
-    db.session.commit()
-    return jsonify({'success': True})
-
-
-@views.route('/api/questions/<int:question_id>', methods=['PUT'])
-def edit_question(question_id):
-    err = require_login()
-    if err:
-        return err
-
-    user = User.query.filter_by(email=session['user_email']).first()
-    q = Question.query.get(question_id)
-
-    if not q:
-        return jsonify({'error': 'Question not found'}), 404
-    if q.user_id != user.id:
-        return jsonify({'error': 'Not authorised'}), 403
-
-    # Support multipart (with images) and plain JSON
-    if request.content_type and 'multipart' in request.content_type:
-        title = request.form.get('title', '').strip()
-        body = request.form.get('body', '').strip()
-    else:
-        data = request.get_json(silent=True) or {}
-        title = data.get('title', '').strip()
-        body = data.get('body', '').strip()
-
-    if not title:
-        return jsonify({'error': 'Title is required'}), 400
-    if not body:
-        return jsonify({'error': 'Question body is required'}), 400
-    if len(title) > 300:
-        return jsonify({'error': 'Title too long (max 300 chars)'}), 400
-    if len(body) > 5000:
-        return jsonify({'error': 'Body too long (max 5000 chars)'}), 400
-
-    q.title = title
-    q.body = body
-
-    # Handle optional new images
-    if 'images' in request.files:
-        files = request.files.getlist('images')
-        for file in files:
-            if file and file.filename and allowed_file(file.filename):
-                ext = file.filename.rsplit('.', 1)[1].lower()
-                filename = f"q_{uuid.uuid4().hex}.{ext}"
-                file.save(os.path.join(UPLOAD_FOLDER, filename))
-                img = QuestionImage()
-                img.image_path = filename
-                q.images.append(img)
-
-    db.session.commit()
-    return jsonify({'success': True, 'id': q.id})
-
-
-@views.route('/api/question-images/<int:image_id>', methods=['DELETE'])
-def delete_question_image(image_id):
-    err = require_login()
-    if err:
-        return err
-
-    user = User.query.filter_by(email=session['user_email']).first()
-    img = QuestionImage.query.get(image_id)
-    if not img:
-        return jsonify({'error': 'Image not found'}), 404
-    
-    q = img.question
-    if q.user_id != user.id:
-        return jsonify({'error': 'Not authorised'}), 403
-
-    db.session.delete(img)
-    db.session.commit()
-    return jsonify({'success': True})
-
-
-@views.route('/api/comment-images/<int:image_id>', methods=['DELETE'])
-def delete_qna_comment_image(image_id):
-    err = require_login()
-    if err:
-        return err
-
-    user = User.query.filter_by(email=session['user_email']).first()
-    img = QuestionCommentImage.query.get(image_id)
-    if not img:
-        return jsonify({'error': 'Image not found'}), 404
-    
-    c = img.comment
-    if c.user_id != user.id:
-        return jsonify({'error': 'Not authorised'}), 403
-
-    db.session.delete(img)
-    db.session.commit()
-    return jsonify({'success': True})
-
-
-@views.route('/api/questions/<int:question_id>/like', methods=['POST'])
-def toggle_like(question_id):
-    err = require_login()
-    if err:
-        return err
-
-    user = User.query.filter_by(email=session['user_email']).first()
-    existing = QuestionLike.query.filter_by(
-        user_id=user.id, question_id=question_id).first()
-
-    if existing:
-        db.session.delete(existing)
-        liked = False
-    else:
-        ql = QuestionLike()
-        ql.user_id = user.id
-        ql.question_id = question_id
-        db.session.add(ql)
-        liked = True
-
-    db.session.commit()
-    count = QuestionLike.query.filter_by(question_id=question_id).count()
-    return jsonify({'liked': liked, 'like_count': count})
-
-
-@views.route('/api/questions/<int:question_id>/favorite', methods=['POST'])
-def toggle_favorite(question_id):
-    err = require_login()
-    if err:
-        return err
-
-    user = User.query.filter_by(email=session['user_email']).first()
-    existing = QuestionFavorite.query.filter_by(
-        user_id=user.id, question_id=question_id).first()
-
-    if existing:
-        db.session.delete(existing)
-        faved = False
-    else:
-        qf = QuestionFavorite()
-        qf.user_id = user.id
-        qf.question_id = question_id
-        db.session.add(qf)
-        faved = True
-
-    db.session.commit()
-    count = QuestionFavorite.query.filter_by(question_id=question_id).count()
-    return jsonify({'faved': faved, 'fav_count': count})
-
-
-@views.route('/api/questions/<int:question_id>/comments', methods=['GET'])
-def get_question_comments(question_id):
-    rows = db.session.query(QuestionComment, User.name).join(
-        User, QuestionComment.user_id == User.id
-    ).filter(QuestionComment.question_id == question_id
-    ).order_by(QuestionComment.created_at.asc()).all()
-
-    current_user_id = None
-    if 'user_email' in session:
-        u = User.query.filter_by(email=session['user_email']).first()
-        if u:
-            current_user_id = u.id
-
-    result = [{
-        'id':          c.id,
-        'author_id':   c.user_id,
-        'author_name': name,
-        'body':        c.body,
-        'parent_id':   c.parent_id,
-        'created_at':  c.created_at.isoformat(),
-        'is_owner':    (current_user_id == c.user_id),
-        'image_urls':  [f'/static/uploads/{img.image_path}' for img in c.images],
-    } for c, name in rows]
-
-    return jsonify(result)
-
-
-@views.route('/api/questions/<int:question_id>/comments', methods=['POST'])
-def post_question_comment(question_id):
-    err = require_login()
-    if err:
-        return err
-
-    # Support multipart (with images) and plain JSON
-    if request.content_type and 'multipart' in request.content_type:
-        body = request.form.get('body', '').strip()
-    else:
-        data = request.get_json(silent=True) or {}
-        body = data.get('body', '').strip()
-
-    if not body:
-        return jsonify({'error': 'Comment cannot be empty'}), 400
-    if len(body) > 1000:
-        return jsonify({'error': 'Comment too long (max 1000 chars)'}), 400
-
-    q = Question.query.get(question_id)
-    if not q:
-        return jsonify({'error': 'Question not found'}), 404
-
-    parent_id = None
-    if request.content_type and 'multipart' in request.content_type:
-        parent_id = request.form.get('parent_id', None)
-    else:
-        data = request.get_json(silent=True) or {}
-        parent_id = data.get('parent_id', None)
-    
-    if parent_id:
-        parent = QuestionComment.query.get(parent_id)
-        if not parent or parent.question_id != question_id:
-            parent_id = None
-
-    user = User.query.filter_by(email=session['user_email']).first()
-    c = QuestionComment()
-    c.user_id = user.id
-    c.question_id = question_id
-    c.body = body
-    c.parent_id = parent_id
-    
-    # Handle optional multiple images
-    if 'images' in request.files:
-        files = request.files.getlist('images')
-        for file in files:
-            if file and file.filename and allowed_file(file.filename):
-                ext = file.filename.rsplit('.', 1)[1].lower()
-                filename = f"c_{uuid.uuid4().hex}.{ext}"
-                file.save(os.path.join(UPLOAD_FOLDER, filename))
-                img = QuestionCommentImage()
-                img.image_path = filename
-                c.images.append(img)
-    
-    db.session.add(c)
-    db.session.commit()
-    return jsonify({'success': True, 'id': c.id})
-
-
-# ---------------------------------------------------------------------------
-# Delete comment
-# ---------------------------------------------------------------------------
-
-@views.route('/api/questions/<int:question_id>/comments/<int:comment_id>', methods=['DELETE'])
-def delete_question_comment(question_id, comment_id):
-    err = require_login()
-    if err:
-        return err
-
-    user = User.query.filter_by(email=session['user_email']).first()
-    c = QuestionComment.query.get(comment_id)
-    
-    if not c or c.question_id != question_id:
-        return jsonify({'error': 'Comment not found'}), 404
-        
-    q = Question.query.get(question_id)
-    is_q_owner = (q and q.user_id == user.id)
-    
-    if c.user_id != user.id and not is_q_owner:
-        return jsonify({'error': 'Not authorised'}), 403
-
-    db.session.delete(c)
-    db.session.commit()
-    return jsonify({'success': True})
-
-@views.route('/api/questions/<int:question_id>/comments/<int:comment_id>', methods=['PUT'])
-def edit_question_comment(question_id, comment_id):
-    err = require_login()
-    if err:
-        return err
-
-    user = User.query.filter_by(email=session['user_email']).first()
-    c = QuestionComment.query.get(comment_id)
-    if not c or c.question_id != question_id:
-        return jsonify({'error': 'Comment not found'}), 404
-    if c.user_id != user.id:
-        return jsonify({'error': 'Not authorised'}), 403
-
-    # Support multipart (with images) and plain JSON
-    if request.content_type and 'multipart' in request.content_type:
-        body = request.form.get('body', '').strip()
-    else:
-        data = request.get_json(silent=True) or {}
-        body = data.get('body', '').strip()
-
-    if not body:
-        return jsonify({'error': 'Comment cannot be empty'}), 400
-    if len(body) > 1000:
-        return jsonify({'error': 'Comment too long (max 1000 chars)'}), 400
-
-    c.body = body
-    
-    # Handle optional new images
-    if 'images' in request.files:
-        files = request.files.getlist('images')
-        for file in files:
-            if file and file.filename and allowed_file(file.filename):
-                ext = file.filename.rsplit('.', 1)[1].lower()
-                filename = f"c_{uuid.uuid4().hex}.{ext}"
-                file.save(os.path.join(UPLOAD_FOLDER, filename))
-                img = QuestionCommentImage()
-                img.image_path = filename
-                c.images.append(img)
-    
-    db.session.commit()
-    return jsonify({'success': True, 'body': c.body})
-
-
-# ---------------------------------------------------------------------------
-# Liked / Favorited question lists
-# ---------------------------------------------------------------------------
-
-def _build_question_result(q, author_name, current_user_id):
-    like_count = QuestionLike.query.filter_by(question_id=q.id).count()
-    fav_count  = QuestionFavorite.query.filter_by(question_id=q.id).count()
-    cmt_count  = QuestionComment.query.filter_by(question_id=q.id).count()
-    user_liked = QuestionLike.query.filter_by(user_id=current_user_id, question_id=q.id).first() is not None
-    user_faved = QuestionFavorite.query.filter_by(user_id=current_user_id, question_id=q.id).first() is not None
-    image_urls = [f'/static/uploads/{img.image_path}' for img in q.images]
-    return {
-        'id': q.id, 'user_id': q.user_id, 'author_name': author_name,
-        'title': q.title, 'body': q.body,
-        'image_url': f'/static/uploads/{q.image_path}' if q.image_path else '',
-        'image_urls': image_urls,
-        'created_at': q.created_at.isoformat(),
-        'like_count': like_count, 'fav_count': fav_count, 'comment_count': cmt_count,
-        'user_liked': user_liked, 'user_faved': user_faved,
-        'is_owner': (current_user_id == q.user_id),
-    }
-
-
-@views.route('/api/questions/liked', methods=['GET'])
-def get_liked_questions():
-    err = require_login()
-    if err:
-        return err
-    user = User.query.filter_by(email=session['user_email']).first()
-    rows = db.session.query(Question, User.name).join(
-        User, Question.user_id == User.id
-    ).join(QuestionLike, QuestionLike.question_id == Question.id
-    ).filter(QuestionLike.user_id == user.id
-    ).order_by(Question.created_at.desc()).all()
-    return jsonify([_build_question_result(q, n, user.id) for q, n in rows])
-
-
-@views.route('/api/questions/favorited', methods=['GET'])
-def get_favorited_questions():
-    err = require_login()
-    if err:
-        return err
-    user = User.query.filter_by(email=session['user_email']).first()
-    rows = db.session.query(Question, User.name).join(
-        User, Question.user_id == User.id
-    ).join(QuestionFavorite, QuestionFavorite.question_id == Question.id
-    ).filter(QuestionFavorite.user_id == user.id
-    ).order_by(Question.created_at.desc()).all()
-    return jsonify([_build_question_result(q, n, user.id) for q, n in rows])
-
 
 
 # =====================================================================
@@ -4037,13 +3560,27 @@ def delete_community_post(post_id):
     err = require_login()
     if err: return err
     current_user = get_current_user()
+    
     post = CommunityPost.query.get_or_404(post_id)
+    
     if post.user_id != current_user.id:
         return jsonify({'error': 'Unauthorized'}), 403
-    db.session.delete(post)
-    db.session.commit()
-    return jsonify({'success': True})
-
+    
+    try:
+        CommunityPostComment.query.filter_by(post_id=post.id).delete()
+        
+        CommunityPostImage.query.filter_by(post_id=post.id).delete() 
+        
+        db.session.delete(post)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Post deleted successfully'})
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Delete Error: {str(e)}") 
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+    
 @views.route('/api/community_posts/<int:post_id>/like', methods=['POST'])
 def toggle_community_post_like(post_id):
     err = require_login()

@@ -280,7 +280,10 @@
                 <div id="notif-dropdown" class="hidden absolute right-0 mt-4 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50">
                     <div class="bg-gray-50 px-4 py-3 border-b border-gray-100 flex justify-between items-center">
                         <h3 class="text-sm font-bold text-gray-800"><i class="fas fa-envelope-open-text text-red-500 mr-2"></i>Notification</h3>
-                        <span id="notif-count-text" class="text-xs text-gray-500 font-semibold bg-white px-2 py-0.5 rounded-full border">0</span>
+                        <div class="flex items-center gap-2">
+                            <button onclick="markAllAsRead()" class="text-[10px] text-blue-600 hover:text-blue-800 font-bold transition">Mark all read</button>
+                            <span id="notif-count-text" class="text-xs text-gray-500 font-semibold bg-white px-2 py-0.5 rounded-full border">0</span>
+                        </div>
                     </div>
                     <div id="notif-list" class="max-h-64 overflow-y-auto divide-y divide-gray-50 text-gray-800">
                         <div class="p-4 text-center text-xs text-gray-400 italic">No new notifications.</div>
@@ -313,7 +316,7 @@
             <a href="{{ url_for('views.profile') }}" class="hover:text-red-200 transition">My Profile</a>
             
             <button onclick="document.getElementById('notif-btn').click()" class="text-left text-yellow-300 hover:text-white transition flex justify-between items-center" id="mobile-notif-row">
-                <span><i class="fas fa-bell mr-2"></i> Project Invitations</span>
+                <span><i class="fas fa-bell mr-2"></i> Notification</span>
                 <span id="mobile-notif-badge" class="bg-yellow-400 text-red-900 px-2 rounded-full text-xs hidden">0</span>
             </button>
 
@@ -957,7 +960,7 @@
                 if (p.category === 'Question') {
                     badgeHTML = '<span class="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"><i class="fas fa-question-circle mr-1"></i>Question</span>';
                 } else if (p.category === 'Posts') {
-                    badgeHTML = '<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"><i class="fas fa-memo mr-1"></i>Posts</span>';
+                    badgeHTML = '<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"><i class="fas fa-pencil-alt mr-1"></i>Posts</span>';
                 } else {
                     badgeHTML = '<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"><i class="fas fa-comment-dots mr-1"></i>Discussion</span>';
                 }
@@ -1379,6 +1382,15 @@
         loadAISuggestions();
         loadUserProjectsForPost();
     });
+
+function markAllAsRead() {
+    saveBadgeQueue([]); 
+    
+    loadInvitations();
+    
+    showNotif("All badges marked as read.");
+}
+
 </script>
 </body>
 </html>

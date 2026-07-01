@@ -265,12 +265,11 @@
             {% endif %}
 
             <div class="flex gap-3 mt-6 flex-wrap">
-                <button id="star-btn" onclick="toggleProjectStar()" class="bg-amber-50 text-amber-600 px-6 py-3 rounded-xl font-bold hover:bg-amber-100 transition flex items-center gap-2 border border-amber-200 shadow-sm">
-                    <i id="star-icon" class="{% if user_has_starred %}fas{% else %}far{% endif %} fa-star text-xl transition-transform duration-300"></i> 
-                    <span id="star-text">{% if user_has_starred %}Starred{% else %}Star{% endif %}</span>
-                    <span id="star-count" class="ml-1 bg-white/60 text-amber-700 px-2 py-0.5 rounded-lg text-sm border border-amber-200">{{ total_stars }}</span>
-                </button>
-                {% if current_user_role in ['owner', 'admin'] %}
+                <button id="fav-btn" onclick="toggleProjectFavorite()" class="bg-amber-50 text-amber-600 px-6 py-3 rounded-xl font-bold hover:bg-amber-100 transition flex items-center gap-2 border border-amber-200 shadow-sm">
+                    <i id="fav-icon" class="{% if user_has_starred %}fas{% else %}far{% endif %} fa-star text-xl transition-transform duration-300"></i> 
+                    <span id="fav-text">{% if user_has_starred %}Favourited{% else %}Favourite{% endif %}</span>
+                    <span id="fav-count" class="ml-1 bg-white/60 text-amber-700 px-2 py-0.5 rounded-lg text-sm border border-amber-200">{{ total_stars }}</span>
+                </button>                {% if current_user_role in ['owner', 'admin'] %}
                     <a href="{{ url_for('views.edit_project', project_id=project.id) }}" class="bg-yellow-100 text-yellow-700 px-6 py-3 rounded-xl font-bold hover:bg-yellow-200 transition flex items-center gap-2 border border-yellow-300">
                         <i class="fas fa-edit text-xl"></i> Edit
                     </a>
@@ -2517,51 +2516,52 @@ function closeUpdateModal() {
     // ────────────────────────────────────────────────────────────────────
     // Project Star / Favorite System
     // ────────────────────────────────────────────────────────────────────
-    async function toggleProjectStar() {
-        if (!currentUserId) {
-            await showAlertModal('Login Required', 'Please log in to star this project.');
-            window.location.href = '/login';
-            return;
-        }
 
-        const btn = document.getElementById('star-btn');
-        const icon = document.getElementById('star-icon');
-        const text = document.getElementById('star-text');
-        const countSpan = document.getElementById('star-count');
-
-        btn.disabled = true;
-
-        try {
-            const res = await fetch(`${API}/project/${projectId}/star`, {
-                method: 'POST'
-            });
-            const data = await res.json();
-            
-            if (res.ok) {
-                if (data.starred) {
-                    icon.classList.remove('far');
-                    icon.classList.add('fas');
-                    text.textContent = 'Starred';
-                } else {
-                    icon.classList.remove('fas');
-                    icon.classList.add('far');
-                    text.textContent = 'Star';
-                }
-                
-                icon.classList.add('scale-150');
-                setTimeout(() => icon.classList.remove('scale-150'), 250);
-                
-                countSpan.textContent = data.star_count;
-            } else {
-                await showAlertModal('Error', data.error || 'Failed to toggle star');
-            }
-        } catch (err) {
-            console.error('Error toggling project star:', err);
-            await showAlertModal('Error', 'A network error occurred.');
-        } finally {
-            btn.disabled = false;
-        }
+async function toggleProjectFavorite() {
+    if (!currentUserId) {
+        await showAlertModal('Login Required', 'Please log in to favourite this project.');
+        window.location.href = '/login';
+        return;
     }
+
+    const btn = document.getElementById('fav-btn');
+    const icon = document.getElementById('fav-icon');
+    const text = document.getElementById('fav-text');
+    const countSpan = document.getElementById('fav-count');
+
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`${API}/project/${projectId}/star`, {
+            method: 'POST'
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+            if (data.starred) {
+                icon.classList.remove('far');
+                icon.classList.add('fas');
+                text.textContent = 'Favourited'; 
+            } else {
+                icon.classList.remove('fas');
+                icon.classList.add('far');
+                text.textContent = 'Favourite';  
+            }
+            
+            icon.classList.add('scale-150');
+            setTimeout(() => icon.classList.remove('scale-150'), 250);
+            
+            countSpan.textContent = data.star_count;
+        } else {
+            await showAlertModal('Error', data.error || 'Failed to toggle favourite');
+        }
+    } catch (err) {
+        console.error('Error toggling project favourite:', err);
+        await showAlertModal('Error', 'A network error occurred.');
+    } finally {
+        btn.disabled = false;
+    }
+}
 
     function toggleTheme() {
     const htmlEl = document.documentElement;

@@ -432,17 +432,27 @@ const fileInput = document.getElementById('imageInput');
 const fileDisplay = document.getElementById('fileNameDisplay');
 const previewContainer = document.getElementById('imagePreviewContainer');
 
-// 核心：使用 DataTransfer 作为一个“全局购物车”来累加保存所有文件
-let dt = new DataTransfer();
+// 核心安全改动：用标准的 JS 数组作为唯一数据源，避开复杂的 DataTransfer 内部索引问题
+let allFiles = []; 
+
+// 负责将 JS 数组中的文件同步到原生的 fileInput 表单中
+function syncFilesToInput() {
+    const dt = new DataTransfer();
+    allFiles.forEach(file => {
+        dt.items.add(file);
+    });
+    fileInput.files = dt.files; // 成功同步给隐藏的 input，供表单提交
+}
 
 function renderImagePreviews() {
-    // 每次渲染前清空容器
+    // 每次重新渲染前清空预览区域
     previewContainer.innerHTML = '';
     
-    if (dt.files.length > 0) {
-        fileDisplay.innerText = "Selected " + dt.files.length + " file(s).";
+    if (allFiles.length > 0) {
+        fileDisplay.innerText = "Selected " + allFiles.length + " file(s).";
         
-        Array.from(dt.files).forEach((file, index) => {
+        // 遍历我们的标准数组
+        allFiles.forEach((file, index) => {
             if (!file.type.startsWith('image/')) return;
 
             const objectUrl = URL.createObjectURL(file);
@@ -451,13 +461,13 @@ function renderImagePreviews() {
             const imgWrapper = document.createElement('div');
             imgWrapper.className = 'relative group rounded-lg overflow-hidden shadow-sm border border-gray-200 aspect-video bg-white flex items-center justify-center';
             
-            // 阻止点击预览图时触发外层的 label(弹出文件选择框)
+            // 关键：绝对禁止点击预览图区域时触发外层 label 的文件选择弹窗
             imgWrapper.onclick = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
             };
 
-            // 2. 创建图片
+            // 2. 创建图片标签
             const img = document.createElement('img');
             img.src = objectUrl;
             img.className = 'w-full h-full object-cover transition-transform duration-300 group-hover:scale-105';
@@ -465,25 +475,23 @@ function renderImagePreviews() {
 
             // 3. 创建删除按钮 (右上角悬停显示)
             const removeBtn = document.createElement('button');
-            removeBtn.type = 'button'; // 必须是 button，防止触发表单 submit
+            removeBtn.type = 'button'; // 声明为普通按钮，绝对防止触发表单默认 submit
             removeBtn.className = 'absolute top-2 right-2 bg-red-600/90 text-white rounded-full w-7 h-7 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700 z-10 cursor-pointer shadow-md';
             removeBtn.innerHTML = '<i class="fas fa-times text-sm"></i>';
             
-            // 4. 删除逻辑
+            // 4. 精确删除单张逻辑
             removeBtn.onclick = (e) => {
                 e.preventDefault();
-                e.stopPropagation(); // 阻止事件冒泡
+                e.stopPropagation(); // 阻止事件冒泡，防止触发 label 的点击
+
+                // 从 JS 纯数组中精确剔除当前索引的这一张照片
+                allFiles.splice(index, 1);
                 
-                // 由于 FileList 是只读的，我们需要新建一个 DataTransfer 来过滤掉被删除的那个文件
-                const newDt = new DataTransfer();
-                for (let i = 0; i < dt.files.length; i++) {
-                    if (i !== index) {
-                        newDt.items.add(dt.files[i]);
-                    }
-                }
-                dt = newDt; // 更新全局的 DataTransfer
-                fileInput.files = dt.files; // 同步回原生的 input
-                renderImagePreviews(); // 重新渲染网格
+                // 将剔除后的新数组同步回 input 表单
+                syncFilesToInput();
+                
+                // 重新渲染界面
+                renderImagePreviews();
             };
 
             imgWrapper.appendChild(img);
@@ -495,27 +503,30 @@ function renderImagePreviews() {
     }
 }
 
-// 处理新加入的文件（累加逻辑）
+// 处理新加入的文件（点击或拖拽触发的累加逻辑）
 function handleFiles(newFiles) {
     for (let i = 0; i < newFiles.length; i++) {
-        // 简单去重：如果同名同大小的文件已经存在，可以跳过 (可选)
-        const isDuplicate = Array.from(dt.files).some(
+        if (!newFiles[i].type.startsWith('image/')) continue;
+
+        // 图片去重检测：如果名字和大小完全一样，则不再重复添加
+        const isDuplicate = allFiles.some(
             existing => existing.name === newFiles[i].name && existing.size === newFiles[i].size
         );
         if (!isDuplicate) {
-            dt.items.add(newFiles[i]);
+            allFiles.push(newFiles[i]);
         }
     }
-    fileInput.files = dt.files; // 将累加后的文件同步给 form 表单
-    renderImagePreviews();
+    syncFilesToInput();  // 保持表单数据同步
+    renderImagePreviews(); // 刷新预览
 }
 
 if (dropZone && fileInput) {
     // 监听点击选择文件
-    fileInput.addEventListener('change', function() {
-        handleFiles(this.files);
-        // 清空 input value，确保用户如果删除了某张图后马上再选同一张，能正常触发 change 事件
-        this.value = ''; 
+    fileInput.addEventListener('change', function(e) {
+        if (e.target.files && e.target.files.length > 0) {
+            // 将本次新选中的文件传给处理函数
+            handleFiles(e.target.files);
+        }
     });
 
     // 拖拽悬停视觉效果

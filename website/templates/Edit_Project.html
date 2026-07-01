@@ -18,7 +18,7 @@
             font-family: 'Inter', sans-serif;
         }
 
-                :root {
+        :root {
             --bg-primary: #ffffff;
             --bg-secondary: #f3f4f6;
             --text-primary: #111827;
@@ -41,8 +41,8 @@
         }
         
         html[data-theme="dark"] .border-gray-200 {
-    border-color: var(--border-color) !important;
-}
+            border-color: var(--border-color) !important;
+        }
         /* Dark theme overrides */
         html[data-theme="dark"] body {
             background-color: var(--bg-secondary);
@@ -365,36 +365,39 @@
 
                         <div class="space-y-6">
                             {% if project.images %}
-                            <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                                 {% for image in project.images %}
-                                <div class="relative group border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                                    <img src="{{ url_for('static', filename='uploads/' + image.filename) }}"
-                                        class="w-full h-32 object-cover">
+                                <div class="relative group rounded-lg overflow-hidden shadow-sm border border-gray-200 aspect-video bg-white flex items-center justify-center">
+                                    
+                                    <input type="checkbox" name="delete_images" value="{{ image.id }}" id="del_img_{{ image.id }}" class="hidden peer">
+                                    
+                                    <img src="{{ url_for('static', filename='uploads/' + image.filename) }}" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 peer-checked:scale-100 peer-checked:opacity-40">
+                                    
+                                    <label for="del_img_{{ image.id }}" class="absolute top-2 right-2 bg-red-600/90 text-white rounded-full w-7 h-7 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700 z-10 cursor-pointer shadow-md peer-checked:opacity-100 peer-checked:bg-gray-700">
+                                        <i class="fas fa-times text-sm peer-checked:hidden"></i>
+                                        <i class="fas fa-undo text-xs hidden peer-checked:block"></i>
+                                    </label>
 
-                                    <div class="absolute bottom-0 left-0 right-0 bg-white/90 p-2 border-t border-gray-200 flex justify-center items-center">
-                                        <label class="flex items-center gap-2 cursor-pointer text-red-700 hover:text-red-800">
-                                            <input type="checkbox" name="delete_images" value="{{ image.id }}" class="w-4 h-4 text-red-600 rounded">
-                                            <span class="font-bold text-xs">Delete</span>
-                                        </label>
+                                    <div class="absolute inset-0 flex items-center justify-center opacity-0 peer-checked:opacity-100 pointer-events-none transition-opacity">
+                                        <span class="text-white font-bold text-xs bg-red-600 px-3 py-1 rounded-full shadow-lg">To Delete</span>
                                     </div>
                                 </div>
                                 {% endfor %}
                             </div>
-                            {% endif %}
+                            {% endif %}                            
+                            <div id="imagePreviewContainer" class="grid grid-cols-2 md:grid-cols-4 gap-4 w-full mb-2"></div>
 
                             <div class="mt-4">
-                                <label class="block text-xs font-black text-gray-400 uppercase mb-2">Upload More Images</label>
+                                <label class="block text-xs font-black text-gray-400 uppercase mb-2">Upload New Images</label>
                                 <label class="cursor-pointer block" id="drop-zone">
-                                    <div id="drop-zone-content"
-                                        class="h-32 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-gray-400 transition-all duration-300">
+                                    <div id="drop-zone-content" class="min-h-[8rem] py-6 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-gray-400 transition-all duration-300 hover:border-red-200 hover:bg-red-50 group">
                                         <i class="fas fa-cloud-upload-alt mb-2 text-2xl group-hover:text-red-400 transition"></i>
                                         <span class="text-[10px] font-bold uppercase tracking-widest mt-1">Drag & Drop or Click to Choose</span>
                                         <input type="file" name="screenshots" class="hidden" accept="image/*" multiple id="editImageInput">
                                         <p id="editFileNameDisplay" class="text-xs mt-2 text-red-600 font-semibold"></p>
                                     </div>
                                 </label>
-                            </div>
-                        </div>
+                            </div>                        </div>
                     </section>
 
                     <div class="pt-6 flex flex-col md:flex-row gap-4">
@@ -496,37 +499,101 @@
         });
 
         function toggleTheme() {
-    const htmlEl = document.documentElement;
-    const currentTheme = htmlEl.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    
-    // 1. Switch layout attribute
-    htmlEl.setAttribute('data-theme', newTheme);
-    
-    // 2. Critical: Save state so other pages can see it
-    localStorage.setItem('theme', newTheme);
-}
+            const htmlEl = document.documentElement;
+            const currentTheme = htmlEl.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            
+            // 1. Switch layout attribute
+            htmlEl.setAttribute('data-theme', newTheme);
+            
+            // 2. Critical: Save state so other pages can see it
+            localStorage.setItem('theme', newTheme);
+        }
 
-// Attach this function to your dark mode switch button trigger
-document.getElementById('theme-toggle-btn').addEventListener('click', toggleTheme);
+        // Attach this function to your dark mode switch button trigger
+        document.getElementById('theme-toggle-btn')?.addEventListener('click', toggleTheme);
 
         // ── Image Drop Zone Logic ──────────────────────────────────────────────────
         const dropZone = document.getElementById('drop-zone');
         const dropZoneContent = document.getElementById('drop-zone-content');
         const fileInput = document.getElementById('editImageInput');
         const fileDisplay = document.getElementById('editFileNameDisplay');
+        const previewContainer = document.getElementById('imagePreviewContainer');
 
-        function updateFileDisplay(files) {
-            if (files && files.length > 0) {
-                fileDisplay.innerText = "Selected " + files.length + " new file(s) to add.";
+        let allFiles = []; // 使用纯数组作为新上传图片的唯一数据源
+
+        function syncFilesToInput() {
+            const dt = new DataTransfer();
+            allFiles.forEach(file => dt.items.add(file));
+            fileInput.files = dt.files;
+        }
+
+        function renderImagePreviews() {
+            previewContainer.innerHTML = '';
+            
+            if (allFiles.length > 0) {
+                fileDisplay.innerText = "Selected " + allFiles.length + " new file(s) to add.";
+                
+                allFiles.forEach((file, index) => {
+                    if (!file.type.startsWith('image/')) return;
+                    const objectUrl = URL.createObjectURL(file);
+
+                    const imgWrapper = document.createElement('div');
+                    imgWrapper.className = 'relative group rounded-lg overflow-hidden shadow-sm border border-gray-200 aspect-video bg-white flex items-center justify-center';
+                    
+                    // 阻止点击预览图触发文件选择
+                    imgWrapper.onclick = (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    };
+
+                    const img = document.createElement('img');
+                    img.src = objectUrl;
+                    img.className = 'w-full h-full object-cover transition-transform duration-300 group-hover:scale-105';
+                    img.onload = () => URL.revokeObjectURL(objectUrl);
+
+                    const removeBtn = document.createElement('button');
+                    removeBtn.type = 'button'; 
+                    removeBtn.className = 'absolute top-2 right-2 bg-red-600/90 text-white rounded-full w-7 h-7 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700 z-10 cursor-pointer shadow-md';
+                    removeBtn.innerHTML = '<i class="fas fa-times text-sm"></i>';
+                    
+                    removeBtn.onclick = (e) => {
+                        e.preventDefault();
+                        e.stopPropagation(); 
+                        allFiles.splice(index, 1);
+                        syncFilesToInput();
+                        renderImagePreviews();
+                    };
+
+                    imgWrapper.appendChild(img);
+                    imgWrapper.appendChild(removeBtn);
+                    previewContainer.appendChild(imgWrapper);
+                });
             } else {
                 fileDisplay.innerText = "";
             }
         }
 
+        function handleFiles(newFiles) {
+            for (let i = 0; i < newFiles.length; i++) {
+                if (!newFiles[i].type.startsWith('image/')) continue;
+                const isDuplicate = allFiles.some(
+                    existing => existing.name === newFiles[i].name && existing.size === newFiles[i].size
+                );
+                if (!isDuplicate) {
+                    allFiles.push(newFiles[i]);
+                }
+            }
+            syncFilesToInput();  
+            renderImagePreviews(); 
+        }
+
         if (dropZone && fileInput) {
-            fileInput.addEventListener('change', function () {
-                updateFileDisplay(this.files);
+            fileInput.addEventListener('change', function(e) {
+                if (e.target.files && e.target.files.length > 0) {
+                    handleFiles(e.target.files);
+                }
+                // 注意：绝对不写 this.value = ''，确保数据能正常提交给后端的 Flask
             });
 
             dropZone.addEventListener('dragover', (e) => {
@@ -547,8 +614,7 @@ document.getElementById('theme-toggle-btn').addEventListener('click', toggleThem
                 dropZoneContent.classList.add('border-gray-200', 'bg-gray-50');
 
                 if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                    fileInput.files = e.dataTransfer.files;
-                    updateFileDisplay(fileInput.files);
+                    handleFiles(e.dataTransfer.files);
                 }
             });
         }
