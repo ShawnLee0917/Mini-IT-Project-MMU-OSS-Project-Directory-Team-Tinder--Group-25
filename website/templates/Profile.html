@@ -848,19 +848,16 @@ function applyTheme(theme) {
                 
                 const notifComments = document.getElementById('setting-notif-comments');
                 if (notifComments) notifComments.checked = s.notifications?.project_comments ?? true;
-                
+
                 const notifProjectComments = document.getElementById('setting-notif-project-comments');
-                if (notifProjectComments) notifProjectComments.checked = s.notifications?.project_comments ?? true;
-                
+                if (notifProjectComments) notifProjectComments.checked = s.notifications?.project_comments_own ?? true;
+
                 const notifInvites = document.getElementById('setting-notif-invites');
                 if (notifInvites) notifInvites.checked = s.notifications?.project_invites ?? true;
-                
-                const notifPublished = document.getElementById('setting-notif-project-published');
-                if (notifPublished) notifPublished.checked = s.notifications?.project_published ?? true;
-                
+
                 const notifJoinRequest = document.getElementById('setting-notif-join-request');
                 if (notifJoinRequest) notifJoinRequest.checked = s.notifications?.join_request ?? true;
-                
+
                 const themeSelect = document.getElementById('setting-theme');
                 if (themeSelect) themeSelect.value = s.display?.theme || 'light';
             } catch {
@@ -882,11 +879,10 @@ function applyTheme(theme) {
                         profile_visibility: document.getElementById('setting-profile-vis').value,
                     },
                     notifications: {
-                        project_comments: document.getElementById('setting-notif-comments').checked,
-                        project_comments_own: document.getElementById('setting-notif-project-comments').checked,
+                        project_comments: document.getElementById('setting-notif-comments').checked,       
+                        project_comments_own: document.getElementById('setting-notif-project-comments').checked, 
                         project_invites: document.getElementById('setting-notif-invites').checked,
-                        project_published: document.getElementById('setting-notif-project-published').checked,
-                        join_request: document.getElementById('setting-notif-join-request').checked,
+                        join_request: document.getElementById('setting-notif-join-request').checked, 
                     },
                     display: {
                         theme: document.getElementById('setting-theme').value,

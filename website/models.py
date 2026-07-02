@@ -65,6 +65,9 @@ class UserSettings(db.Model):
     notify_project_comments = db.Column(db.Boolean, default=True)
     notify_profile_views = db.Column(db.Boolean, default=False)
     notify_project_invites = db.Column(db.Boolean, default=True)
+    notify_project_comments = db.Column(db.Boolean, default=True)      
+    notify_project_comments_own = db.Column(db.Boolean, default=True)  
+    notify_join_request = db.Column(db.Boolean, default=True)  
     notify_new_suggestions = db.Column(db.Boolean, default=True)
     notify_newsletter = db.Column(db.Boolean, default=False)
     
@@ -78,7 +81,17 @@ class UserSettings(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT))
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT), onupdate=datetime.now(MYT))
 
+class Notification(db.Model):
+    __tablename__ = 'notifications'
+    
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    link_url = db.Column(db.String(255), nullable=True)
+    is_read = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT))
 
+    receiver = db.relationship('User', backref=db.backref('inbox_notifications', lazy='dynamic', cascade='all, delete-orphan'))
 class Skill(db.Model):
     __tablename__ = 'skills'
     

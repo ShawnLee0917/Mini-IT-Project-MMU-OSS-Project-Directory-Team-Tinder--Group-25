@@ -1,5 +1,6 @@
 from werkzeug import datastructures
 import os
+import resend
 import random
 import smtplib
 import sys
@@ -10,7 +11,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 import uuid
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify, session
-from .models import  db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, JoinRequest, LeaveRequest, MemberHistory, ProjectCommentImage, UserSettings, ProjectMember, CommunityPostComment, CommunityPost, CommunityPostLike, CommunityPostImage, CommunityPostFavorite, CommunityPostCommentImage, ProjectViewLog, ProjectUpdate, ContentReport, AdminLog, SuspendedUser, ContentFlagKeyword, ProjectStar
+from .models import  Notification, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, JoinRequest, LeaveRequest, MemberHistory, ProjectCommentImage, UserSettings, ProjectMember, CommunityPostComment, CommunityPost, CommunityPostLike, CommunityPostImage, CommunityPostFavorite, CommunityPostCommentImage, ProjectViewLog, ProjectUpdate, ContentReport, AdminLog, SuspendedUser, ContentFlagKeyword, ProjectStar
 from datetime import datetime, timezone, timedelta
 
 views = Blueprint('views', __name__)
@@ -905,13 +906,9 @@ def api_admin_dismiss_report():
         return jsonify({'error': f'Database failure: {str(e)}'}), 500
     
 # --- ADDED: Auto-Email Sending Function ---
-def send_otp_email(receiver_email, otp_code):
-    # =====================================================================
-    # ⚠️ IMPORTANT: Replace with your real Gmail and 16-digit Google App Password ⚠️
-    # =====================================================================
-    sender_email = "kohkonghao4@gmail.com" 
-    sender_password = "wlas kitq zrpa qpbb"
+resend.api_key = os.environ.get("RESEND_API_KEY", "re_你的_api_key_写在这里")
 
+def send_otp_email(receiver_email, otp_code):
     message = f"\n{'='*70}\n[DEVELOPMENT MODE] OTP CODE FOR: {receiver_email}\n{'='*70}\nOTP CODE: {otp_code}\nVerification URL: http://127.0.0.1:5000/verify\nDirect OTP URL: http://127.0.0.1:5000/test_otp/{receiver_email}\n{'='*70}\n"
     
     print(message, flush=True)
@@ -923,25 +920,28 @@ def send_otp_email(receiver_email, otp_code):
     logging.info(message)
     current_app.logger.info(message)
 
-    if sender_email == "your_email@gmail.com" or sender_password == "your_16_digit_app_password":
-        print("\n WARNING: Email credentials not set! Using development mode. Check the terminal for the OTP.")
-        return True  # Allow registration for testing
-
-    msg = MIMEText(f"Welcome to MMU OSSD!\n\nYour 6-digit verification code is: {otp_code}\n\nThis code will expire in 15 minutes.")
-    msg['Subject'] = 'MMU OSSD Verification Code'
-    msg['From'] = sender_email
-    msg['To'] = receiver_email
-
     try:
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            server.login(sender_email, sender_password)
-            server.send_message(msg)
-        print(f" OTP email automatically sent to {receiver_email}")
-        return True
-    except Exception as e:
-        print(f" Email Automation Error: {e}")
-        return False
+        params = {
+            "from": "MMU OSSD <onboarding@resend.dev>",
+            "to": [receiver_email],
+            "subject": "MMU OSSD Verification Code",
+            "html": f"""
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2>Welcome to MMU OSSD!</h2>
+                <p>Your 6-digit verification code is: <strong style="font-size: 24px; color: #dc2626;">{otp_code}</strong></p>
+                <p>This code will expire in 15 minutes.</p>
+            </div>
+            """
+        }
 
+        email_response = resend.Emails.send(params)
+        print(f"OTP email successfully sent to {receiver_email} via Resend. ID: {email_response.get('id')}")
+        return True
+        
+    except Exception as e:
+        print(f"Resend Email Automation Error: {e}")
+        return False
+    
 @views.route('/')
 @views.route('/home')
 def home():
@@ -1814,6 +1814,12 @@ def update_settings():
         settings.notify_qna_new_answers = notifications['qna_answers']
     if 'project_comments' in notifications:
         settings.notify_project_comments = notifications['project_comments']
+    if 'project_comments_own' in notifications:
+        settings.notify_project_comments_own = notifications['project_comments_own']
+    if 'join_request' in notifications:
+        settings.notify_join_request = notifications['join_request']
+    if 'project_comments' in notifications:
+        settings.notify_project_comments = notifications['project_comments']
     if 'profile_views' in notifications:
         settings.notify_profile_views = notifications['profile_views']
     if 'project_invites' in notifications:
@@ -2240,19 +2246,28 @@ def request_join_project(project_id):
         if existing_request.status == 'pending':
             return jsonify({"error": "You have already sent a join request"}), 400
         elif existing_request.status == 'rejected':
-            # Delete the old rejected request and allow user to submit a new one
             db.session.delete(existing_request)
-            db.session.commit()
+            join_request = JoinRequest(user_id=current_user.id, project_id=project_id, status='pending')
+            db.session.add(join_request)
         elif existing_request.status == 'accepted':
             existing_request.status = 'pending'
-            db.session.commit()
-            return jsonify({"success": "Join request sent successfully!"}), 200
     else:
-        join_request = JoinRequest(user_id=current_user.id, project_id=project_id, status='pending')  # type: ignore
+        join_request = JoinRequest(user_id=current_user.id, project_id=project_id, status='pending')
         db.session.add(join_request)
-        db.session.commit()
-        return jsonify({"success": "Join request sent successfully!"}), 201
+        
+    project_owner = User.query.get(project.user_id)
+    if project_owner and project_owner.settings and getattr(project_owner.settings, 'notify_join_request', True):
+        join_notif = Notification(
+            user_id=project_owner.id,
+            content=f"🤝 {current_user.name} requested to join 【{project.project_name}】",
+            link_url=f"/project/{project.id}"
+        )
+        db.session.add(join_notif)
+    # ==========================================
     
+    db.session.commit()
+    return jsonify({"success": "Join request sent successfully!"}), 201    
+
 @views.route('/api/project/<int:project_id>/join-requests', methods=['GET'])
 def get_join_requests(project_id):
     """Get all join requests for a project (only for project lead)"""
@@ -2637,7 +2652,6 @@ def create_project_comment(project_id):
     db.session.add(comment)
     db.session.flush()  # Get comment.id before committing
     
-    # Handle multiple image uploads
     if 'images' in request.files:
         files = request.files.getlist('images')
         for file in files:
@@ -2649,13 +2663,41 @@ def create_project_comment(project_id):
                 img.comment_id = comment.id
                 img.image_path = filename
                 db.session.add(img)
-    
+                
+    # 3. 触发通知逻辑
+    project_owner = User.query.get(project.user_id)
+    if project_owner:
+        if project_owner.id != current_user.id:
+            if project_owner.settings and getattr(project_owner.settings, 'notify_project_comments_own', True):
+                owner_notif = Notification(
+                    user_id=project_owner.id,
+                    content=f"🔔 {current_user.name} commented on your project 【{project.project_name}】。",
+                    link_url=f"/project/{project.id}"
+                )
+                db.session.add(owner_notif)
+
+        participants = db.session.query(User).join(ProjectComment, ProjectComment.user_id == User.id)\
+            .filter(ProjectComment.project_id == project.id)\
+            .filter(User.id != project_owner.id)\
+            .filter(User.id != current_user.id).distinct().all()
+
+        for p in participants:
+            if p.settings and getattr(p.settings, 'notify_project_comments', True):
+                p_notif = Notification(
+                    user_id=p.id,
+                    content=f"💬 You have participated in the discussion of project 【{project.project_name}】 and it has new follow-up comments.",
+                    link_url=f"/project/{project.id}"
+                )
+                db.session.add(p_notif)
+
+    # 4. 统一提交并分配徽章 (属于 create_project_comment 函数的结尾)
     db.session.commit()
 
     # Auto-assign comment milestone badges
     sync_comment_badges(current_user.id)
     db.session.commit()
     
+    # 5. 正确返回响应数据
     return jsonify({
         'id': comment.id,
         'author_id': comment.user_id,
@@ -2669,6 +2711,23 @@ def create_project_comment(project_id):
         'images': [{'id': img.id, 'url': f'/static/uploads/{img.image_path}'} for img in comment.images],
     }), 201
 
+
+@views.route('/api/my-notifications', methods=['GET'])
+def get_my_notifications():
+    err = require_login()
+    if err: return err
+    
+    current_user = get_current_user()
+    
+    notifs = Notification.query.filter_by(user_id=current_user.id).order_by(Notification.created_at.desc()).limit(15).all()
+    
+    return jsonify([{
+        'id': n.id,
+        'content': n.content,
+        'link_url': n.link_url,
+        'is_read': n.is_read,
+        'created_at': n.created_at.strftime('%Y-%m-%d %H:%M')
+    } for n in notifs])
 
 @views.route('/api/project/<int:project_id>/comments/<int:comment_id>', methods=['DELETE'])
 def delete_project_comment(project_id, comment_id):
