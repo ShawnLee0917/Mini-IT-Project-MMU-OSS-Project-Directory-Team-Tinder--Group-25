@@ -8,9 +8,13 @@
         const currentTheme = localStorage.getItem('theme') || 'light';
         document.documentElement.setAttribute('data-theme', currentTheme);
     </script>
+<!-- This is the Tailwind CSS that i used for the website. -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!--https://cdnjs.com/ -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" rel="stylesheet">
     <style>
+
+        /* This is get from Google Fonts. */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
         body { font-family: 'Inter', sans-serif; }
         .filter-chip:checked + label {
@@ -100,6 +104,35 @@
         html[data-theme="dark"] textarea:focus,
         html[data-theme="dark"] select:focus {
             background-color: var(--bg-primary) !important;
+        }
+
+        html[data-theme="dark"] #search-btn {
+            background-color: #dc2626 !important; 
+            box-shadow: none !important;
+        }
+
+        html[data-theme="dark"] #search-btn:hover {
+       /* Hover color state for Dark Mode */
+            background-color: #B91C1C !important; 
+        }
+
+        html[data-theme="dark"] .bg-gray-100 {
+            background-color: #262626 !important;
+        }
+
+        html[data-theme="dark"] .hover\:bg-gray-200:hover {
+            background-color: #333333 !important;
+        }
+
+        html[data-theme="dark"] #logout-btn,
+        html[data-theme="dark"] #logout-btn-mobile {
+            background-color: #ffffff !important;
+            color: #dc2626 !important;
+        }
+
+        html[data-theme="dark"] #logout-btn:hover,
+        html[data-theme="dark"] #logout-btn-mobile:hover {
+            background-color: #f3f4f6 !important;
         }
 
                 /* ── Animated Hamburger Button ─────────────────────────── */
@@ -251,15 +284,6 @@
                 <input id="search-input" type="text" placeholder="Search by tech stack (React, Python, Flutter...)" 
                        class="w-full pl-12 pr-4 py-4 rounded-xl border-2 border-gray-100 focus:border-red-500 focus:outline-none transition">
             </div>
-            <select id="faculty-filter" class="bg-white border-2 border-gray-100 px-6 py-4 rounded-xl font-semibold text-gray-600 focus:outline-none focus:border-red-500">
-                <option>All Faculties</option>
-                <option>FCI</option>
-                <option>FAIE</option>
-                <option>FCM</option>
-                <option>FOM</option>
-                <option>FAC</option>
-                <option>FCA</option>
-            </select>
                 <button id="search-btn" class="bg-red-600 text-white px-8 py-4 rounded-xl font-bold hover:bg-red-700 transition shadow-lg shadow-red-100">
                     Search
                 </button>
@@ -267,10 +291,12 @@
 
             <div class="mt-4 flex flex-wrap gap-2 items-center">
                 <span class="text-xs font-bold text-gray-400 uppercase tracking-widest mr-2">Trending:</span>
-                <span class="px-3 py-1 bg-gray-100 rounded-full text-xs font-medium text-gray-600 cursor-pointer hover:bg-gray-200">#React</span>
-                <span class="px-3 py-1 bg-gray-100 rounded-full text-xs font-medium text-gray-600 cursor-pointer hover:bg-gray-200">#MachineLearning</span>
-                <span class="px-3 py-1 bg-gray-100 rounded-full text-xs font-medium text-gray-600 cursor-pointer hover:bg-gray-200">#IoT</span>
-                <span class="px-3 py-1 bg-gray-100 rounded-full text-xs font-medium text-gray-600 cursor-pointer hover:bg-gray-200">#MobileApp</span>
+                <span id="trending-tags-container" class="flex flex-wrap gap-2 items-center">
+                    <span class="text-xs text-gray-400">Loading…</span>
+                </span>
+                <a href="{{ url_for('views.hottest_projects') }}" class="text-xs font-bold text-red-600 hover:text-red-700 ml-2 whitespace-nowrap">
+                    View Hottest Projects <i class="fas fa-arrow-right ml-1"></i>
+                </a>
             </div>
         </div>
     </div>
@@ -590,7 +616,6 @@ function renderProjects(projects) {
             .map(cb => cb.value);
         const selectedTechs = Array.from(document.querySelectorAll('.tech-filter:checked'))
             .map(cb => cb.value);
-        const facultyFilter = document.getElementById('faculty-filter').value;
 
         let filtered = allProjects.filter(project => {
             // Check search query (searches project name, description, and languages)
@@ -630,6 +655,38 @@ function renderProjects(projects) {
         el.addEventListener('change', filterProjects);
     });
 
+    // ── Trending tags (live, sourced from the same data as Hottest Projects) ──
+    async function loadTrendingTags() {
+        const container = document.getElementById('trending-tags-container');
+        try {
+            const res = await fetch(`${API}/trending-tags`);
+            if (!res.ok) throw new Error('Failed to load trending tags');
+            const tags = await res.json();
+
+            container.innerHTML = '';
+
+            if (!tags || tags.length === 0) {
+                container.innerHTML = '<span class="text-xs text-gray-400">Nothing trending yet</span>';
+                return;
+            }
+
+            tags.forEach(tag => {
+                const span = document.createElement('span');
+                span.className = 'trending-tag px-3 py-1 bg-gray-100 rounded-full text-xs font-medium text-gray-600 cursor-pointer hover:bg-gray-200';
+                span.dataset.tag = tag;
+                span.textContent = `#${tag}`;
+                span.addEventListener('click', () => {
+                    document.getElementById('search-input').value = tag;
+                    filterProjects();
+                });
+                container.appendChild(span);
+            });
+        } catch (err) {
+            console.error('Error loading trending tags:', err);
+            container.innerHTML = '<span class="text-xs text-gray-400">Unable to load trending tags</span>';
+        }
+    }
+
     // Load projects from backend API
     async function loadProjects() {
         try {
@@ -646,6 +703,7 @@ function renderProjects(projects) {
     // Initialize page
     document.addEventListener('DOMContentLoaded', () => {
         loadProjects();
+        loadTrendingTags();
     });
 
     initNav();

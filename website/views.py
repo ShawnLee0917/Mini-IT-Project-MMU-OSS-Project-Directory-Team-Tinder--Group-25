@@ -10,7 +10,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 import uuid
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify, session
-from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, QuestionCommentImage, QuestionImage, JoinRequest, LeaveRequest, MemberHistory, ProjectCommentImage, UserSettings, ProjectMember, CommunityPostComment, CommunityPost, CommunityPostLike, CommunityPostImage, CommunityPostFavorite, CommunityPostCommentImage, ProjectViewLog, ProjectUpdate, ContentReport, AdminLog, SuspendedUser, ContentFlagKeyword, ProjectStar
+from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, QuestionCommentImage, QuestionImage, JoinRequest, LeaveRequest, MemberHistory, ProjectCommentImage, UserSettings, ProjectMember, CommunityPostComment, CommunityPost, CommunityPostLike, CommunityPostImage, CommunityPostFavorite, CommunityPostCommentImage, ProjectViewLog, ProjectUpdate, ContentReport, AdminLog, SuspendedUser, ContentFlagKeyword, ProjectStar, BadgeNotification
 from datetime import datetime, timezone, timedelta
 
 views = Blueprint('views', __name__)
@@ -93,9 +93,17 @@ def api_admin_delete_content():
         if content_type == 'project':
             target = Project.query.get(content_id)
             if target:
-                # 🌟 SOFT DELETE IMPLEMENTATION: Change status to Suspended instead of db.session.delete
-                target.status = 'Suspended'
-                details_msg = f"Soft Deleted/Suspended Project: {target.project_name or content_id}"
+                details_msg = f"Deleted Project: {target.project_name or content_id}"
+                owner_id = target.user_id
+                # Detach community posts so the FK doesn't block the delete
+                CommunityPost.query.filter_by(attached_project_id=target.id).update({'attached_project_id': None})
+                db.session.delete(target)
+                db.session.flush()
+                # Recalculate badges for the project owner
+                sync_lang_badges(owner_id)
+                if Project.query.filter_by(user_id=owner_id).count() == 0:
+                    _revoke_badge(owner_id, 'First Project')
+                sync_trending_badges(owner_id)
 
         elif content_type == 'comment':
             target = ProjectComment.query.get(content_id)
@@ -103,7 +111,21 @@ def api_admin_delete_content():
                 target = Comment.query.get(content_id)
             if target:
                 details_msg = f"Deleted Comment ID {content_id}"
-                db.session.delete(target)
+                # If it's a ProjectComment, use the same soft-delete with admin audit trail
+                if isinstance(target, ProjectComment):
+                    admin_user = get_current_user()
+                    from datetime import timezone, timedelta
+                    MYT = timezone(timedelta(hours=8))
+                    target.content = "This message was deleted."
+                    target.is_deleted = True
+                    target.deleted_by_id = admin_user.id
+                    target.deleted_by_role = 'admin'
+                    target.deleted_at = datetime.now(MYT)
+                    # Clear images
+                    for img in target.images:
+                        db.session.delete(img)
+                else:
+                    db.session.delete(target)
 
         elif content_type == 'post':
             target = CommunityPost.query.get(content_id)
@@ -350,8 +372,46 @@ def admin_delete_badge(badge_id):
 
 
 # =============================================================
-# BADGE HELPER FUNCTIONS
+# BADGE NOTIFICATION ROUTES
 # =============================================================
+
+@views.route('/api/badge-notifications', methods=['GET'])
+def get_badge_notifications():
+    """Return unread badge notifications for the current user (respects notify_badges setting)."""
+    err = require_login()
+    if err:
+        return err
+
+    user = get_current_user()
+
+    # If the user has turned off badge notifications, return empty list
+    settings = user.settings
+    if settings and not settings.notify_badges:
+        return jsonify([])
+
+    pending = BadgeNotification.query.filter_by(
+        user_id=user.id, is_read=False
+    ).order_by(BadgeNotification.created_at.asc()).all()
+
+    return jsonify([{'id': n.id, 'badge_name': n.badge_name} for n in pending])
+
+
+@views.route('/api/badge-notifications/<int:notif_id>/dismiss', methods=['POST'])
+def dismiss_badge_notification(notif_id):
+    """Mark a badge notification as read/dismissed."""
+    err = require_login()
+    if err:
+        return err
+
+    user = get_current_user()
+    notif = BadgeNotification.query.get_or_404(notif_id)
+
+    if notif.user_id != user.id:
+        return jsonify({'error': 'Forbidden'}), 403
+
+    notif.is_read = True
+    db.session.commit()
+    return jsonify({'success': True})
 
 # Map language names (lowercase) → badge name
 LANG_BADGE_MAP = {
@@ -377,6 +437,8 @@ def _award_badge(user_id, badge_name):
     exists = Badge.query.filter_by(user_id=user_id, badge=badge_name).first()
     if not exists:
         db.session.add(Badge(user_id=user_id, badge=badge_name))
+        # Enqueue a badge notification (respects user's notify_badges setting at display time)
+        db.session.add(BadgeNotification(user_id=user_id, badge_name=badge_name))
 
 def _revoke_badge(user_id, badge_name):
     """Remove a badge if the user has it. Caller must commit."""
@@ -479,6 +541,32 @@ def sync_trending_badges(user_id):
         _award_badge(user_id, 'Trending Project')
     else:
         _revoke_badge(user_id, 'Trending Project')
+
+
+# Comment milestone thresholds → badge name (ordered ascending)
+COMMENT_BADGE_THRESHOLDS = [
+    (1,   'First Comment'),
+    (10,  'Ten Comments'),
+    (50,  'Fifty Comments'),
+    (100, 'Hundred Comments'),
+]
+
+def sync_comment_badges(user_id):
+    """
+    Award or revoke comment-milestone badges based on the user's current
+    live (non-deleted) ProjectComment count across ALL projects.
+    Called after posting or deleting a project comment.
+    """
+    live_count = ProjectComment.query.filter(
+        ProjectComment.user_id == user_id,
+        ProjectComment.content != "This message was deleted."
+    ).count()
+
+    for threshold, badge_name in COMMENT_BADGE_THRESHOLDS:
+        if live_count >= threshold:
+            _award_badge(user_id, badge_name)
+        else:
+            _revoke_badge(user_id, badge_name)
 
 
 @views.route('/api/admin/reports', methods=['GET'])
@@ -1415,32 +1503,34 @@ def edit_project(project_id):
 
 @views.route('/delete-project/<int:project_id>', methods=['POST'])
 def delete_project(project_id):
-    # 也可以改用下面的方式，防止已经软删除的项目被重复查询出来：
-    # project = Project.query.filter_by(id=project_id).filter(Project.status != 'Deleted').first_or_404()
     project = Project.query.get_or_404(project_id)
     owner_id = project.user_id
-    try:
-        # Detach community posts (SET NULL) before deleting
-        CommunityPost.query.filter_by(attached_project_id=project.id).update({'attached_project_id': None})
 
-        # ❌ 注释掉或删掉这一行硬删除代码：
-        # db.session.delete(project)
+    # Only the project owner (or an admin) may delete the project
+    current_user = get_current_user()
+    if not current_user or (current_user.id != owner_id and not current_user.is_admin):
+        flash('You do not have permission to delete this project.', category='error')
+        return redirect(url_for('views.project_page', project_id=project_id))
+
+    try:
+        # Detach community posts so their foreign key doesn't block the delete
+        CommunityPost.query.filter_by(attached_project_id=project.id).update({'attached_project_id': None})
+        db.session.flush()
+
+        # Hard-delete the project row (cascades handle related rows)
+        db.session.delete(project)
         db.session.flush()  # Flush so badge queries see the project as gone
 
-        # 🏷️ Recalculate language badges
+        # Recalculate language badges now that the project is gone
         sync_lang_badges(owner_id)
 
-        # 🏷️ Revoke "First Project" badge if no projects remain
+        # Revoke "First Project" badge if no projects remain
         if Project.query.filter_by(user_id=owner_id).count() == 0:
             _revoke_badge(owner_id, 'First Project')
 
-        # 🏷️ Recalculate trending badges
+        # Recalculate trending badges
         sync_trending_badges(owner_id)
 
-        
-        #  替换为这行软删除代码：把状态改为 'Deleted' 即可
-        project.status = 'Deleted'
-        
         db.session.commit()
         flash('Project deleted successfully!', category='success')
     except Exception as e:
@@ -1734,6 +1824,7 @@ def get_settings():
             'project_invites': settings.notify_project_invites,
             'suggestions': settings.notify_new_suggestions,
             'newsletter': settings.notify_newsletter,
+            'badges': settings.notify_badges,
         },
         'display': {
             'theme': settings.theme,
@@ -1791,6 +1882,8 @@ def update_settings():
         settings.notify_new_suggestions = notifications['suggestions']
     if 'newsletter' in notifications:
         settings.notify_newsletter = notifications['newsletter']
+    if 'badges' in notifications:
+        settings.notify_badges = notifications['badges']
     
     # Update display settings
     display = data.get('display', {})
@@ -1906,6 +1999,68 @@ def get_all_projects():
         'created_at': p.created_at.isoformat(),
         'views': p.views or 0,
     } for p in projects])
+
+
+@views.route('/api/trending-tags', methods=['GET'])
+def get_trending_tags():
+    """Derive trending tech-stack tags from the same activity data used on the
+    Hottest Projects page, so the Search page 'Trending' chips stay in sync."""
+    all_projects = Project.query.filter(Project.status != 'Archived').all()
+
+    now = datetime.now(timezone.utc)
+    seven_days_ago = now - timedelta(days=7)
+
+    tag_scores = {}
+
+    for p in all_projects:
+        if not p.languages:
+            continue
+
+        recent_comments = ProjectComment.query.filter(
+            ProjectComment.project_id == p.id,
+            ProjectComment.created_at >= seven_days_ago
+        ).count()
+
+        recent_views = ProjectViewLog.query.filter(
+            ProjectViewLog.project_id == p.id,
+            ProjectViewLog.created_at >= seven_days_ago
+        ).count()
+
+        attached_posts = CommunityPost.query.filter_by(attached_project_id=p.id).all()
+        post_ids = [post.id for post in attached_posts]
+        recent_likes = 0
+        if post_ids:
+            recent_likes = CommunityPostLike.query.filter(
+                CommunityPostLike.post_id.in_(post_ids),
+                CommunityPostLike.created_at >= seven_days_ago
+            ).count()
+
+        recent_stars = ProjectStar.query.filter(
+            ProjectStar.project_id == p.id,
+            ProjectStar.created_at >= seven_days_ago
+        ).count()
+
+        trending_score = (recent_views * 1) + (recent_likes * 5) + (recent_comments * 1) + (recent_stars * 20)
+
+        if trending_score <= 0:
+            continue
+
+        for lang in [l.strip() for l in p.languages.split(',') if l.strip()]:
+            tag_scores[lang] = tag_scores.get(lang, 0) + trending_score
+
+    top_tags = sorted(tag_scores.items(), key=lambda x: x[1], reverse=True)[:6]
+
+    # Fallback: if nothing has trending activity yet, surface the most-used languages instead
+    if not top_tags:
+        fallback_counts = {}
+        for p in all_projects:
+            if not p.languages:
+                continue
+            for lang in [l.strip() for l in p.languages.split(',') if l.strip()]:
+                fallback_counts[lang] = fallback_counts.get(lang, 0) + 1
+        top_tags = sorted(fallback_counts.items(), key=lambda x: x[1], reverse=True)[:6]
+
+    return jsonify([tag for tag, _ in top_tags])
 
 
 # Suggestions API
@@ -3013,6 +3168,10 @@ def get_project_comments(project_id):
         'comment_type': c.comment_type,
         'label': c.label,
         'user_role': c.user_role,
+        'is_deleted': getattr(c, 'is_deleted', False) or False,
+        'deleted_by_name': c.deleted_by.name if getattr(c, 'deleted_by', None) else None,
+        'deleted_by_role': getattr(c, 'deleted_by_role', None),
+        'deleted_at': c.deleted_at.isoformat() if getattr(c, 'deleted_at', None) else None,
         'created_at': c.created_at.isoformat(),
         'updated_at': c.updated_at.isoformat(),
         'images': [{'id': img.id, 'url': f'/static/uploads/{img.image_path}'} for img in c.images],
@@ -3084,6 +3243,10 @@ def create_project_comment(project_id):
                 db.session.add(img)
     
     db.session.commit()
+
+    # Auto-assign comment milestone badges
+    sync_comment_badges(current_user.id)
+    db.session.commit()
     
     return jsonify({
         'id': comment.id,
@@ -3101,7 +3264,7 @@ def create_project_comment(project_id):
 
 @views.route('/api/project/<int:project_id>/comments/<int:comment_id>', methods=['DELETE'])
 def delete_project_comment(project_id, comment_id):
-    """Delete a comment (comment author OR project owner)"""
+    """Delete a comment (comment author, project owner, or admin)"""
     err = require_login()
     if err:
         return err
@@ -3109,36 +3272,55 @@ def delete_project_comment(project_id, comment_id):
     project = Project.query.get_or_404(project_id)
     comment = ProjectComment.query.get_or_404(comment_id)
     current_user = get_current_user()
-     
-    # ─── FIXED: REMOVED THE PREMATURE BLOCK HERE ───
 
     if comment.project_id != project_id:
         return jsonify({'error': 'Comment not found in this project'}), 404
     
-    # ─── This check handles both conditions perfectly ───
-    # It allows the action ONLY if the user is either the comment author OR the project owner
-    if current_user.id != comment.user_id and current_user.id != project.user_id:
+    # Allow: comment author, project owner, or admin
+    if current_user.id != comment.user_id and current_user.id != project.user_id and not current_user.is_admin:
         return jsonify({'error': 'You do not have permission to delete this comment'}), 403
-    
+
+    # ── Determine deleted_by_role ──────────────────────────────────────
+    # source=admin_dashboard means the user is acting from the admin panel
+    # → always mark as 'admin' regardless of whether they also own the project.
+    # Deleting from the project page:
+    #   - if the deleter is the project owner (even if also admin) → 'owner'
+    #   - if the deleter is the comment author (not the owner)     → 'self'
+    #   - if the deleter is an admin who is NOT the owner          → 'admin'
+    source = request.args.get('source', '')  # e.g. ?source=admin_dashboard
+
+    if source == 'admin_dashboard':
+        deleted_by_role = 'admin'
+    elif current_user.id == project.user_id:
+        deleted_by_role = 'owner'
+    elif current_user.id == comment.user_id:
+        deleted_by_role = 'self'
+    else:
+        deleted_by_role = 'admin'
+    # ──────────────────────────────────────────────────────────────────
+
     # Delete associated images from disk
     for img in comment.images:
         file_path = os.path.join(UPLOAD_FOLDER, img.image_path)
         if os.path.exists(file_path):
             os.remove(file_path)
 
-# 1. Update the comment text to the placeholder message
+    # Soft-delete with full audit trail
     comment.content = "This message was deleted."
-    
-    # 2. Optional: Set a flag if your model has an 'is_deleted' column
-    if hasattr(comment, 'is_deleted'):
-        comment.is_deleted = True
+    comment.is_deleted = True
+    comment.deleted_by_id = current_user.id
+    comment.deleted_by_role = deleted_by_role
+    comment.deleted_at = datetime.now(timezone(timedelta(hours=8)))
 
-    # 3. Clear attached images so they don't linger on a deleted message
-    if hasattr(comment, 'images'):
-        for img in comment.images:
-            db.session.delete(img)
-    
+    # Clear attached images
+    for img in comment.images:
+        db.session.delete(img)
 
+    db.session.commit()
+
+    # Re-sync comment milestone badges
+    comment_author_id = comment.user_id
+    sync_comment_badges(comment_author_id)
     db.session.commit()
     
     return jsonify({'success': 'Comment deleted'})
@@ -3261,10 +3443,11 @@ def update_comment_label(project_id, comment_id):
         return jsonify({'error': 'Comment not found in this project'}), 404
     
     data = request.get_json(silent=True) or {}
-    label = data.get('label')
+    label = data.get('label', None)
     
-    if label:
-        comment.label = label
+    # Allow empty string to clear the label (None means key wasn't sent at all)
+    if label is not None:
+        comment.label = label if label else None
     
     db.session.commit()
     
@@ -4357,6 +4540,14 @@ def admin_dashboard_page():
 
     if not user or not getattr(user, 'is_admin', False):
         return "Access Denied. Admins Only.", 403
+
+    # One-time cleanup: hard-delete any legacy Suspended/Deleted projects left from the old soft-delete system
+    legacy_projects = Project.query.filter(Project.status.in_(['Suspended', 'Deleted'])).all()
+    for p in legacy_projects:
+        CommunityPost.query.filter_by(attached_project_id=p.id).update({'attached_project_id': None})
+        db.session.delete(p)
+    if legacy_projects:
+        db.session.commit()
 
     all_projects = Project.query.filter(
         Project.status != 'Archived',

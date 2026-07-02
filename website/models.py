@@ -71,6 +71,7 @@ class UserSettings(db.Model):
     notify_project_invites = db.Column(db.Boolean, default=True)
     notify_new_suggestions = db.Column(db.Boolean, default=True)
     notify_newsletter = db.Column(db.Boolean, default=False)
+    notify_badges = db.Column(db.Boolean, default=True)  # Show badge earned popup notifications
     
     # Display preferences
     theme = db.Column(db.String(20), nullable=False, default='light')  # 'light', 'dark'
@@ -97,6 +98,19 @@ class Badge(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     badge = db.Column(db.String(255), nullable=False)
+
+
+class BadgeNotification(db.Model):
+    """Queue of badge earned notifications pending display to the user"""
+    __tablename__ = 'badge_notifications'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    badge_name = db.Column(db.String(255), nullable=False)
+    is_read = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT))
+
+    user = db.relationship('User', backref=db.backref('badge_notifications', lazy='dynamic', cascade='all, delete-orphan'))
 
 
 class Comment(db.Model):
@@ -255,11 +269,18 @@ class ProjectComment(db.Model):
     # Role-based: 'user', 'team-member', 'owner'
     user_role = db.Column(db.String(20), nullable=False, default='user')
     
+    # Soft-delete audit trail
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False)
+    deleted_by_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    deleted_by_role = db.Column(db.String(20), nullable=True)  # 'admin', 'owner', 'self'
+    deleted_at = db.Column(db.DateTime, nullable=True)
+
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT))
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT), onupdate=datetime.now(MYT))
     
     # Relationships
-    author = db.relationship('User', backref='project_comments')
+    author = db.relationship('User', foreign_keys=[user_id], backref='project_comments')
+    deleted_by = db.relationship('User', foreign_keys=[deleted_by_id])
     project = db.relationship('Project', backref=db.backref('project_comments', cascade='all, delete-orphan'))
     images = db.relationship('ProjectCommentImage', backref='comment', lazy=True, cascade='all, delete-orphan')
     

@@ -70,6 +70,8 @@ def _initialize_admin_system():
         ADMIN_EMAILS = [
             'kohkonghao@mmu.edu.my',
             'koh.kong.hao@student.mmu.edu.my',
+            'Lee.Kai.Shuen@student.mmu.edu.my',
+            'lee.kai.shuen@student.mmu.edu.my',
         ]
         
         for email in ADMIN_EMAILS:
