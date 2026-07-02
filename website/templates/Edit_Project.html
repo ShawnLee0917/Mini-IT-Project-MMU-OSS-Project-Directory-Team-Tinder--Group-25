@@ -9,9 +9,13 @@
         const currentTheme = localStorage.getItem('theme') || 'light';
         document.documentElement.setAttribute('data-theme', currentTheme);
     </script>
+<!-- This is the Tailwind CSS that i used for the website. -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!--https://cdnjs.com/ -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" rel="stylesheet">
     <style>
+
+        /* This is get from Google Fonts. */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
 
         body {
@@ -99,6 +103,28 @@
         html[data-theme="dark"] textarea:focus,
         html[data-theme="dark"] select:focus {
             background-color: var(--bg-primary) !important;
+        }
+
+        html[data-theme="dark"] #logout-btn,
+        html[data-theme="dark"] #logout-btn-mobile {
+            background-color: #ffffff !important;
+            color: #dc2626 !important;
+        }
+
+        html[data-theme="dark"] #logout-btn:hover,
+        html[data-theme="dark"] #logout-btn-mobile:hover {
+            background-color: #f3f4f6 !important;
+        }
+
+        html[data-theme="dark"] #save-all-changes {
+        /* Changes button to deep Indigo blue in Dark Mode instead of Red */
+            background-color: #dc2626 !important; 
+            box-shadow: none !important;
+        }
+
+        html[data-theme="dark"] #save-all-changes:hover {
+       /* Hover color state for Dark Mode */
+            background-color: #B91C1C !important; 
         }
 
         /* ── Animated Hamburger Button ─────────────────────────── */
@@ -401,7 +427,7 @@
                     </section>
 
                     <div class="pt-6 flex flex-col md:flex-row gap-4">
-                        <button type="submit"
+                        <button id="save-all-changes" type="submit"
                             class="flex-grow bg-red-600 text-white px-8 py-4 rounded-2xl font-black hover:bg-red-700 transform hover:-translate-y-1 transition shadow-xl shadow-red-200">
                             SAVE ALL CHANGES
                         </button>

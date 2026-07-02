@@ -4,9 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MMU Open Source Directory</title>
+    <!-- This is the Tailwind CSS that i used for the website. -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!--https://cdnjs.com/ -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" rel="stylesheet">
     <style>
+
+        /* This is get from Google Fonts. */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
         
         :root {
@@ -320,10 +324,6 @@
                 <span id="mobile-notif-badge" class="bg-yellow-400 text-red-900 px-2 rounded-full text-xs hidden">0</span>
             </button>
 
-            <a id="admin-nav-btn-mobile" href="/admin/dashboard" class="hidden items-center gap-3 px-4 py-3 bg-red-600/20 text-red-400 rounded-xl font-medium text-sm transition-all border border-red-500/20">
-                <i class="fa-solid fa-shield-halved text-base w-5"></i>
-                <span>Admin Moderation</span>
-            </a>
 
             <button id="logout-btn-mobile" class="text-left text-red-200 hover:text-white transition text-sm border-t border-red-700 pt-4 mt-2">
                 <i class="fas fa-sign-out-alt mr-1"></i> Logout
@@ -485,7 +485,7 @@
         document.body.style.overflow = 'auto';
     }
 
-    // ── Theme Toggle Functionality ────────────────────────────────────────────
+    // Theme Toggle Functionality
     function initTheme() {
         const savedTheme = localStorage.getItem('theme') || 'light';
         setTheme(savedTheme);
@@ -542,7 +542,7 @@
         themeToggleBtn.addEventListener('click', toggleTheme);
     }
 
-    // ── Mobile menu smooth toggle ─────────────────────────────────────────────
+    // Mobile menu smooth toggle 
     const menuBtn    = document.getElementById('menu-btn');
     const mobileMenu = document.getElementById('mobile-menu');
 
@@ -566,7 +566,7 @@
         el.addEventListener('click', closeMenu);
     });
 
-    // ── Dropdown and Outside Clicks ───────────────────────────────────────────
+    // Dropdown and Outside Clicks
     const notifBtn = document.getElementById('notif-btn');
     const notifDropdown = document.getElementById('notif-dropdown');
     
@@ -586,7 +586,7 @@
         }
     });
 
-    // ── Toast notification ────────────────────────────────────────────────────
+    //  Toast notification
     function showNotif(msg, success = true) {
         const toast = document.createElement('div');
         toast.className = `fixed bottom-6 right-6 px-6 py-3 rounded-2xl text-white text-sm font-semibold shadow-lg z-50 ${success ? 'bg-green-600' : 'bg-red-600'}`;
@@ -595,57 +595,23 @@
         setTimeout(() => toast.remove(), 3500);
     }
 
-    // ── Badge Notification Queue ───────────────────────────────────────
-    // Strategy: compare current badges vs LAST POLL only.
-    // Badge gone → removed from lastPoll. Re-earned → not in lastPoll → notify.
-    // Works unlimited times regardless of dismiss state.
+    // Badge Notification Queue (API-backed)
+    // Fetches unread badge notifications from /api/badge-notifications.
+    // The server returns [] automatically if the user has turned off badge notifications.
 
-    function getBadgeQueue() {
-        try { return JSON.parse(localStorage.getItem('badge_notif_queue') || '[]'); } catch { return []; }
-    }
-    function saveBadgeQueue(q) {
-        localStorage.setItem('badge_notif_queue', JSON.stringify(q));
-    }
-    function getLastPollSet() {
-        try { return JSON.parse(localStorage.getItem('badge_last_poll') || '[]'); } catch { return []; }
-    }
-    function saveLastPollSet(s) {
-        localStorage.setItem('badge_last_poll', JSON.stringify(s));
+    async function fetchBadgeNotifications() {
+        try {
+            const res = await fetch(`${API}/badge-notifications`);
+            if (!res.ok) return [];
+            return await res.json(); // [{id, badge_name}, ...]
+        } catch { return []; }
     }
 
-    function syncBadgeQueue(currentBadges) {
-        const current  = currentBadges.map(b => b.toLowerCase().trim());
-        const lastPoll = getLastPollSet();
-        let   queue    = getBadgeQueue();
-
-        // New = in current but NOT in lastPoll
-        // Covers: first earn, AND re-earn after deletion (since lastPoll won't have it)
-        const newBadges = current.filter(b => !lastPoll.includes(b));
-        for (const name of newBadges) {
-            const displayName = currentBadges.find(
-                b => b.toLowerCase().trim() === name
-            ) || name;
-            // Only skip if this exact badge is already sitting unread in queue
-            const alreadyQueued = queue.some(e => e.name.toLowerCase().trim() === name);
-            if (!alreadyQueued) {
-                queue.push({
-                    id: name + '_' + Date.now() + '_' + Math.random(),
-                    name: displayName
-                });
-            }
-        }
-
-        // Always update lastPoll to current state
-        // When badge is gone next poll, it won't be in lastPoll → re-earn will notify ✅
-        saveLastPollSet(current);
-        saveBadgeQueue(queue);
-        return queue;
-    }
-
-    function dismissOneBadge(entryId) {
-        const newQueue = getBadgeQueue().filter(e => e.id !== entryId);
-        saveBadgeQueue(newQueue);
-        loadInvitations();
+    async function dismissOneBadge(notifId) {
+        try {
+            await fetch(`${API}/badge-notifications/${notifId}/dismiss`, { method: 'POST' });
+        } catch {}
+        await loadInvitations();
     }
 
     const BADGE_ICONS = {
@@ -691,20 +657,13 @@
 async function loadInvitations() {
         if (IS_FILE) return;
         try {
-            const [invRes, profileRes, notifRes] = await Promise.all([
+            const [invRes, badgeNotifs] = await Promise.all([
                 fetch(`${API}/my-invitations`),
-                fetch(`${API}/profile`),
-                fetch(`${API}/my-notifications`) 
+                fetchBadgeNotifications()
             ]);
 
-            const invs    = invRes.ok    ? await invRes.json()    : [];
-            const profile = profileRes.ok ? await profileRes.json() : {};
-            const generalNotifs = notifRes.ok ? await notifRes.json() : [];
-
-            const currentBadges = (profile.badges || []).map(b =>
-                typeof b === 'object' ? b.badge : b
-            );
-            const queue = syncBadgeQueue(currentBadges);
+            const invs  = invRes.ok ? await invRes.json() : [];
+            const queue = badgeNotifs; // [{id, badge_name}, ...]
 
             const badgeEl      = document.getElementById('notif-badge');
             const mobileBadge  = document.getElementById('mobile-notif-badge');
@@ -726,7 +685,7 @@ async function loadInvitations() {
             }
 
             const badgeItems = queue.map(entry => {
-                const b = getBadgeIcon(entry.name);
+                const b = getBadgeIcon(entry.badge_name);
                 return `
                 <div id="badge-card" class="p-4 hover:bg-gray-50 transition flex items-start gap-3 border-b border-gray-50">
                     <div class="w-9 h-9 rounded-full ${b.bg} flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -734,8 +693,8 @@ async function loadInvitations() {
                     </div>
                     <div class="flex-1 min-w-0">
                         <p class="text-xs font-bold text-gray-900">🏅 New Badge Earned!</p>
-                        <p class="text-xs text-gray-500 mt-0.5">You earned the <span class="font-semibold text-gray-700">${escapeHtml(entry.name)}</span> badge.</p>
-                        <button onclick="dismissOneBadge('${entry.id}')" class="text-[10px] text-gray-400 hover:text-red-500 mt-1.5 transition font-medium">
+                        <p class="text-xs text-gray-500 mt-0.5">You earned the <span class="font-semibold text-gray-700">${escapeHtml(entry.badge_name)}</span> badge.</p>
+                        <button onclick="dismissOneBadge(${entry.id})" class="text-[10px] text-gray-400 hover:text-red-500 mt-1.5 transition font-medium">
                             <i class="fas fa-check mr-1"></i>Got it
                         </button>
                     </div>
@@ -789,7 +748,7 @@ async function loadInvitations() {
         }
     }
 
-    // ── User Projects Automatic Load ─────────────────────────────────────────
+    // User Projects Automatic Load
     async function loadUserProjectsForPost() {
         if (IS_FILE) return;
         const select = document.getElementById('post-project-select');
@@ -810,7 +769,7 @@ async function loadInvitations() {
         }
     }
 
-    // ── Attachment Preview Logic ──────────────────────────────────────────────
+    //  Attachment Preview Logic
     let selectedImages = []; 
 
     function toggleLinkInput() {
@@ -1288,7 +1247,7 @@ async function loadInvitations() {
         }
     }
 
-    // ── Load AI Suggestions ──────────────────────────────────────────────────
+    // Load AI Suggestions
     async function loadAISuggestions() {
         if (IS_FILE) return;
         const list = document.getElementById('suggestions-list');
@@ -1336,7 +1295,7 @@ async function loadInvitations() {
         return div.innerHTML;
     }
 
-    // ── Fetch full profile from Flask ──────────────────────────────────────────
+    // Fetch full profile from Flask
     async function initNav() {
         if (IS_FILE) {
             if (document.getElementById('nav-email')) document.getElementById('nav-email').textContent = '(offline)';
@@ -1358,9 +1317,7 @@ async function loadInvitations() {
             
             if (profile.is_admin) {
                 const adminBtn = document.getElementById('admin-nav-btn');
-                const adminBtnMobile = document.getElementById('admin-nav-btn-mobile');
                 if (adminBtn) adminBtn.classList.remove('hidden');
-                if (adminBtnMobile) adminBtnMobile.classList.remove('hidden');
             }
             
             await loadInvitations();
@@ -1399,6 +1356,9 @@ function markAllAsRead() {
     showNotif("All badges marked as read.");
 }
 
+
+    // Re-poll badge + invitation notifications every 30 seconds
+    setInterval(loadInvitations, 30000);
 </script>
 </body>
 </html>

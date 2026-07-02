@@ -8,9 +8,13 @@
         const currentTheme = localStorage.getItem('theme') || 'light';
         document.documentElement.setAttribute('data-theme', currentTheme);
     </script>
+<!-- This is the Tailwind CSS that i used for the website. -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" rel="stylesheet">
+    <!--https://cdnjs.com/ -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" rel="stylesheet">
     <style>
+
+        /* This is get from Google Fonts. */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
         body { font-family: 'Inter', sans-serif; }
 
@@ -95,6 +99,17 @@
         html[data-theme="dark"] textarea:focus,
         html[data-theme="dark"] select:focus {
             background-color: var(--bg-primary) !important;
+        }
+
+        html[data-theme="dark"] #logout-btn,
+        html[data-theme="dark"] #logout-btn-mobile {
+            background-color: #ffffff !important;
+            color: #dc2626 !important;
+        }
+
+        html[data-theme="dark"] #logout-btn:hover,
+        html[data-theme="dark"] #logout-btn-mobile:hover {
+            background-color: #f3f4f6 !important;
         }
 
         /* ── Animated Hamburger Button ─────────────────────────── */
@@ -275,9 +290,11 @@
                     </a>
                 {% endif %}
                 {% if current_user_role == 'owner' %}
-                    <button type="button" onclick="confirmDeleteProject()" class="bg-red-100 text-red-700 px-6 py-3 rounded-xl font-bold hover:bg-red-200 transition flex items-center gap-2 border border-red-300">
+                    <button onclick="confirmDeleteProject()" class="bg-red-100 text-red-700 px-6 py-3 rounded-xl font-bold hover:bg-red-200 transition flex items-center gap-2 border border-red-300">
                         <i class="fas fa-trash text-xl"></i> Delete Project
                     </button>
+                {% endif %}
+                {% if current_user_role in ['owner', 'admin'] %}
                 {% endif %}
                 {% if current_user and not current_user_role %}
                     
@@ -298,6 +315,13 @@
                 <a href="{{ project.repo_url }}" target="_blank" class="bg-gray-100 text-gray-700 px-6 py-3 rounded-xl font-bold hover:bg-gray-200 transition flex items-center gap-2">
                     <i class="fab fa-github text-xl"></i> Repository
                 </a>
+                
+                {% if current_user and current_user.is_admin %}
+                <a href="{{ url_for('views.admin_dashboard_page') }}" class="bg-gray-900 text-white px-6 py-3 rounded-xl font-bold hover:bg-gray-700 transition flex items-center gap-2">
+                    <i class="fa-solid fa-shield-halved text-xl"></i> Admin Dashboard
+                </a>
+                {% endif %}
+            </div>
             </div>        
         </div>
     </div>
@@ -1398,17 +1422,19 @@ function createCommentHTML(comment) {
             ? new Date(comment.deleted_at).toLocaleString('en-GB',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'short',year:'numeric'})
             : (comment.created_at ? new Date(comment.created_at).toLocaleString('en-GB',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'short',year:'numeric'}) : '');
         return `
-            <div class="flex items-start gap-2 py-2 px-1 border-b border-gray-50 last:border-0">
-                <div class="w-7 h-7 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center font-bold flex-shrink-0 text-xs mt-0.5">
-                    ${comment.author_name ? comment.author_name[0].toUpperCase() : '?'}
-                </div>
-                <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-2">
-                        <span class="font-semibold text-gray-400 text-xs">${comment.author_name || 'Unknown'}</span>
-                        <span class="text-gray-300 text-xs">${deletedTime}</span>
+            <div class="bg-white p-6 rounded-2xl border border-gray-100">
+                <div class="flex items-start gap-4">
+                    <div class="w-10 h-10 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center font-bold flex-shrink-0">
+                        ${comment.author_name ? comment.author_name[0].toUpperCase() : '?'}
                     </div>
-                    <span class="inline-block mt-1 px-2 py-0.5 rounded-full text-xs italic ${pillClass}">${pillText}</span>
-                    ${subtextHTML}
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2">
+                            <span class="font-semibold text-gray-400 text-sm">${comment.author_name || 'Unknown'}</span>
+                            <span class="text-gray-300 text-xs">${deletedTime}</span>
+                        </div>
+                        <span class="inline-block mt-2 px-3 py-1 rounded-full text-xs italic ${pillClass}">${pillText}</span>
+                        ${subtextHTML}
+                    </div>
                 </div>
             </div>`;
     }
@@ -1418,58 +1444,122 @@ function createCommentHTML(comment) {
     const isAdmin = window.currentUserIsAdmin || false;
     const isIssueOrSuggestion = comment.comment_type !== 'normal';
 
-    let typeTag = '';
-    if (comment.comment_type === 'issue') typeTag = '<span class="text-xs bg-orange-100 text-orange-600 rounded-full px-2 py-0.5 font-semibold">Issue</span>';
-    else if (comment.comment_type === 'suggestion') typeTag = '<span class="text-xs bg-yellow-100 text-yellow-600 rounded-full px-2 py-0.5 font-semibold">Suggestion</span>';
+    // Type icon + label
+    let typeIcon = '<i class="fas fa-comment text-gray-400"></i>';
+    if (comment.comment_type === 'issue') typeIcon = '<i class="fas fa-exclamation-circle text-orange-500"></i>';
+    else if (comment.comment_type === 'suggestion') typeIcon = '<i class="fas fa-lightbulb text-yellow-500"></i>';
 
-    let nameClass = 'font-semibold text-gray-800 text-xs cursor-pointer hover:text-red-600 transition user-profile-link';
-    if (comment.user_role === 'owner') nameClass = 'font-semibold text-red-600 text-xs cursor-pointer hover:underline user-profile-link';
-    else if (comment.user_role === 'team-member') nameClass = 'font-semibold text-blue-600 text-xs cursor-pointer hover:underline user-profile-link';
+    // Role styling
+    let roleClass = 'text-gray-500';
+    let roleIcon = '<i class="fas fa-user-circle"></i>';
+    if (comment.user_role === 'owner') { roleClass = 'text-red-600'; roleIcon = '<i class="fas fa-crown"></i>'; }
+    else if (comment.user_role === 'team-member') { roleClass = 'text-blue-600'; roleIcon = '<i class="fas fa-users"></i>'; }
 
-    const labelBadge = (comment.label && comment.comment_type !== 'normal')
-        ? `<span class="text-xs bg-gray-200 text-gray-600 rounded px-1.5 py-0.5">${comment.label}</span>` : '';
+    const labelBadge = (comment.label && isIssueOrSuggestion)
+        ? `<span class="inline-block px-2 py-1 bg-gray-200 text-gray-700 text-xs font-semibold rounded-lg ml-2">${comment.label}</span>` : '';
 
     const imagesHTML = (comment.images && comment.images.length) ? `
-        <div class="flex flex-wrap gap-1 mt-1">
+        <div class="flex flex-wrap gap-2 mt-3">
             ${comment.images.map(img => `
-                <div class="gallery-img rounded-lg overflow-hidden border border-gray-100 cursor-pointer"
-                    data-src="${img.url}" style="width:60px;height:48px">
+                <div class="gallery-img rounded-xl overflow-hidden border border-gray-100 cursor-pointer shadow-sm"
+                    data-src="${img.url}" style="width:90px;height:70px">
                     <img src="${img.url}" class="w-full h-full object-cover hover:scale-105 transition duration-300">
                 </div>`).join('')}
         </div>` : '';
 
-    // Actions — only show on hover via parent group
-    const canDelete = isAuthor || isOwner || isAdmin;
-    const canEdit = isAuthor;
-    const actionsHTML = `
-        ${canEdit ? `<button onclick="openEditModal(${comment.id}, \`${escapeHtml(comment.content).replace(/\`/g,'\`')}\`)" class="text-gray-400 hover:text-yellow-600 transition" title="Edit"><i class="fas fa-pen text-xs"></i></button>` : ''}
-        ${canDelete ? `<button onclick="deleteComment(${comment.id})" class="text-gray-400 hover:text-red-500 transition" title="Delete"><i class="fas fa-times text-xs"></i></button>` : ''}
-        ${!isAuthor ? `<button onclick="openReportModal('comment', ${comment.id})" class="text-gray-400 hover:text-red-400 transition" title="Report"><i class="fas fa-flag text-xs"></i></button>` : ''}
-        ${(isOwner && !isAuthor) ? `
-        <select class="text-xs bg-gray-100 border-0 rounded px-1 py-0.5 text-gray-500" onchange="moveCommentType(${comment.id}, this.value)">
-            <option value="">Move...</option>
+    // Label change dropdown (owner only, issue/suggestion only)
+    const labelDropdown = (isOwner && isIssueOrSuggestion) ? `
+        <select class="text-xs bg-gray-100 border border-gray-300 rounded px-2 py-1" onchange="updateCommentLabel(${comment.id}, this.value)">
+            <option value="">Change label...</option>
+            <option value="" ${!comment.label ? 'selected' : ''}>No label</option>
+            ${commentLabels.map(l => `<option value="${l.name}" ${comment.label === l.name ? 'selected' : ''}>${l.name.charAt(0).toUpperCase() + l.name.slice(1)}</option>`).join('')}
+        </select>` : '';
+
+    // Move type dropdown (owner only)
+    const moveDropdown = isOwner ? `
+        <select class="text-xs bg-gray-100 border border-gray-300 rounded px-2 py-1" onchange="moveCommentType(${comment.id}, this.value)">
+            <option value="">Move to...</option>
             <option value="normal">Discussion</option>
             <option value="issue">Issue</option>
             <option value="suggestion">Suggestion</option>
-        </select>` : ''}
-    `;
+        </select>` : '';
+
+    // Author actions (edit + delete)
+    const authorActions = isAuthor ? `
+        <button onclick="openEditModal(${comment.id}, \`${escapeHtml(comment.content).replace(/`/g,'\\`')}\`)"
+            class="bg-yellow-50 text-yellow-700 px-2 py-1 rounded text-xs font-semibold hover:bg-yellow-100 transition">
+            <i class="fas fa-pen"></i> Edit
+        </button>
+        <button onclick="deleteComment(${comment.id})"
+            class="bg-red-50 text-red-700 px-2 py-1 rounded text-xs font-semibold hover:bg-red-100 transition">
+            <i class="fas fa-trash"></i> Delete
+        </button>` : '';
+
+    // Owner mod actions for other users' comments
+    const ownerModActions = (isOwner && !isAuthor) ? `
+        ${moveDropdown}
+        ${labelDropdown}
+        <button onclick="deleteComment(${comment.id})"
+            class="bg-red-50 text-red-700 px-2 py-1 rounded text-xs font-semibold hover:bg-red-100 transition">
+            <i class="fas fa-trash"></i> Delete
+        </button>` : '';
+
+    // Owner-as-author gets edit + move + label
+    const ownerAuthorActions = (isOwner && isAuthor) ? `
+        <button onclick="openEditModal(${comment.id}, \`${escapeHtml(comment.content).replace(/`/g,'\\`')}\`)"
+            class="bg-yellow-50 text-yellow-700 px-2 py-1 rounded text-xs font-semibold hover:bg-yellow-100 transition">
+            <i class="fas fa-pen"></i> Edit
+        </button>
+        ${moveDropdown}
+        ${labelDropdown}
+        <button onclick="deleteComment(${comment.id})"
+            class="bg-red-50 text-red-700 px-2 py-1 rounded text-xs font-semibold hover:bg-red-100 transition">
+            <i class="fas fa-trash"></i> Delete
+        </button>` : '';
+
+    // Admin delete (non-owner admins)
+    const adminDeleteAction = (isAdmin && !isOwner && !isAuthor) ? `
+        <button onclick="deleteComment(${comment.id})"
+            class="bg-red-50 text-red-700 px-2 py-1 rounded text-xs font-semibold hover:bg-red-100 transition">
+            <i class="fas fa-trash"></i> Delete
+        </button>` : '';
+
+    const reportAction = !isAuthor ? `
+        <button onclick="openReportModal('comment', ${comment.id})"
+            class="bg-gray-50 text-gray-600 px-2 py-1 rounded text-xs font-semibold hover:bg-red-50 hover:text-red-700 transition"
+            title="Report this comment">
+            <i class="fas fa-flag"></i> Report
+        </button>` : '';
+
+    const actionsHTML = ((isOwner && isAuthor) ? ownerAuthorActions
+        : isOwner ? ownerModActions
+        : isAuthor ? authorActions
+        : adminDeleteAction) + reportAction;
+
+    const actionBar = actionsHTML.trim() ? `
+        <div class="absolute top-4 right-4 flex gap-2 flex-wrap opacity-0 group-hover:opacity-100 transition">
+            ${actionsHTML}
+        </div>` : '';
 
     const ts = new Date(comment.created_at).toLocaleString('en-GB',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'short',year:'numeric'});
 
     return `
-        <div class="flex items-start gap-2 py-2 px-1 border-b border-gray-50 last:border-0 group">
-            <div class="w-7 h-7 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-bold flex-shrink-0 text-xs mt-0.5 cursor-pointer user-profile-link" data-user-id="${comment.author_id}">
-                ${comment.author_name[0].toUpperCase()}
-            </div>
-            <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-1.5 flex-wrap">
-                    <span class="${nameClass}" data-user-id="${comment.author_id}">${comment.author_name}</span>
-                    <span class="text-gray-300 text-xs">${ts}</span>
-                    ${typeTag}${labelBadge}
-                    <span class="ml-auto flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition">${actionsHTML}</span>
+        <div class="bg-white p-6 rounded-2xl border border-gray-100 group relative hover:shadow-md transition">
+            ${actionBar}
+            <div class="flex items-start gap-4">
+                <div class="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-bold flex-shrink-0 cursor-pointer hover:opacity-80 transition user-profile-link" data-user-id="${comment.author_id}">
+                    ${comment.author_name[0].toUpperCase()}
                 </div>
-                <p class="text-gray-600 text-xs leading-relaxed mt-0.5 whitespace-pre-wrap" id="comment-text-${comment.id}">${escapeHtml(comment.content)}</p>
-                ${imagesHTML}
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="font-semibold text-gray-900 cursor-pointer hover:text-red-600 transition user-profile-link ${roleClass}" data-user-id="${comment.author_id}">${roleIcon} ${comment.author_name}</span>
+                        <span class="text-gray-400 text-xs">${ts}</span>
+                        <span class="flex items-center gap-1 text-xs text-gray-500">${typeIcon}</span>
+                        ${labelBadge}
+                    </div>
+                    <p class="text-gray-600 text-sm leading-relaxed mt-2 whitespace-pre-wrap" id="comment-text-${comment.id}">${escapeHtml(comment.content)}</p>
+                    ${imagesHTML}
+                </div>
             </div>
         </div>`;
 }
@@ -1760,7 +1850,7 @@ async function deleteComment(commentId) {
 }
 
     async function updateCommentLabel(commentId, newLabel) {
-        if (!newLabel) return;
+        if (newLabel === undefined) return;
         try {
             const res = await fetch(`${API}/project/${projectId}/comments/${commentId}/label`, {
                 method: 'PUT',
