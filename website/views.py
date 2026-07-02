@@ -1142,24 +1142,6 @@ def view_user_profile(user_id):
     
     return render_template("User_Profile.html", profile_user=user, current_user=current_user, show_private_message=show_private_message)
 
-@views.route('/qna/delete/<int:question_id>')
-def qna_delete_page(question_id):
-    """Display delete confirmation page for a question"""
-    q = Question.query.get_or_404(question_id)
-    user = get_current_user()
-    
-    # Check if user is the owner
-    if not user or q.user_id != user.id:
-        flash("You don't have permission to delete this question.", "error")
-        return redirect(url_for('views.qna_page'))
-    
-    return render_template("QnA_Delete.html", question=q)
-
-
-@views.route('/qna')
-def qna_page():
-    return render_template('QnA.html')
-
 @views.route('/project/<int:project_id>')
 def project_page(project_id):
     """Renders the standard student project page or historical moderation notices if soft-deleted."""
