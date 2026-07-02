@@ -10,9 +10,13 @@
         document.documentElement.setAttribute('data-theme', currentTheme);
     </script>
     <meta name="description" content="Your MMU Open Source Student Directory profile">
+<!-- This is the Tailwind CSS that i used for the website. -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!--https://cdnjs.com/ -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" rel="stylesheet">
     <style>
+
+        /* This is get from Google Fonts. */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
 
         body { font-family: 'Inter', sans-serif; }
@@ -106,6 +110,25 @@
         html[data-theme="dark"] textarea:focus,
         html[data-theme="dark"] select:focus {
             background-color: var(--bg-primary) !important;
+        }
+
+        html[data-theme="dark"] .bg-gray-100 {
+            background-color: #262626 !important;
+        }
+
+        html[data-theme="dark"] .hover\:bg-gray-200:hover {
+            background-color: #333333 !important;
+        }
+
+        html[data-theme="dark"] #logout-btn,
+        html[data-theme="dark"] #logout-btn-mobile {
+            background-color: #ffffff !important;
+            color: #dc2626 !important;
+        }
+
+        html[data-theme="dark"] #logout-btn:hover,
+        html[data-theme="dark"] #logout-btn-mobile:hover {
+            background-color: #f3f4f6 !important;
         }
 
         /* ── Animated Hamburger Button ─────────────────────────── */
@@ -275,17 +298,6 @@
                     </p>
                     <p id="display-bio" class="text-gray-500 text-sm mt-3 italic hidden"></p>
 
-                    <div class="mt-6 pt-6 border-t border-gray-50 grid grid-cols-2 gap-4">
-                        <div>
-                            <p id="display-rank" class="text-xl font-black text-red-600">–</p>
-                            <p class="text-[10px] uppercase font-bold text-gray-400">Rank</p>
-                        </div>
-                        <div>
-                            <p id="display-karma" class="text-xl font-black text-red-600">–</p>
-                            <p class="text-[10px] uppercase font-bold text-gray-400">Karma</p>
-                        </div>
-                    </div>
-
                     <button id="open-edit-modal-btn" class="mt-6 w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2 rounded-xl border border-gray-200 transition text-sm">
                         <i class="fas fa-pen mr-1"></i> Edit Profile
                     </button>
@@ -385,8 +397,8 @@
         </div>
     </div>
 
-    <div id="edit-profile-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center px-4">
-        <div class="bg-white rounded-3xl p-8 w-full max-w-lg shadow-xl transform scale-100 transition-transform">
+    <div id="edit-profile-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-start justify-center px-4 py-8 overflow-y-auto">
+        <div class="bg-white rounded-3xl p-8 w-full max-w-lg shadow-xl transform scale-100 transition-transform my-auto">
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-2xl font-bold">Edit Profile</h2>
                 <button id="close-modal-btn" class="text-gray-400 hover:text-gray-700 transition">
@@ -412,7 +424,7 @@
                 </div>
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-3">Project Interests</label>
-                    <div id="modal-interests" class="grid grid-cols-2 gap-2">
+                    <div id="modal-interests" class="grid grid-cols-1 gap-2">
                         <!-- Checkboxes will be inserted here -->
                     </div>
                 </div>
@@ -444,7 +456,6 @@
                     <button class="settings-tab-btn text-left px-4 py-2 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-50 transition" data-target="settings-account">Account</button>
                     <button class="settings-tab-btn text-left px-4 py-2 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-50 transition" data-target="settings-notifications">Notifications</button>
                     <button class="settings-tab-btn text-left px-4 py-2 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-50 transition" data-target="settings-display">Display</button>
-                    <button class="settings-tab-btn text-left px-4 py-2 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-50 transition" data-target="settings-other">Other</button>
                 </div>
                 
                 <!-- Settings Content -->
@@ -466,21 +477,10 @@
                         <!-- Account -->
                         <div id="settings-account" class="settings-section hidden space-y-4">
                             <h3 class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-3">Account</h3>
-
-                            <div>
-                                <label class="block text-sm font-bold text-gray-800 mb-1">Email Address</label>
-                                <input type="text" id="setting-email" required placeholder="student@mmu.edu.my" class="input-field w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-red-500 text-sm bg-gray-50">
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-bold text-gray-800 mb-1">Reset Password</label>
-                                <input type="password" id="setting-password" required placeholder="••••••••" class="input-field w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-red-500 text-sm bg-gray-50">
-                                <label class="block text-sm font-bold text-gray-800 mb-1">Confirm Password</label>
-                                <input type="password" id="setting-confirm-password" required placeholder="••••••••" class="input-field w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-red-500 text-sm bg-gray-50">
-                            </div>
-                            <h4 class="text-sm font-bold text-red-600 uppercase tracking-widest mb-3">Delete Account</h4>
-                            <button id="delete-account-btn" class="bg-red-600 text-white hover:bg-red-50 text-xs font-bold px-3 py-2 rounded-xl transition">
-                                <i class="fas fa-trash-alt mr-1"></i>Delete Account
+                            <h4 class="text-sm font-bold text-red-600 uppercase tracking-widest mb-3">Reset Password</h4>
+                            <p class="text-xs text-gray-500 mb-3">We'll email a verification code to confirm it's really you before changing your password.</p>
+                            <button id="open-reset-password-btn" type="button" class="bg-red-600 text-white hover:bg-red-700 text-xs font-bold px-3 py-2 rounded-xl transition">
+                                <i class="fa-solid fa-arrow-rotate-left mr-1"></i>Reset Password
                             </button>
                         </div>
 
@@ -541,6 +541,79 @@
                 <button type="button" id="save-settings-btn" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-xl font-bold transition text-sm flex items-center gap-2">
                     <span id="save-settings-label">Save Settings</span>
                     <i id="save-settings-spinner" class="fas fa-spinner fa-spin hidden"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reset Password Modal -->
+    <div id="reset-password-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[70] flex items-center justify-center px-4">
+        <div class="bg-white rounded-3xl p-8 w-full max-w-md shadow-xl">
+            <div class="flex justify-between items-center mb-2">
+                <h2 class="text-xl font-bold">Reset Password</h2>
+                <button id="close-reset-password-btn" type="button" class="text-gray-400 hover:text-gray-700 transition">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <p id="reset-password-step-label" class="text-sm text-gray-500 mb-6">Step 1 of 3 — Confirm your email</p>
+
+            <!-- Step 1: Email -->
+            <div id="reset-step-email" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Email Address</label>
+                    <input type="email" id="reset-email-input" placeholder="you@student.mmu.edu.my"
+                        class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-red-500 text-sm bg-gray-50">
+                    <p id="reset-email-error" class="text-xs text-red-600 mt-1 hidden"></p>
+                </div>
+                <button type="button" id="send-reset-code-btn" class="w-full bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-xl font-bold transition text-sm flex items-center justify-center gap-2">
+                    <span id="send-reset-code-label">Send Verification Code</span>
+                    <i id="send-reset-code-spinner" class="fas fa-spinner fa-spin hidden"></i>
+                </button>
+            </div>
+
+            <!-- Step 2: Verification Code -->
+            <div id="reset-step-code" class="space-y-4 hidden">
+                <p class="text-sm text-gray-600">We sent a 6-digit code to <span id="reset-email-display" class="font-bold text-gray-800"></span>.</p>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Verification Code</label>
+                    <input type="text" id="reset-code-input" maxlength="6" placeholder="000000"
+                        class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-red-500 text-sm bg-gray-50 tracking-[0.5em] text-center font-bold">
+                    <p id="reset-code-error" class="text-xs text-red-600 mt-1 hidden"></p>
+                </div>
+                <button type="button" id="verify-reset-code-btn" class="w-full bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-xl font-bold transition text-sm flex items-center justify-center gap-2">
+                    <span id="verify-reset-code-label">Verify Code</span>
+                    <i id="verify-reset-code-spinner" class="fas fa-spinner fa-spin hidden"></i>
+                </button>
+                <button type="button" id="resend-reset-code-btn" class="w-full text-red-600 hover:underline text-xs font-bold py-1">
+                    Didn't get a code? Resend
+                </button>
+            </div>
+
+            <!-- Step 3: New Password -->
+            <div id="reset-step-password" class="space-y-4 hidden">
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">New Password</label>
+                    <input type="password" id="reset-new-password-input" placeholder="Enter new password"
+                        class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-red-500 text-sm bg-gray-50">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Confirm New Password</label>
+                    <input type="password" id="reset-confirm-password-input" placeholder="Re-enter new password"
+                        class="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-red-500 text-sm bg-gray-50">
+                    <p id="reset-password-error" class="text-xs text-red-600 mt-1 hidden"></p>
+                </div>
+                <button type="button" id="confirm-reset-password-btn" class="w-full bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-xl font-bold transition text-sm flex items-center justify-center gap-2">
+                    <span id="confirm-reset-password-label">Reset Password</span>
+                    <i id="confirm-reset-password-spinner" class="fas fa-spinner fa-spin hidden"></i>
+                </button>
+            </div>
+
+            <!-- Step 4: Success -->
+            <div id="reset-step-success" class="space-y-4 hidden text-center py-4">
+                <i class="fas fa-circle-check text-5xl text-green-500"></i>
+                <p class="text-sm font-bold text-gray-800">Password reset successfully!</p>
+                <button type="button" id="close-reset-success-btn" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 py-2.5 rounded-xl font-bold transition text-sm">
+                    Done
                 </button>
             </div>
         </div>
@@ -775,8 +848,6 @@ function applyTheme(theme) {
                 document.getElementById('display-name').textContent = d.name;
                 document.getElementById('display-faculty').textContent = d.faculty;
                 document.getElementById('email-text').textContent = d.email;
-                document.getElementById('display-rank').textContent = d.rank;
-                document.getElementById('display-karma').textContent = d.karma;
                 setBio(d.bio);
                 setAvatar(d.name, d.avatar_url || '');
                 renderSkills(d.skills);
@@ -827,8 +898,18 @@ function applyTheme(theme) {
             spinner.classList.remove('hidden');
 
             try {
-                // Get selected interests
-                const interests = Array.from(document.querySelectorAll('#modal-interests input[type="checkbox"]:checked')).map(cb => cb.value);
+                // Get selected interests from dev and lang sections
+                const devInterests = Array.from(document.querySelectorAll('#modal-interests input[name="dev-interests"]:checked')).map(cb => cb.value);
+                const customDevInput = document.getElementById('custom-dev-interest').value.trim();
+                if (customDevInput) {
+                    customDevInput.split(',').forEach(t => { const trimmed = t.trim(); if (trimmed) devInterests.push(trimmed); });
+                }
+                const langInterests = Array.from(document.querySelectorAll('#modal-interests input[name="lang-interests"]:checked')).map(cb => cb.value);
+                const customLangInput = document.getElementById('custom-lang-interest').value.trim();
+                if (customLangInput) {
+                    customLangInput.split(',').forEach(t => { const trimmed = t.trim(); if (trimmed) langInterests.push(trimmed); });
+                }
+                const interests = [...devInterests, ...langInterests];
                 
                 const res = await fetch(`${API}/profile`, {
                     method: 'PUT',
@@ -1021,19 +1102,70 @@ function applyTheme(theme) {
         }
 
         // ── Event Listeners ─────────────────────────────────────────────────────
-        const INTEREST_OPTIONS = [
-            'Web Development', 'Mobile Development', 'AI/ML', 'Data Science',
-            'DevOps', 'Cloud', 'Blockchain', 'IoT', 'html', 'python', 'java', 'c++', 'c#'
+        const DEV_OPTIONS = [
+            { value: 'Web Development', label: 'Web Dev' },
+            { value: 'Mobile Development', label: 'Mobile' },
+            { value: 'AI/ML', label: 'AI/ML' },
+            { value: 'Data Science', label: 'Data Science' },
+            { value: 'DevOps', label: 'DevOps' },
+            { value: 'Cloud', label: 'Cloud' },
+            { value: 'Blockchain', label: 'Blockchain' },
+            { value: 'IoT', label: 'IoT' },
+            { value: 'Desktop Development', label: 'Desktop' },
+            { value: 'Game Development', label: 'Game Dev' },
+        ];
+        const LANG_OPTIONS = [
+            { value: 'Python', label: 'Python' },
+            { value: 'JavaScript', label: 'JavaScript' },
+            { value: 'Java', label: 'Java' },
+            { value: 'C++', label: 'C++' },
+            { value: 'C#', label: 'C#' },
+            { value: 'TypeScript', label: 'TypeScript' },
+            { value: 'Go', label: 'Go' },
+            { value: 'Rust', label: 'Rust' },
+            { value: 'PHP', label: 'PHP' },
+            { value: 'SQL', label: 'SQL' },
+            { value: 'Ruby', label: 'Ruby' },
+            { value: 'Swift', label: 'Swift' },
+            { value: 'Kotlin', label: 'Kotlin' },
         ];
 
         function populateInterestCheckboxes() {
             const container = document.getElementById('modal-interests');
-            container.innerHTML = INTEREST_OPTIONS.map(interest => `
-                <label class="flex items-center gap-2 cursor-pointer hover:bg-red-50 p-2 rounded-lg transition">
-                    <input type="checkbox" value="${interest}" class="w-4 h-4 text-red-600 rounded">
-                    <span class="text-sm text-gray-700">${interest}</span>
-                </label>
-            `).join('');
+            container.innerHTML = `
+                <!-- Development Interests -->
+                <div class="col-span-2">
+                    <label class="block text-sm font-bold text-gray-700 mb-2">Interest in Developing</label>
+                    <div class="grid grid-cols-2 gap-2 mb-3" id="dev-checkboxes">
+                        ${DEV_OPTIONS.map(opt => `
+                        <label class="flex items-center gap-2 cursor-pointer hover:bg-red-50 p-2 rounded-lg transition">
+                            <input type="checkbox" name="dev-interests" value="${opt.value}" class="w-4 h-4 text-red-600 rounded">
+                            <span class="text-sm text-gray-700">${opt.label}</span>
+                        </label>`).join('')}
+                    </div>
+                    <div>
+                        <input type="text" id="custom-dev-interest" placeholder="Add your own interest (e.g., Cybersecurity)"
+                            class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-red-500 text-sm bg-gray-50">
+                        <p class="text-xs text-gray-400 mt-1">💡 Type custom interests separated by commas</p>
+                    </div>
+                </div>
+                <!-- Programming Language Interests -->
+                <div class="col-span-2 mt-3">
+                    <label class="block text-sm font-bold text-gray-700 mb-2">Interest in Programming Languages</label>
+                    <div class="grid grid-cols-2 gap-2 mb-3" id="lang-checkboxes">
+                        ${LANG_OPTIONS.map(opt => `
+                        <label class="flex items-center gap-2 cursor-pointer hover:bg-blue-50 p-2 rounded-lg transition">
+                            <input type="checkbox" name="lang-interests" value="${opt.value}" class="w-4 h-4 text-red-600 rounded">
+                            <span class="text-sm text-gray-700">${opt.label}</span>
+                        </label>`).join('')}
+                    </div>
+                    <div>
+                        <input type="text" id="custom-lang-interest" placeholder="Add your own language (e.g., Dart, Lua)"
+                            class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-red-500 text-sm bg-gray-50">
+                        <p class="text-xs text-gray-400 mt-1">💡 Type custom languages separated by commas</p>
+                    </div>
+                </div>
+            `;
         }
 
         function updateCheckboxesFromDisplay() {
@@ -1043,6 +1175,17 @@ function applyTheme(theme) {
             checkboxes.forEach(cb => {
                 cb.checked = currentInterests.includes(cb.value);
             });
+            // Restore custom interests into text inputs
+            const knownValues = [...DEV_OPTIONS.map(o => o.value), ...LANG_OPTIONS.map(o => o.value)];
+            const devKnown = DEV_OPTIONS.map(o => o.value);
+            const langKnown = LANG_OPTIONS.map(o => o.value);
+            const customDev = currentInterests.filter(i => !knownValues.includes(i) && !langKnown.includes(i));
+            const customLang = currentInterests.filter(i => !knownValues.includes(i) && !devKnown.includes(i));
+            // Show truly unknown ones in custom-dev field
+            const allKnown = new Set(knownValues);
+            const unknown = currentInterests.filter(i => !allKnown.has(i));
+            const customDevEl = document.getElementById('custom-dev-interest');
+            if (customDevEl && unknown.length) customDevEl.value = unknown.join(', ');
         }
 
         document.addEventListener('DOMContentLoaded', async () => {
@@ -1109,6 +1252,195 @@ function applyTheme(theme) {
             settingsModal.addEventListener('click', e => { if (e.target === settingsModal) settingsModal.classList.add('hidden'); });
             
             document.getElementById('save-settings-btn').addEventListener('click', saveSettings);
+
+            // Reset Password Modal
+            const resetModal = document.getElementById('reset-password-modal');
+            const resetSteps = {
+                email: document.getElementById('reset-step-email'),
+                code: document.getElementById('reset-step-code'),
+                password: document.getElementById('reset-step-password'),
+                success: document.getElementById('reset-step-success'),
+            };
+            const resetStepLabel = document.getElementById('reset-password-step-label');
+            let resetUserEmail = '';
+            let resetVerifiedOtp = '';
+
+            function showResetStep(stepName) {
+                Object.values(resetSteps).forEach(el => el.classList.add('hidden'));
+                resetSteps[stepName].classList.remove('hidden');
+                const labels = {
+                    email: 'Step 1 of 3 — Confirm your email',
+                    code: 'Step 2 of 3 — Enter verification code',
+                    password: 'Step 3 of 3 — Set a new password',
+                    success: ''
+                };
+                resetStepLabel.textContent = labels[stepName];
+            }
+
+            function resetModalState() {
+                resetUserEmail = '';
+                resetVerifiedOtp = '';
+                document.getElementById('reset-email-input').value = '';
+                document.getElementById('reset-code-input').value = '';
+                document.getElementById('reset-new-password-input').value = '';
+                document.getElementById('reset-confirm-password-input').value = '';
+                ['reset-email-error', 'reset-code-error', 'reset-password-error'].forEach(id => {
+                    const el = document.getElementById(id);
+                    el.classList.add('hidden');
+                    el.textContent = '';
+                });
+                showResetStep('email');
+            }
+
+            function showResetError(fieldId, message) {
+                const el = document.getElementById(fieldId);
+                el.textContent = message;
+                el.classList.remove('hidden');
+            }
+
+            document.getElementById('open-reset-password-btn').addEventListener('click', () => {
+                resetModalState();
+                const knownEmail = document.getElementById('email-text')?.textContent?.trim();
+                if (knownEmail && knownEmail.includes('@')) {
+                    document.getElementById('reset-email-input').value = knownEmail;
+                }
+                resetModal.classList.remove('hidden');
+            });
+            document.getElementById('close-reset-password-btn').addEventListener('click', () => resetModal.classList.add('hidden'));
+            document.getElementById('close-reset-success-btn').addEventListener('click', () => resetModal.classList.add('hidden'));
+            resetModal.addEventListener('click', e => { if (e.target === resetModal) resetModal.classList.add('hidden'); });
+
+            // Step 1 -> POST /api/forgot-password { email }
+            async function sendResetCode() {
+                const emailInput = document.getElementById('reset-email-input');
+                const email = emailInput.value.trim().toLowerCase();
+                document.getElementById('reset-email-error').classList.add('hidden');
+
+                if (!email || !email.includes('@')) {
+                    showResetError('reset-email-error', 'Please enter a valid email address.');
+                    return;
+                }
+
+                const btn = document.getElementById('send-reset-code-btn');
+                const label = document.getElementById('send-reset-code-label');
+                const spinner = document.getElementById('send-reset-code-spinner');
+                btn.disabled = true;
+                label.textContent = 'Sending...';
+                spinner.classList.remove('hidden');
+
+                try {
+                    const res = await fetch(`${API}/forgot-password`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email })
+                    });
+                    const data = await res.json().catch(() => ({}));
+
+                    if (!res.ok) {
+                        showResetError('reset-email-error', data.error || 'Could not send code. Please check the email and try again.');
+                        return;
+                    }
+
+                    resetUserEmail = email;
+                    document.getElementById('reset-email-display').textContent = email;
+                    showResetStep('code');
+                } catch (err) {
+                    showResetError('reset-email-error', 'Network error. Please try again.');
+                } finally {
+                    btn.disabled = false;
+                    label.textContent = 'Send Verification Code';
+                    spinner.classList.add('hidden');
+                }
+            }
+            document.getElementById('send-reset-code-btn').addEventListener('click', sendResetCode);
+            document.getElementById('resend-reset-code-btn').addEventListener('click', sendResetCode);
+
+            // Step 2 -> POST /api/verify-reset-otp { email, otp }
+            document.getElementById('verify-reset-code-btn').addEventListener('click', async () => {
+                const otp = document.getElementById('reset-code-input').value.trim();
+                document.getElementById('reset-code-error').classList.add('hidden');
+
+                if (!otp || otp.length !== 6) {
+                    showResetError('reset-code-error', 'Please enter the 6-digit code.');
+                    return;
+                }
+
+                const btn = document.getElementById('verify-reset-code-btn');
+                const label = document.getElementById('verify-reset-code-label');
+                const spinner = document.getElementById('verify-reset-code-spinner');
+                btn.disabled = true;
+                label.textContent = 'Verifying...';
+                spinner.classList.remove('hidden');
+
+                try {
+                    const res = await fetch(`${API}/verify-reset-otp`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: resetUserEmail, otp })
+                    });
+                    const data = await res.json().catch(() => ({}));
+
+                    if (!res.ok) {
+                        showResetError('reset-code-error', data.error || 'Invalid or expired code. Please try again.');
+                        return;
+                    }
+
+                    resetVerifiedOtp = otp;
+                    showResetStep('password');
+                } catch (err) {
+                    showResetError('reset-code-error', 'Network error. Please try again.');
+                } finally {
+                    btn.disabled = false;
+                    label.textContent = 'Verify Code';
+                    spinner.classList.add('hidden');
+                }
+            });
+
+            // Step 3 -> POST /api/reset-password { email, otp, new_password }
+            document.getElementById('confirm-reset-password-btn').addEventListener('click', async () => {
+                const newPassword = document.getElementById('reset-new-password-input').value;
+                const confirmPassword = document.getElementById('reset-confirm-password-input').value;
+                document.getElementById('reset-password-error').classList.add('hidden');
+
+                if (!newPassword || newPassword.length < 6) {
+                    showResetError('reset-password-error', 'Password must be at least 6 characters.');
+                    return;
+                }
+                if (newPassword !== confirmPassword) {
+                    showResetError('reset-password-error', 'Passwords do not match.');
+                    return;
+                }
+
+                const btn = document.getElementById('confirm-reset-password-btn');
+                const label = document.getElementById('confirm-reset-password-label');
+                const spinner = document.getElementById('confirm-reset-password-spinner');
+                btn.disabled = true;
+                label.textContent = 'Resetting...';
+                spinner.classList.remove('hidden');
+
+                try {
+                    const res = await fetch(`${API}/reset-password`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: resetUserEmail, otp: resetVerifiedOtp, new_password: newPassword })
+                    });
+                    const data = await res.json().catch(() => ({}));
+
+                    if (!res.ok) {
+                        showResetError('reset-password-error', data.error || 'Could not reset password. Please try again.');
+                        return;
+                    }
+
+                    showResetStep('success');
+                } catch (err) {
+                    showResetError('reset-password-error', 'Network error. Please try again.');
+                } finally {
+                    btn.disabled = false;
+                    label.textContent = 'Reset Password';
+                    spinner.classList.add('hidden');
+                }
+            });
+
 
             // Live theme preview — no save needed
 document.getElementById('setting-theme').addEventListener('change', function () {

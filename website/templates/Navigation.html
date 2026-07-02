@@ -4,9 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MMU Open Source Directory</title>
+    <!-- This is the Tailwind CSS that i used for the website. -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!--https://cdnjs.com/ -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" rel="stylesheet">
     <style>
+
+        /* This is get from Google Fonts. */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
         
         :root {
@@ -317,10 +321,6 @@
                 <span id="mobile-notif-badge" class="bg-yellow-400 text-red-900 px-2 rounded-full text-xs hidden">0</span>
             </button>
 
-            <a id="admin-nav-btn-mobile" href="/admin/dashboard" class="hidden items-center gap-3 px-4 py-3 bg-red-600/20 text-red-400 rounded-xl font-medium text-sm transition-all border border-red-500/20">
-                <i class="fa-solid fa-shield-halved text-base w-5"></i>
-                <span>Admin Moderation</span>
-            </a>
 
             <button id="logout-btn-mobile" class="text-left text-red-200 hover:text-white transition text-sm border-t border-red-700 pt-4 mt-2">
                 <i class="fas fa-sign-out-alt mr-1"></i> Logout
@@ -482,7 +482,7 @@
         document.body.style.overflow = 'auto';
     }
 
-    // ── Theme Toggle Functionality ────────────────────────────────────────────
+    // Theme Toggle Functionality
     function initTheme() {
         const savedTheme = localStorage.getItem('theme') || 'light';
         setTheme(savedTheme);
@@ -539,7 +539,7 @@
         themeToggleBtn.addEventListener('click', toggleTheme);
     }
 
-    // ── Mobile menu smooth toggle ─────────────────────────────────────────────
+    // Mobile menu smooth toggle 
     const menuBtn    = document.getElementById('menu-btn');
     const mobileMenu = document.getElementById('mobile-menu');
 
@@ -563,7 +563,7 @@
         el.addEventListener('click', closeMenu);
     });
 
-    // ── Dropdown and Outside Clicks ───────────────────────────────────────────
+    // Dropdown and Outside Clicks
     const notifBtn = document.getElementById('notif-btn');
     const notifDropdown = document.getElementById('notif-dropdown');
     
@@ -583,7 +583,7 @@
         }
     });
 
-    // ── Toast notification ────────────────────────────────────────────────────
+    //  Toast notification
     function showNotif(msg, success = true) {
         const toast = document.createElement('div');
         toast.className = `fixed bottom-6 right-6 px-6 py-3 rounded-2xl text-white text-sm font-semibold shadow-lg z-50 ${success ? 'bg-green-600' : 'bg-red-600'}`;
@@ -592,7 +592,7 @@
         setTimeout(() => toast.remove(), 3500);
     }
 
-    // ── Badge Notification Queue (API-backed) ─────────────────────────────────
+    // Badge Notification Queue (API-backed)
     // Fetches unread badge notifications from /api/badge-notifications.
     // The server returns [] automatically if the user has turned off badge notifications.
 
@@ -650,7 +650,7 @@
         return BADGE_ICONS[name.toLowerCase().trim()] || { icon: 'fas fa-medal', color: 'text-yellow-500', bg: 'bg-yellow-50' };
     }
 
-    // ── Load Notifications (Invitations + Badge Queue) ──────────────────
+    //  Load Notifications (Invitations + Badge Queue) 
     async function loadInvitations() {
         if (IS_FILE) return;
         try {
@@ -738,7 +738,7 @@
         }
     }
 
-    // ── User Projects Automatic Load ─────────────────────────────────────────
+    // User Projects Automatic Load
     async function loadUserProjectsForPost() {
         if (IS_FILE) return;
         const select = document.getElementById('post-project-select');
@@ -759,7 +759,7 @@
         }
     }
 
-    // ── Attachment Preview Logic ──────────────────────────────────────────────
+    //  Attachment Preview Logic
     let selectedImages = []; 
 
     function toggleLinkInput() {
@@ -1237,7 +1237,7 @@
         }
     }
 
-    // ── Load AI Suggestions ──────────────────────────────────────────────────
+    // Load AI Suggestions
     async function loadAISuggestions() {
         if (IS_FILE) return;
         const list = document.getElementById('suggestions-list');
@@ -1285,7 +1285,7 @@
         return div.innerHTML;
     }
 
-    // ── Fetch full profile from Flask ──────────────────────────────────────────
+    // Fetch full profile from Flask
     async function initNav() {
         if (IS_FILE) {
             if (document.getElementById('nav-email')) document.getElementById('nav-email').textContent = '(offline)';
@@ -1307,9 +1307,7 @@
             
             if (profile.is_admin) {
                 const adminBtn = document.getElementById('admin-nav-btn');
-                const adminBtnMobile = document.getElementById('admin-nav-btn-mobile');
                 if (adminBtn) adminBtn.classList.remove('hidden');
-                if (adminBtnMobile) adminBtnMobile.classList.remove('hidden');
             }
             
             await loadInvitations();

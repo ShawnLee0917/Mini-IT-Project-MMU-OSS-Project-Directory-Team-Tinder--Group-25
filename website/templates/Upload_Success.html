@@ -4,9 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Upload Successful | MMU OSSD</title>
+<!-- This is the Tailwind CSS that i used for the website. -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!--https://cdnjs.com/ -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" rel="stylesheet">
     <style>
+
+        /* This is get from Google Fonts. */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
         body { font-family: 'Inter', sans-serif; }
         
@@ -18,6 +22,97 @@
         }
         .animate-pop-in {
             animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+                                :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f3f4f6;
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --border-color: #e5e7eb;
+        }
+
+        html[data-theme="dark"] {
+            --bg-primary: #0f0f0f;
+            --bg-secondary: #1a1a1a;
+            --text-primary: #e5e7eb;
+            --text-secondary: #a1a1a1;
+            --border-color: #333333;
+        }
+        
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+        
+        html[data-theme="dark"] .border-gray-200 {
+    border-color: var(--border-color) !important;
+}
+        /* Dark theme overrides */
+        html[data-theme="dark"] body {
+            background-color: var(--bg-secondary);
+        }
+        
+        html[data-theme="dark"] header {
+            background-color: var(--bg-primary) !important;
+            border-color: var(--border-color) !important;
+        }
+        
+        html[data-theme="dark"] header h2,
+        html[data-theme="dark"] header p {
+            color: var(--text-primary) !important;
+        }
+        
+        html[data-theme="dark"] .bg-white {
+            background-color: var(--bg-primary) !important;
+            border-color: var(--border-color) !important;
+        }
+        
+        html[data-theme="dark"] .bg-gray-50 {
+            background-color: var(--bg-secondary) !important;
+        }
+        
+        html[data-theme="dark"] .text-gray-900,
+        html[data-theme="dark"] .text-gray-800 {
+            color: var(--text-primary) !important;
+        }
+        
+        html[data-theme="dark"] .text-gray-500,
+        html[data-theme="dark"] .text-gray-600,
+        html[data-theme="dark"] .text-gray-700 {
+            color: var(--text-secondary) !important;
+        }
+        
+        html[data-theme="dark"] .border-gray-200,
+        html[data-theme="dark"] .border-gray-100 {
+            border-color: var(--border-color) !important;
+        }
+        
+        html[data-theme="dark"] .text-gray-400 {
+            color: var(--text-secondary) !important;
+        }
+        
+        html[data-theme="dark"] input,
+        html[data-theme="dark"] textarea,
+        html[data-theme="dark"] select {
+            background-color: var(--bg-secondary) !important;
+            color: var(--text-primary) !important;
+            border-color: var(--border-color) !important;
+        }
+        
+        html[data-theme="dark"] input:focus,
+        html[data-theme="dark"] textarea:focus,
+        html[data-theme="dark"] select:focus {
+            background-color: var(--bg-primary) !important;
+        }
+
+        html[data-theme="dark"] .bg-gray-100 {
+            background-color: #262626 !important;
+        }
+
+        html[data-theme="dark"] .hover\:bg-gray-200:hover {
+            background-color: #333333 !important;
         }
     </style>
 </head>
@@ -45,6 +140,67 @@
         </div>
 
     </div>
+
+    <script>
+        const API = '/api';
+
+           // ── Theme Toggle Functionality ────────────────────────────────────────────
+    function initTheme() {
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        setTheme(savedTheme);
+    }
+
+    function setTheme(theme) {
+        const html = document.documentElement;
+        if (theme === 'dark') {
+            html.setAttribute('data-theme', 'dark');
+            localStorage.setItem('theme', 'dark');
+            updateThemeIcon('dark');
+        } else {
+            html.removeAttribute('data-theme');
+            localStorage.setItem('theme', 'light');
+            updateThemeIcon('light');
+        }
+    }
+
+    function toggleTheme() {
+        const html = document.documentElement;
+        const currentTheme = html.getAttribute('data-theme') || 'light';
+        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+        setTheme(newTheme);
+    }
+
+    function updateThemeIcon(theme) {
+        const desktopToggle = document.getElementById('theme-toggle');
+        const mobileText = document.getElementById('theme-toggle-text');
+        if (theme === 'dark') {
+            if (desktopToggle) {
+                desktopToggle.innerHTML = '<i class="fas fa-sun text-lg"></i>';
+                desktopToggle.title = 'Toggle Light Mode';
+            }
+            if (mobileText) {
+                mobileText.textContent = 'Light Mode';
+            }
+        } else {
+            if (desktopToggle) {
+                desktopToggle.innerHTML = '<i class="fas fa-moon text-lg"></i>';
+                desktopToggle.title = 'Toggle Dark Mode';
+            }
+            if (mobileText) {
+                mobileText.textContent = 'Dark Mode';
+            }
+        }
+    }
+
+    // Initialize theme on page load
+    initTheme();
+
+    // Attach event listener to desktop theme toggle
+    const themeToggleBtn = document.getElementById('theme-toggle');
+    if (themeToggleBtn) {
+        themeToggleBtn.addEventListener('click', toggleTheme);
+    }
+    </script>
 
 </body>
 </html>
