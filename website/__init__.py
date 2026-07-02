@@ -7,31 +7,42 @@ db = SQLAlchemy()
 
 def create_app():
     app = Flask(__name__)
-    app.secret_key = 'mmu-ossd-secret-key-2026'
     
-    INSTANCE_PATH = os.path.join(os.path.dirname(__file__), 'instance')
-    os.makedirs(INSTANCE_PATH, exist_ok=True) 
-    DB_PATH = os.path.join(INSTANCE_PATH, 'mmu_ossd.db')
-
-    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{DB_PATH}'
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.secret_key = os.environ.get('SECRET_KEY', 'mmu-ossd-secret-key-2026')
     
     UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'static', 'uploads')
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
     app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+    
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+    db_url = os.environ.get('DATABASE_URL')
+    
+    if db_url:
+        if db_url.startswith("postgres://"):
+            db_url = db_url.replace("postgres://", "postgresql://", 1)
+        app.config['SQLALCHEMY_DATABASE_URI'] = db_url
+    else:
+        INSTANCE_PATH = os.path.join(os.path.dirname(__file__), 'instance')
+        os.makedirs(INSTANCE_PATH, exist_ok=True) 
+        DB_PATH = os.path.join(INSTANCE_PATH, 'mmu_ossd.db')
+        app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{DB_PATH}'
 
     db.init_app(app)
     
-
-    from . views import views
+    from .views import views
     from .models import (User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, JoinRequest)
     
     app.register_blueprint(views, url_prefix='/')
 
-    with app.app_context():
-        db.create_all()
-        _initialize_default_labels()
-        _initialize_admin_system()
+    if not db_url:
+        with app.app_context():
+            db.create_all()
+            try:
+                _initialize_default_labels()
+                _initialize_admin_system()
+            except Exception as e:
+                print(f"Local initialization notice (Data might already exist): {e}")
 
     return app
 
