@@ -947,7 +947,7 @@ def api_admin_dismiss_report():
     
 # --- ADDED: Auto-Email Sending Function ---
 # Reference: Python smtplib - https://docs.python.org/3/library/smtplib.html
-resend.api_key = os.environ.get("RESEND_API_KEY", "re_你的_api_key_写在这里")
+resend.api_key = os.environ.get("RESEND_API_KEY", "missing_api_key")
 
 def send_otp_email(receiver_email, otp_code):
     message = f"\n{'='*70}\n[DEVELOPMENT MODE] OTP CODE FOR: {receiver_email}\n{'='*70}\nOTP CODE: {otp_code}\nVerification URL: http://127.0.0.1:5000/verify\nDirect OTP URL: http://127.0.0.1:5000/test_otp/{receiver_email}\n{'='*70}\n"
@@ -1635,6 +1635,7 @@ def get_profile():
         'avatar_url':     avatar_url,
         'rank':           user.rank,
         'karma':          user.karma,
+            
         'skills':         [s.skill for s in skills],
         'badges':         [b.badge for b in badges],
         'interests':      combined_interests,

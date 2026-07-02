@@ -155,6 +155,7 @@ class Project(db.Model):
     # ADDED: Relationship to easily count or access stars for this project
     stars = db.relationship('ProjectStar', backref='project', lazy=True, cascade='all, delete-orphan')
 
+
 class ProjectViewLog(db.Model):
     __tablename__ = 'project_view_logs'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -383,7 +384,7 @@ class CommunityPostCommentImage(db.Model):
 
 class ProjectUpdate(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    project_id = db.Column(db.Integer, db.ForeignKey('projects.id', ondelete='CASCADE'), nullable=False)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id', ondelete='CASCADE'), nullable=False) 
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     title = db.Column(db.String(150), nullable=False)  
     status = db.Column(db.String(50), nullable=False)  
@@ -392,7 +393,7 @@ class ProjectUpdate(db.Model):
     is_approved = db.Column(db.Boolean, default=False)  
 
     author = db.relationship('User', backref='project_updates')
-    project = db.relationship('Project', backref=db.backref('updates', lazy='dynamic'))
+    project = db.relationship('Project', backref=db.backref('updates', lazy='dynamic', cascade='all, delete-orphan'))
     images = db.relationship('ProjectUpdateImage', backref='update', lazy=True, cascade='all, delete-orphan')  
 class ProjectUpdateImage(db.Model):
     __tablename__ = 'project_update_images'

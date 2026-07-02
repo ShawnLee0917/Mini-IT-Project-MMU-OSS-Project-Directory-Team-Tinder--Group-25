@@ -653,23 +653,28 @@
         return BADGE_ICONS[name.toLowerCase().trim()] || { icon: 'fas fa-medal', color: 'text-yellow-500', bg: 'bg-yellow-50' };
     }
 
-    // ── Load Notifications (Invitations + Badge Queue) ──────────────────
-async function loadInvitations() {
+// ── Load Notifications (Invitations + Badge Queue + System Notifs) ──
+    async function loadInvitations() {
         if (IS_FILE) return;
         try {
-            const [invRes, badgeNotifs] = await Promise.all([
+            // 1. 同时发出 3 个请求：项目邀请、徽章提醒、普通系统通知
+            const [invRes, badgeNotifs, generalRes] = await Promise.all([
                 fetch(`${API}/my-invitations`),
-                fetchBadgeNotifications()
+                fetchBadgeNotifications(),
+                fetch(`${API}/my-notifications`) // <-- 修复：补上了之前遗漏的系统通知请求
             ]);
 
-            const invs  = invRes.ok ? await invRes.json() : [];
-            const queue = badgeNotifs; // [{id, badge_name}, ...]
+            // 2. 安全地解析数据
+            const invs = invRes.ok ? await invRes.json() : [];
+            const queue = badgeNotifs; // Badge 数据
+            const generalNotifs = generalRes.ok ? await generalRes.json() : []; // <-- 修复：定义了 generalNotifs
 
             const badgeEl      = document.getElementById('notif-badge');
             const mobileBadge  = document.getElementById('mobile-notif-badge');
             const countText    = document.getElementById('notif-count-text');
             const list         = document.getElementById('notif-list');
 
+            // 3. 计算总数 (现在这行不会再报错崩溃了)
             const totalCount = invs.length + queue.length + generalNotifs.length;
 
             if (totalCount > 0) {
@@ -684,6 +689,7 @@ async function loadInvitations() {
                 countText.textContent = '0';
             }
 
+            // 渲染：徽章
             const badgeItems = queue.map(entry => {
                 const b = getBadgeIcon(entry.badge_name);
                 return `
@@ -701,6 +707,7 @@ async function loadInvitations() {
                 </div>`;
             }).join('');
 
+            // 渲染：邀请
             const invItems = invs.map(inv => `
                 <div class="p-4 hover:bg-gray-50 transition border-b border-gray-50" id="inv-card-${inv.id}">
                     <p class="text-xs text-gray-800 mb-3 leading-relaxed">
@@ -716,6 +723,7 @@ async function loadInvitations() {
                 </div>
             `).join('');
 
+            // 渲染：系统消息(评论等)
             const generalNotifItems = generalNotifs.map(n => `
                 <div class="p-4 hover:bg-gray-50 transition border-b border-gray-50">
                     <p class="text-xs text-gray-800 leading-relaxed mb-2">${escapeHtml(n.content)}</p>
@@ -726,6 +734,7 @@ async function loadInvitations() {
                 </div>
             `).join('');
 
+            // 组合全部并输出
             list.innerHTML = (generalNotifItems + badgeItems + invItems) || 
                 '<div class="p-6 text-center text-xs text-gray-400 italic">No new notifications.</div>';
 
@@ -733,6 +742,7 @@ async function loadInvitations() {
             console.error('Failed to load notifications:', err);
         }
     }
+
     async function respondToInvitation(requestId, action) {
         try {
             const res = await fetch(`${API}/invitations/${requestId}/${action}`, { method: 'POST' });
