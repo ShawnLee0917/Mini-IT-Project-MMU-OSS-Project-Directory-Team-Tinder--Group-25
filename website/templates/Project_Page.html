@@ -316,6 +316,13 @@
                 <a href="{{ project.repo_url }}" target="_blank" class="bg-gray-100 text-gray-700 px-6 py-3 rounded-xl font-bold hover:bg-gray-200 transition flex items-center gap-2">
                     <i class="fab fa-github text-xl"></i> Repository
                 </a>
+                
+                {% if current_user and current_user.is_admin %}
+                <a href="{{ url_for('views.admin_dashboard_page') }}" class="bg-gray-900 text-white px-6 py-3 rounded-xl font-bold hover:bg-gray-700 transition flex items-center gap-2">
+                    <i class="fa-solid fa-shield-halved text-xl"></i> Admin Dashboard
+                </a>
+                {% endif %}
+            </div>
             </div>        
         </div>
     </div>
