@@ -244,7 +244,7 @@
             <div class="px-6 py-4 flex flex-col space-y-4 font-semibold">
                 <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
                 <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
-                <a href="{{ url_for('views.qna_page') }}" class="hover:text-red-200 transition">Q&A</a>
+               <a href="{{ url_for('views.hottest_projects') }}" class="hover:text-red-200 transition">Hottest Projects</a>
                 <a href="{{ url_for('views.profile') }}" class="hover:text-red-200 transition">My Profile</a>
                 <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
                 <a href="{{ url_for('views.list_project') }}" class="hover:text-red-200 transition">List Your Project</a>
@@ -954,16 +954,13 @@ function applyTheme(theme) {
                 
                 const notifComments = document.getElementById('setting-notif-comments');
                 if (notifComments) notifComments.checked = s.notifications?.project_comments ?? true;
-                
+
                 const notifProjectComments = document.getElementById('setting-notif-project-comments');
-                if (notifProjectComments) notifProjectComments.checked = s.notifications?.project_comments ?? true;
-                
+                if (notifProjectComments) notifProjectComments.checked = s.notifications?.project_comments_own ?? true;
+
                 const notifInvites = document.getElementById('setting-notif-invites');
                 if (notifInvites) notifInvites.checked = s.notifications?.project_invites ?? true;
-                
-                const notifPublished = document.getElementById('setting-notif-project-published');
-                if (notifPublished) notifPublished.checked = s.notifications?.project_published ?? true;
-                
+
                 const notifJoinRequest = document.getElementById('setting-notif-join-request');
                 if (notifJoinRequest) notifJoinRequest.checked = s.notifications?.join_request ?? true;
                 
@@ -991,11 +988,10 @@ function applyTheme(theme) {
                         profile_visibility: document.getElementById('setting-profile-vis').value,
                     },
                     notifications: {
-                        project_comments: document.getElementById('setting-notif-comments').checked,
-                        project_comments_own: document.getElementById('setting-notif-project-comments').checked,
+                        project_comments: document.getElementById('setting-notif-comments').checked,       
+                        project_comments_own: document.getElementById('setting-notif-project-comments').checked, 
                         project_invites: document.getElementById('setting-notif-invites').checked,
-                        project_published: document.getElementById('setting-notif-project-published').checked,
-                        join_request: document.getElementById('setting-notif-join-request').checked,
+                        join_request: document.getElementById('setting-notif-join-request').checked, 
                         badges: document.getElementById('setting-notif-badges').checked,
                     },
                     display: {

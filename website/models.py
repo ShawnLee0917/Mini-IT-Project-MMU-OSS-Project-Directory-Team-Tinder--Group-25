@@ -44,10 +44,6 @@ class User(db.Model):
     comments = db.relationship('Comment', backref='user', lazy=True, cascade='all, delete-orphan')
     projects = db.relationship('Project', backref='user', lazy=True, cascade='all, delete-orphan')
     suggestions = db.relationship('Suggestion', backref='user', lazy=True, cascade='all, delete-orphan')
-    questions = db.relationship('Question', backref='author', lazy=True, cascade='all, delete-orphan')
-    question_likes = db.relationship('QuestionLike', backref='user', lazy=True, cascade='all, delete-orphan')
-    question_favorites = db.relationship('QuestionFavorite', backref='user', lazy=True, cascade='all, delete-orphan')
-    question_comments = db.relationship('QuestionComment', backref='user', lazy=True, cascade='all, delete-orphan')
     starred_projects = db.relationship('ProjectStar', backref='user', lazy=True, cascade='all, delete-orphan')
     settings = db.relationship('UserSettings', backref='user', uselist=False, cascade='all, delete-orphan')
 
@@ -69,6 +65,9 @@ class UserSettings(db.Model):
     notify_project_comments = db.Column(db.Boolean, default=True)
     notify_profile_views = db.Column(db.Boolean, default=False)
     notify_project_invites = db.Column(db.Boolean, default=True)
+    notify_project_comments = db.Column(db.Boolean, default=True)      
+    notify_project_comments_own = db.Column(db.Boolean, default=True)  
+    notify_join_request = db.Column(db.Boolean, default=True)  
     notify_new_suggestions = db.Column(db.Boolean, default=True)
     notify_newsletter = db.Column(db.Boolean, default=False)
     notify_badges = db.Column(db.Boolean, default=True)  # Show badge earned popup notifications
@@ -83,7 +82,17 @@ class UserSettings(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT))
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT), onupdate=datetime.now(MYT))
 
+class Notification(db.Model):
+    __tablename__ = 'notifications'
+    
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    link_url = db.Column(db.String(255), nullable=True)
+    is_read = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT))
 
+    receiver = db.relationship('User', backref=db.backref('inbox_notifications', lazy='dynamic', cascade='all, delete-orphan'))
 class Skill(db.Model):
     __tablename__ = 'skills'
     
@@ -145,6 +154,7 @@ class Project(db.Model):
     members = db.relationship('ProjectMember', backref='project', lazy='subquery', cascade='all, delete-orphan')
     # ADDED: Relationship to easily count or access stars for this project
     stars = db.relationship('ProjectStar', backref='project', lazy=True, cascade='all, delete-orphan')
+
 
 class ProjectViewLog(db.Model):
     __tablename__ = 'project_view_logs'
@@ -297,74 +307,6 @@ class ProjectCommentImage(db.Model):
 
 
 # ---------------------------------------------------------------------------
-# Q&A Models
-# ---------------------------------------------------------------------------
-
-class Question(db.Model):
-    __tablename__ = 'questions'
-
-    id         = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    user_id    = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
-    title      = db.Column(db.String(300), nullable=False)
-    body       = db.Column(db.Text, nullable=False)
-    image_path = db.Column(db.String(255), default='')
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT))
-
-    likes      = db.relationship('QuestionLike',    backref='question', lazy=True, cascade='all, delete-orphan')
-    favorites  = db.relationship('QuestionFavorite', backref='question', lazy=True, cascade='all, delete-orphan')
-    q_comments = db.relationship('QuestionComment', backref='question', lazy=True, cascade='all, delete-orphan')
-    images     = db.relationship('QuestionImage', backref='question', lazy=True, cascade='all, delete-orphan')
-
-
-class QuestionLike(db.Model):
-    __tablename__ = 'question_likes'
-
-    id          = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    user_id     = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
-    question_id = db.Column(db.Integer, db.ForeignKey('questions.id', ondelete='CASCADE'), nullable=False)
-
-    __table_args__ = (db.UniqueConstraint('user_id', 'question_id', name='unique_user_question_like'),)
-
-
-class QuestionFavorite(db.Model):
-    __tablename__ = 'question_favorites'
-
-    id          = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    user_id     = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
-    question_id = db.Column(db.Integer, db.ForeignKey('questions.id', ondelete='CASCADE'), nullable=False)
-
-    __table_args__ = (db.UniqueConstraint('user_id', 'question_id', name='unique_user_question_fav'),)
-
-
-class QuestionImage(db.Model):
-    __tablename__ = 'question_images'
-
-    id          = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    question_id = db.Column(db.Integer, db.ForeignKey('questions.id', ondelete='CASCADE'), nullable=False)
-    image_path  = db.Column(db.String(255), nullable=False)
-
-
-class QuestionComment(db.Model):
-    __tablename__ = 'question_comments'
-
-    id          = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    user_id     = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
-    question_id = db.Column(db.Integer, db.ForeignKey('questions.id', ondelete='CASCADE'), nullable=False)
-    parent_id   = db.Column(db.Integer, db.ForeignKey('question_comments.id', ondelete='CASCADE'), nullable=True)
-    body        = db.Column(db.Text, nullable=False)
-    created_at  = db.Column(db.DateTime, nullable=False, default=datetime.now(MYT))
-    
-    images = db.relationship('QuestionCommentImage', backref='comment', lazy=True, cascade='all, delete-orphan')
-
-
-class QuestionCommentImage(db.Model):
-    __tablename__ = 'question_comment_images'
-
-    id         = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    comment_id = db.Column(db.Integer, db.ForeignKey('question_comments.id', ondelete='CASCADE'), nullable=False)
-    image_path = db.Column(db.String(255), nullable=False)
-
-# ---------------------------------------------------------------------------
 # Community Post Model (For the Timeline Feed) - Upgraded with Q&A features
 # ---------------------------------------------------------------------------
 class CommunityPost(db.Model):
@@ -442,7 +384,7 @@ class CommunityPostCommentImage(db.Model):
 
 class ProjectUpdate(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    project_id = db.Column(db.Integer, db.ForeignKey('projects.id', ondelete='CASCADE'), nullable=False)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id', ondelete='CASCADE'), nullable=False) 
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     title = db.Column(db.String(150), nullable=False)  
     status = db.Column(db.String(50), nullable=False)  
@@ -451,7 +393,7 @@ class ProjectUpdate(db.Model):
     is_approved = db.Column(db.Boolean, default=False)  
 
     author = db.relationship('User', backref='project_updates')
-    project = db.relationship('Project', backref=db.backref('updates', lazy='dynamic'))
+    project = db.relationship('Project', backref=db.backref('updates', lazy='dynamic', cascade='all, delete-orphan'))
     images = db.relationship('ProjectUpdateImage', backref='update', lazy=True, cascade='all, delete-orphan')  
 class ProjectUpdateImage(db.Model):
     __tablename__ = 'project_update_images'
