@@ -1990,10 +1990,21 @@ def get_projects():
     if not user:
         return jsonify({'error': 'User not found'}), 404
     
-    projects = Project.query.filter(
-    Project.user_id == user.id,
-    Project.status != 'Suspended'
-).order_by(Project.created_at.desc()).all()
+    owned_projects = Project.query.filter(
+        Project.user_id == user.id,
+        Project.status != 'Suspended'
+    ).all()
+    
+    memberships = ProjectMember.query.filter_by(user_id=user.id).all()
+    joined_projects = [
+        m.project for m in memberships 
+        if m.project and m.project.status != 'Suspended'
+    ]
+    
+    all_projects_dict = {p.id: p for p in (owned_projects + joined_projects)}
+    all_projects = list(all_projects_dict.values())
+    
+    sorted_projects = sorted(all_projects, key=lambda p: p.created_at, reverse=True)
     
     return jsonify([{
         'id': p.id,
@@ -2002,8 +2013,7 @@ def get_projects():
         'status': p.status,
         'contributors': p.contributors,
         'created_at': p.created_at.isoformat(),
-    } for p in projects])
-
+    } for p in sorted_projects])
 
 @views.route('/api/all-projects', methods=['GET'])
 def get_all_projects():
