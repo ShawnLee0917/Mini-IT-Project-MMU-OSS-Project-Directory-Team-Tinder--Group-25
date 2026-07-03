@@ -305,8 +305,12 @@
                         <button onclick="respondToProjectInvitation('{{ invitation_id }}', 'reject')" class="bg-red-100 text-red-700 px-6 py-3 rounded-xl font-bold hover:bg-red-200 transition flex items-center gap-2 border border-red-300">
                             <i class="fas fa-times text-xl"></i> Decline
                         </button>
+                    {% elif has_pending_request %}
+                        <button id="request-join-btn" disabled class="bg-gray-100 text-gray-400 px-6 py-3 rounded-xl font-bold flex items-center gap-2 border border-gray-200 cursor-not-allowed">
+                            <i class="fas fa-clock text-xl"></i> Request Pending
+                        </button>
                     {% else %}
-                        <button onclick="requestJoinProject('{{ project.id }}')" class="bg-blue-100 text-blue-700 px-6 py-3 rounded-xl font-bold hover:bg-blue-200 transition flex items-center gap-2 border border-blue-300">
+                        <button id="request-join-btn" onclick="requestJoinProject('{{ project.id }}')" class="bg-blue-100 text-blue-700 px-6 py-3 rounded-xl font-bold hover:bg-blue-200 transition flex items-center gap-2 border border-blue-300">
                             <i class="fas fa-user-plus text-xl"></i> Request to Join
                         </button>
                     {% endif %}
@@ -729,9 +733,15 @@
             </div>
             
             <div class="bg-white rounded-3xl border border-gray-100 p-4 shadow-sm mb-6">
-    <button onclick="openReportModal('project', projectId)" class="w-full flex items-center justify-center bg-gray-50 hover:bg-red-50 text-red-600 hover:text-red-700 border border-dashed border-gray-200 hover:border-red-200 px-4 py-2.5 rounded-xl text-xs font-bold transition shadow-sm">
+    {% if has_reported_project %}
+    <button disabled class="w-full flex items-center justify-center bg-gray-50 text-gray-400 border border-dashed border-gray-200 px-4 py-2.5 rounded-xl text-xs font-bold cursor-not-allowed">
+        <i class="fa-solid fa-circle-check mr-1.5"></i> Already Reported
+    </button>
+    {% else %}
+    <button id="report-project-btn" onclick="openReportModal('project', projectId)" class="w-full flex items-center justify-center bg-gray-50 hover:bg-red-50 text-red-600 hover:text-red-700 border border-dashed border-gray-200 hover:border-red-200 px-4 py-2.5 rounded-xl text-xs font-bold transition shadow-sm">
         <i class="fa-solid fa-triangle-exclamation mr-1.5"></i> Report Inappropriate Content
     </button>
+    {% endif %}
 </div>
  
 <div id="report-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[999] p-4">
@@ -806,7 +816,7 @@
     <img id="modalImage" src="" class="max-w-full max-h-[90vh] rounded-xl shadow-2xl object-contain" onclick="event.stopPropagation()">
 </div>
 
-<div id="customConfirmModal" class="hidden fixed inset-0 z-[200] bg-gray-900/60 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity duration-300 opacity-0">
+<div id="customConfirmModal" class="hidden fixed inset-0 z-[1000] bg-gray-900/60 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity duration-300 opacity-0">
     <div id="customConfirmContent" class="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 transform scale-95 transition-transform duration-300">
         <div class="flex flex-col items-center text-center">
             <div id="confirmModalIcon" class="w-16 h-16 bg-red-50 border-4 border-red-100 text-red-500 rounded-full flex items-center justify-center mb-5 text-2xl">
@@ -904,9 +914,9 @@
         comment: 'Report This Comment'
     };
 
-function openReportModal(contentType, contentId) {
+async function openReportModal(contentType, contentId) {
     if (!currentUserId) {
-        alert('Please log in to report content.');
+        await showAlertModal('Login Required', 'Please log in to report content.', 'error');
         window.location.href = '/login';
         return;
     }
@@ -962,7 +972,7 @@ async function submitReport(event) {
 
     const checkedRadio = document.querySelector('input[name="report_reason"]:checked');
     if (!checkedRadio) {
-        alert('Please select a reason.');
+        await showAlertModal('Error', 'Please select a reason.', 'error');
         return;
     }
 
@@ -972,7 +982,7 @@ async function submitReport(event) {
     
     if (reason === 'Other') {
         if (!otherReasonText) {
-            alert('Please write down your reason.');
+            await showAlertModal('Error', 'Please write down your reason.', 'error');
             if (otherInput) otherInput.focus();
             return;
         }
@@ -981,7 +991,7 @@ async function submitReport(event) {
     
     const contentId = parseInt(currentReportData.content_id, 10);
     if (!currentReportData.content_type || isNaN(contentId)) {
-        alert('Error: Report target is not defined.');
+        await showAlertModal('Error', 'Report target is not defined.', 'error');
         return;
     }
 
@@ -999,7 +1009,7 @@ async function submitReport(event) {
 
         // ─── Defense logic: if backend redirects to login page, fetch's redirected will be true ───
         if (response.redirected) {
-            alert('Your session has expired. Redirecting to login page...');
+            await showAlertModal('Session Expired', 'Your session has expired. Redirecting to login page...', 'error');
             window.location.href = response.url; // Redirect user to login
             return;
         }
@@ -1007,20 +1017,39 @@ async function submitReport(event) {
         // Check if response is JSON
         const contentType = response.headers.get("content-type");
         if (!contentType || !contentType.includes("application/json")) {
-            alert(`Error: Server didn't return JSON. (Status: ${response.status})`);
+            await showAlertModal('Error', `Server didn't return JSON. (Status: ${response.status})`, 'error');
             return;
         }
 
         const data = await response.json();
         if (response.ok) {
-            alert('Thank you! Your report has been submitted. Admin will review it shortly.');
             closeReportModal();
+            await showAlertModal('Report Submitted', 'Thank you! Your report has been submitted. Admin will review it shortly.', 'success');
+            if (currentReportData.content_type === 'project') {
+                const reportBtn = document.getElementById('report-project-btn');
+                if (reportBtn) {
+                    reportBtn.disabled = true;
+                    reportBtn.onclick = null;
+                    reportBtn.className = 'w-full flex items-center justify-center bg-gray-50 text-gray-400 border border-dashed border-gray-200 px-4 py-2.5 rounded-xl text-xs font-bold cursor-not-allowed';
+                    reportBtn.innerHTML = '<i class="fa-solid fa-circle-check mr-1.5"></i> Already Reported';
+                }
+            } else if (currentReportData.content_type === 'comment') {
+                const commentReportBtn = document.getElementById(`report-comment-btn-${currentReportData.content_id}`);
+                if (commentReportBtn) {
+                    commentReportBtn.disabled = true;
+                    commentReportBtn.onclick = null;
+                    commentReportBtn.className = 'bg-gray-50 text-gray-300 px-2 py-1 rounded text-xs font-semibold cursor-not-allowed';
+                    commentReportBtn.innerHTML = '<i class="fas fa-circle-check"></i> Reported';
+                }
+                const cachedComment = allComments.find(c => c.id === currentReportData.content_id);
+                if (cachedComment) cachedComment.reported_by_me = true;
+            }
         } else {
-            alert(`Error: ${data.error || 'Unknown error occurred'}`);
+            await showAlertModal('Error', data.error || 'Unknown error occurred', 'error');
         }
     } catch (error) {
         console.error("Fetch error:", error);
-        alert('Failed to send report. Please ensure you are logged in and try again.');
+        await showAlertModal('Error', 'Failed to send report. Please ensure you are logged in and try again.', 'error');
     }
 }
 
@@ -1160,6 +1189,10 @@ async function submitReport(event) {
                 iconBox.className = "w-16 h-16 bg-blue-50 border-4 border-blue-100 text-blue-500 rounded-full flex items-center justify-center mb-5 text-2xl";
                 iconBox.innerHTML = '<i class="fas fa-arrow-up"></i>';
                 submitBtn.className = "flex-1 bg-blue-600 text-white px-4 py-3 rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition transform hover:-translate-y-0.5 text-sm";
+            } else if (actionType === 'join') {
+                iconBox.className = "w-16 h-16 bg-blue-50 border-4 border-blue-100 text-blue-500 rounded-full flex items-center justify-center mb-5 text-2xl";
+                iconBox.innerHTML = '<i class="fas fa-user-plus"></i>';
+                submitBtn.className = "flex-1 bg-blue-600 text-white px-4 py-3 rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition transform hover:-translate-y-0.5 text-sm";
             } else {
                 iconBox.className = "w-16 h-16 bg-yellow-50 border-4 border-yellow-100 text-yellow-600 rounded-full flex items-center justify-center mb-5 text-2xl";
                 iconBox.innerHTML = '<i class="fas fa-arrow-down"></i>';
@@ -1189,7 +1222,7 @@ async function submitReport(event) {
         });
     }
 
-    function showAlertModal(title, message) {
+    function showAlertModal(title, message, type = null) {
     return new Promise((resolve) => {
         const modal = document.getElementById('customConfirmModal');
         const content = document.getElementById('customConfirmContent');
@@ -1205,9 +1238,18 @@ async function submitReport(event) {
         
         cancelBtn.style.display = 'none';
 
-        iconBox.className = "w-16 h-16 bg-green-50 border-4 border-green-100 text-green-500 rounded-full flex items-center justify-center mb-5 text-2xl";
-        iconBox.innerHTML = '<i class="fas fa-check"></i>';
-        submitBtn.className = "flex-1 bg-green-600 text-white px-4 py-3 rounded-xl font-bold hover:bg-green-700 shadow-lg shadow-green-200 transition transform hover:-translate-y-0.5 text-sm";
+        // Infer type from title if not explicitly passed, so existing calls keep working
+        const resolvedType = type || (/error|fail|not allowed|denied/i.test(title) ? 'error' : 'success');
+
+        if (resolvedType === 'error') {
+            iconBox.className = "w-16 h-16 bg-red-50 border-4 border-red-100 text-red-500 rounded-full flex items-center justify-center mb-5 text-2xl";
+            iconBox.innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
+            submitBtn.className = "flex-1 bg-red-600 text-white px-4 py-3 rounded-xl font-bold hover:bg-red-700 shadow-lg shadow-red-200 transition transform hover:-translate-y-0.5 text-sm";
+        } else {
+            iconBox.className = "w-16 h-16 bg-green-50 border-4 border-green-100 text-green-500 rounded-full flex items-center justify-center mb-5 text-2xl";
+            iconBox.innerHTML = '<i class="fas fa-check"></i>';
+            submitBtn.className = "flex-1 bg-green-600 text-white px-4 py-3 rounded-xl font-bold hover:bg-green-700 shadow-lg shadow-green-200 transition transform hover:-translate-y-0.5 text-sm";
+        }
 
         modal.classList.remove('hidden');
         setTimeout(() => {
@@ -1229,6 +1271,7 @@ async function submitReport(event) {
         submitBtn.onclick = cleanup;
     });
 }
+
 
     async function changeMemberRole(userId, newRole) {
         const isPromoting = (newRole === 'admin');
@@ -1252,7 +1295,7 @@ async function submitReport(event) {
                 window.location.reload();
             } else {
                 const data = await res.json();
-                alert(data.error || 'Failed to update member role.');
+                await showAlertModal('Error', data.error || 'Failed to update member role.', 'error');
             }
         } catch (err) {
             console.error(err);
@@ -1276,7 +1319,7 @@ async function submitReport(event) {
                 window.location.reload();
             } else {
                 const data = await res.json();
-                alert(data.error || 'Failed to remove member.');
+                await showAlertModal('Error', data.error || 'Failed to remove member.', 'error');
             }
         } catch (err) {
             console.error(err);
@@ -1300,7 +1343,7 @@ async function submitReport(event) {
                 window.location.href = '/my_projects';
             } else {
                 const data = await res.json();
-                alert(data.error || 'Failed to leave project.');
+                await showAlertModal('Error', data.error || 'Failed to leave project.', 'error');
             }
         } catch (err) {
             console.error(err);
@@ -1334,7 +1377,7 @@ async function submitReport(event) {
                 window.location.reload();
             } else {
                 const data = await res.json();
-                alert(data.error || 'Failed to transfer ownership.');
+                await showAlertModal('Error', data.error || 'Failed to transfer ownership.', 'error');
             }
         } catch (err) {
             console.error(err);
@@ -1524,12 +1567,19 @@ function createCommentHTML(comment) {
             <i class="fas fa-trash"></i> Delete
         </button>` : '';
 
-    const reportAction = !isAuthor ? `
-        <button onclick="openReportModal('comment', ${comment.id})"
+    const reportAction = !isAuthor ? (
+        comment.reported_by_me ? `
+        <button disabled
+            class="bg-gray-50 text-gray-300 px-2 py-1 rounded text-xs font-semibold cursor-not-allowed"
+            title="You already reported this comment">
+            <i class="fas fa-circle-check"></i> Reported
+        </button>` : `
+        <button id="report-comment-btn-${comment.id}" onclick="openReportModal('comment', ${comment.id})"
             class="bg-gray-50 text-gray-600 px-2 py-1 rounded text-xs font-semibold hover:bg-red-50 hover:text-red-700 transition"
             title="Report this comment">
             <i class="fas fa-flag"></i> Report
-        </button>` : '';
+        </button>`
+    ) : '';
 
     const actionsHTML = ((isOwner && isAuthor) ? ownerAuthorActions
         : isOwner ? ownerModActions
@@ -1691,7 +1741,7 @@ async function submitComment(projectId) {
     const commentType = document.getElementById('comment-type').value;
     const label = document.getElementById('comment-label').value || null;
 
-    if (!content) { alert('Please enter a comment'); return; }
+    if (!content) { await showAlertModal('Error', 'Please enter a comment.', 'error'); return; }
 
     try {
         const formData = new FormData();
@@ -1714,7 +1764,7 @@ async function submitComment(projectId) {
         await loadComments();
     } catch (err) {
         console.error('Error submitting comment:', err);
-        alert('Failed to post comment');
+        await showAlertModal('Error', 'Failed to post comment.', 'error');
     }
 }
 
@@ -1757,12 +1807,12 @@ async function deleteExistingCommentImage(imageId) {
         const res = await fetch(`${API}/project/${projectId}/comments/${_editingCommentId}/images/${imageId}`, {
             method: 'DELETE'
         });
-        if (!res.ok) { alert('Failed to delete image'); return; }
+        if (!res.ok) { await showAlertModal('Error', 'Failed to delete image.', 'error'); return; }
         _editingCommentImages = _editingCommentImages.filter(img => img.id !== imageId);
         renderEditExistingImages();
     } catch(err) {
         console.error('Delete image error:', err);
-        alert('Failed to delete image');
+        await showAlertModal('Error', 'Failed to delete image.', 'error');
     }
 }
 
@@ -1777,7 +1827,7 @@ function closeEditModal() {
 
 async function saveEditComment() {
     const newContent = document.getElementById('edit-comment-input').value.trim();
-    if (!newContent) { alert('Comment cannot be empty'); return; }
+    if (!newContent) { await showAlertModal('Error', 'Comment cannot be empty.', 'error'); return; }
     if (!_editingCommentId) return;
 
     try {
@@ -1803,7 +1853,7 @@ async function saveEditComment() {
         await loadComments();
     } catch (err) {
         console.error('Edit comment error:', err);
-        alert('Failed to save edit');
+        await showAlertModal('Error', 'Failed to save edit.', 'error');
     }
 }
 
@@ -1844,7 +1894,7 @@ async function deleteComment(commentId) {
         
         if (!res.ok) {
             const d = await res.json();
-            alert(d.error || 'Failed to delete comment');
+            await showAlertModal('Error', d.error || 'Failed to delete comment.', 'error');
             return;
         }
 
@@ -1852,7 +1902,7 @@ async function deleteComment(commentId) {
         await loadComments();
     } catch (err) {
         console.error('Error deleting comment:', err);
-        alert('Failed to delete comment');
+        await showAlertModal('Error', 'Failed to delete comment.', 'error');
     }
 }
 
@@ -1869,7 +1919,7 @@ async function deleteComment(commentId) {
             await loadComments();
         } catch (err) {
             console.error('Error updating label:', err);
-            alert('Failed to update label');
+            await showAlertModal('Error', 'Failed to update label.', 'error');
         }
     }
 
@@ -1886,7 +1936,7 @@ async function deleteComment(commentId) {
             await loadComments();
         } catch (err) {
             console.error('Error moving comment:', err);
-            alert('Failed to move comment');
+            await showAlertModal('Error', 'Failed to move comment.', 'error');
         }
     }
 
@@ -1996,10 +2046,24 @@ async function loadJoinRequests() {
 
     async function requestJoinProject(pId) {
         if (currentUserId === projectOwnerId) {
-            alert('You are the project owner');
+            await showAlertModal('Not Allowed', 'You are the project owner.');
             return;
         }
-        
+
+        const confirmed = await showConfirmModal(
+            'Request to Join',
+            'Send a request to join this project? The project owner will be notified and can accept or decline.',
+            'Yes, Send Request',
+            'join'
+        );
+        if (!confirmed) return;
+
+        const btn = document.getElementById('request-join-btn');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-xl"></i> Sending...';
+        }
+
         try {
             const res = await fetch(`${API}/project/${pId}/request-join`, {
                 method: 'POST',
@@ -2009,13 +2073,30 @@ async function loadJoinRequests() {
             const data = await res.json();
             
             if (res.ok) {
-                alert('Join request sent successfully!');
+                await showAlertModal('Request Sent', 'Your join request has been sent to the project owner.');
+                if (btn) {
+                    btn.disabled = true;
+                    btn.className = 'bg-gray-100 text-gray-400 px-6 py-3 rounded-xl font-bold flex items-center gap-2 border border-gray-200 cursor-not-allowed';
+                    btn.innerHTML = '<i class="fas fa-clock text-xl"></i> Request Pending';
+                }
             } else {
-                alert(data.error || 'Failed to send join request');
+                await showAlertModal('Error', data.error || 'Failed to send join request');
+                if (data.error && data.error.toLowerCase().includes('already sent') && btn) {
+                    btn.disabled = true;
+                    btn.className = 'bg-gray-100 text-gray-400 px-6 py-3 rounded-xl font-bold flex items-center gap-2 border border-gray-200 cursor-not-allowed';
+                    btn.innerHTML = '<i class="fas fa-clock text-xl"></i> Request Pending';
+                } else if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-user-plus text-xl"></i> Request to Join';
+                }
             }
         } catch (err) {
             console.error('Error requesting to join:', err);
-            alert('Failed to send join request');
+            await showAlertModal('Error', 'Failed to send join request');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-user-plus text-xl"></i> Request to Join';
+            }
         }
     }
 
@@ -2029,20 +2110,26 @@ async function loadJoinRequests() {
             const data = await res.json();
             
             if (res.ok) {
-                alert(data.success);
+                await showAlertModal('Success', data.success || 'Request accepted.', 'success');
                 await loadJoinRequests();
                 window.location.reload();
             } else {
-                alert(data.error || 'Failed to accept request');
+                await showAlertModal('Error', data.error || 'Failed to accept request.', 'error');
             }
         } catch (err) {
             console.error('Error accepting request:', err);
-            alert('Failed to accept request');
+            await showAlertModal('Error', 'Failed to accept request.', 'error');
         }
     }
 
 async function rejectJoinRequest(projectId, requestId) {
-    if (!confirm('Are you sure you want to reject this request?')) return;
+    const confirmed = await showConfirmModal(
+        'Reject Join Request',
+        'Are you sure you want to reject this request?',
+        'Yes, Reject',
+        'danger'
+    );
+    if (!confirmed) return;
     
     try {
         const res = await fetch(`${API}/project/${projectId}/join-requests/${requestId}/reject`, {
@@ -2053,14 +2140,14 @@ async function rejectJoinRequest(projectId, requestId) {
         const data = await res.json();
         
         if (res.ok) {
-            alert(data.success);
+            await showAlertModal('Success', data.success || 'Request rejected.', 'success');
             await loadJoinRequests();
         } else {
-            alert(data.error || 'Failed to reject request');
+            await showAlertModal('Error', data.error || 'Failed to reject request.', 'error');
         }
     } catch (err) {
         console.error('Error rejecting request:', err);
-        alert('Failed to reject request');
+        await showAlertModal('Error', 'Failed to reject request.', 'error');
     }
 }
 
@@ -2167,9 +2254,13 @@ async function updateMemberStatuses() {
 }
 
 async function leaveTeam(projectId) {
-    if (!confirm('Are you sure you want to leave this team? You can request to join again later.')) {
-        return;
-    }
+    const confirmed = await showConfirmModal(
+        'Leave Team',
+        'Are you sure you want to leave this team? You can request to join again later.',
+        'Yes, Leave Team',
+        'danger'
+    );
+    if (!confirmed) return;
     
     try {
         const res = await fetch(`${API}/project/${projectId}/leave-team`, {
@@ -2183,14 +2274,14 @@ async function leaveTeam(projectId) {
         const data = await res.json();
         
         if (res.ok) {
-            alert('You have left the team successfully!');
+            await showAlertModal('Success', 'You have left the team successfully!', 'success');
             window.location.reload();
         } else {
-            alert(data.error || 'Failed to leave team');
+            await showAlertModal('Error', data.error || 'Failed to leave team.', 'error');
         }
     } catch (err) {
         console.error('Error leaving team:', err);
-        alert('Failed to leave team');
+        await showAlertModal('Error', 'Failed to leave team.', 'error');
     }
 }
 
@@ -2269,9 +2360,13 @@ async function submitLeaveRequest(projectId) {
     const reason = document.getElementById('leave-reason-input').value.trim();
     
     // Message is optional now
-    if (!confirm('Are you sure you want to leave this project?')) {
-        return;
-    }
+    const confirmed = await showConfirmModal(
+        'Leave Project',
+        'Are you sure you want to leave this project?',
+        'Yes, Leave Project',
+        'danger'
+    );
+    if (!confirmed) return;
     
     try {
         const res = await fetch(`${API}/project/${projectId}/leave-project`, {
@@ -2283,14 +2378,14 @@ async function submitLeaveRequest(projectId) {
         const data = await res.json();
         
         if (res.ok) {
-            alert('You have left the project successfully!');
+            await showAlertModal('Success', 'You have left the project successfully!', 'success');
             window.location.reload();
         } else {
-            alert(data.error || 'Failed to leave project');
+            await showAlertModal('Error', data.error || 'Failed to leave project.', 'error');
         }
     } catch (err) {
         console.error('Error leaving project:', err);
-        alert('Failed to leave project');
+        await showAlertModal('Error', 'Failed to leave project.', 'error');
     }
 }
 
@@ -2299,7 +2394,13 @@ function cancelLeaveForm() {
 }
 
 async function approveLeaveRequest(projectId, requestId) {
-    if (!confirm('Approve this member\'s leave request? They will be removed from the project.')) return;
+    const confirmed = await showConfirmModal(
+        'Approve Leave Request',
+        "Approve this member's leave request? They will be removed from the project.",
+        'Yes, Approve',
+        'danger'
+    );
+    if (!confirmed) return;
     
     try {
         const res = await fetch(`${API}/project/${projectId}/leave-requests/${requestId}/approve`, {
@@ -2310,19 +2411,25 @@ async function approveLeaveRequest(projectId, requestId) {
         const data = await res.json();
         
         if (res.ok) {
-            alert(data.success);
+            await showAlertModal('Success', data.success || 'Leave request approved.', 'success');
             window.location.reload();
         } else {
-            alert(data.error || 'Failed to approve request');
+            await showAlertModal('Error', data.error || 'Failed to approve request.', 'error');
         }
     } catch (err) {
         console.error('Error approving leave request:', err);
-        alert('Failed to approve request');
+        await showAlertModal('Error', 'Failed to approve request.', 'error');
     }
 }
 
 async function rejectLeaveRequest(projectId, requestId) {
-    if (!confirm('Reject this member\'s leave request?')) return;
+    const confirmed = await showConfirmModal(
+        'Reject Leave Request',
+        "Reject this member's leave request?",
+        'Yes, Reject',
+        'danger'
+    );
+    if (!confirmed) return;
     
     try {
         const res = await fetch(`${API}/project/${projectId}/leave-requests/${requestId}/reject`, {
@@ -2333,14 +2440,14 @@ async function rejectLeaveRequest(projectId, requestId) {
         const data = await res.json();
         
         if (res.ok) {
-            alert(data.success);
+            await showAlertModal('Success', data.success || 'Leave request rejected.', 'success');
             await loadLeaveRequests();
         } else {
-            alert(data.error || 'Failed to reject request');
+            await showAlertModal('Error', data.error || 'Failed to reject request.', 'error');
         }
     } catch (err) {
         console.error('Error rejecting leave request:', err);
-        alert('Failed to reject request');
+        await showAlertModal('Error', 'Failed to reject request.', 'error');
     }
 }
 
@@ -2422,14 +2529,14 @@ async function rejectLeaveRequest(projectId, requestId) {
         const data = await res.json();
         
         if (res.ok) {
-            alert(data.success);
+            await showAlertModal('Success', data.success || 'Response recorded.', 'success');
             window.location.reload(); 
         } else {
-            alert(data.error || 'Action failed');
+            await showAlertModal('Error', data.error || 'Action failed.', 'error');
         }
     } catch (err) {
         console.error('Error responding to invitation:', err);
-        alert('Network error');
+        await showAlertModal('Error', 'Network error.', 'error');
     }}
 
     // ────────────────────────────────────────────────────────────────────
