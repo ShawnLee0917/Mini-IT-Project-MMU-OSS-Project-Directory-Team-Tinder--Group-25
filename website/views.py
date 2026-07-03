@@ -317,8 +317,10 @@ def admin_award_badge(user_id):
         return jsonify({'error': 'Badge name is required'}), 400
         
     # Check if user exists
-    user = User.query.get_or_404(user_id)
-        
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'error': f'User ID {user_id} not found in database.'}), 404        
+    
     # Check if they already have this exact badge
     existing = Badge.query.filter_by(user_id=user_id, badge=badge_name).first()
     if existing:
