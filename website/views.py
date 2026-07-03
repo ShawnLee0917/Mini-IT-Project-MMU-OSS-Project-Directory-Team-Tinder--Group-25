@@ -2803,7 +2803,6 @@ def create_project_comment(project_id):
                 img.image_path = filename
                 db.session.add(img)
                 
-    # 3. 触发通知逻辑
     project_owner = User.query.get(project.user_id)
     if project_owner:
         if project_owner.id != current_user.id:
@@ -2829,14 +2828,12 @@ def create_project_comment(project_id):
                 )
                 db.session.add(p_notif)
 
-    # 4. 统一提交并分配徽章 (属于 create_project_comment 函数的结尾)
     db.session.commit()
 
     # Auto-assign comment milestone badges
     sync_comment_badges(current_user.id)
     db.session.commit()
     
-    # 5. 正确返回响应数据
     return jsonify({
         'id': comment.id,
         'author_id': comment.user_id,
@@ -2858,7 +2855,10 @@ def get_my_notifications():
     
     current_user = get_current_user()
     
-    notifs = Notification.query.filter_by(user_id=current_user.id).order_by(Notification.created_at.desc()).limit(15).all()
+    notifs = Notification.query.filter_by(
+        user_id=current_user.id, 
+        is_read=False
+    ).order_by(Notification.created_at.desc()).limit(15).all()
     
     return jsonify([{
         'id': n.id,
@@ -2867,7 +2867,6 @@ def get_my_notifications():
         'is_read': n.is_read,
         'created_at': n.created_at.strftime('%Y-%m-%d %H:%M')
     } for n in notifs])
-
 @views.route('/api/notifications/mark-all-read', methods=['POST'])
 def mark_all_notifications_read():
     """Mark all badge and general notifications as read for the current user."""
