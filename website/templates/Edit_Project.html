@@ -546,7 +546,7 @@
         const fileDisplay = document.getElementById('editFileNameDisplay');
         const previewContainer = document.getElementById('imagePreviewContainer');
 
-        let allFiles = []; // 使用纯数组作为新上传图片的唯一数据源
+        let allFiles = []; 
 
         function syncFilesToInput() {
             const dt = new DataTransfer();
@@ -567,7 +567,6 @@
                     const imgWrapper = document.createElement('div');
                     imgWrapper.className = 'relative group rounded-lg overflow-hidden shadow-sm border border-gray-200 aspect-video bg-white flex items-center justify-center';
                     
-                    // 阻止点击预览图触发文件选择
                     imgWrapper.onclick = (e) => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -619,7 +618,6 @@
                 if (e.target.files && e.target.files.length > 0) {
                     handleFiles(e.target.files);
                 }
-                // 注意：绝对不写 this.value = ''，确保数据能正常提交给后端的 Flask
             });
 
             dropZone.addEventListener('dragover', (e) => {
