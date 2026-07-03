@@ -563,6 +563,23 @@ def sync_comment_badges(user_id):
             _revoke_badge(user_id, badge_name)
 
 
+@views.route('/api/notifications/<int:notif_id>/dismiss', methods=['POST'])
+def dismiss_general_notification(notif_id):
+    """Mark a specific general notification as read/dismissed."""
+    err = require_login()
+    if err:
+        return err
+
+    user = get_current_user()
+    notif = Notification.query.get_or_404(notif_id)
+
+    if notif.user_id != user.id:
+        return jsonify({'error': 'Forbidden'}), 403
+
+    notif.is_read = True
+    db.session.commit()
+    return jsonify({'success': True})
+
 @views.route('/api/admin/reports', methods=['GET'])
 def api_get_reports():
     """Get all content reports (paginated)"""
@@ -3799,6 +3816,32 @@ def delete_community_post(post_id):
         print(f"Delete Error: {str(e)}") 
         return jsonify({'error': f'Database error: {str(e)}'}), 500
     
+
+@views.route('/api/community_posts/<int:post_id>', methods=['PUT'])
+def edit_community_post(post_id):
+    err = require_login()
+    if err: return err
+    current_user = get_current_user()
+    
+    post = CommunityPost.query.get_or_404(post_id)
+    
+    if post.user_id != current_user.id:
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    data = request.get_json(silent=True) or {}
+    new_content = data.get('content', '').strip()
+    
+    if not new_content:
+        return jsonify({'error': 'Post content cannot be empty'}), 400
+        
+    try:
+        post.content = new_content
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Post updated successfully'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+    
 @views.route('/api/community_posts/<int:post_id>/like', methods=['POST'])
 def toggle_community_post_like(post_id):
     err = require_login()
@@ -4221,34 +4264,27 @@ def get_timeline_feed():
     current_user = get_current_user()
     current_user_id = current_user.id if current_user else None
     
-    # 1. 提取当前用户所有关注（Star）的项目 ID 集合
     starred_project_ids = set()
     if current_user_id:
-        from .models import ProjectStar, MYT  # 确保引入对应模型与区时
+        from .models import ProjectStar, MYT 
         stars = ProjectStar.query.filter_by(user_id=current_user_id).all()
         starred_project_ids = {s.project_id for s in stars}
 
     unified_feed = []
-    # 统一采用模型的 MYT 区时作为当前时间基准，防止跨时区引发时差计算错误
     from .models import MYT
     now = datetime.now(MYT)
 
-    # 2. 汇入数据源 A：社区讨论与提问帖子
     posts = CommunityPost.query.order_by(CommunityPost.created_at.desc()).limit(30).all()
     for p in posts:
         proj_id = p.attached_project_id
-        # 核心权重一：只要项目在关注集合中，即赋予断层高优级别 (1)，否则为 (0)
         is_starred = 1 if (proj_id and proj_id in starred_project_ids) else 0
         
-        # 计算发布时长差（小时）
         p_created = p.created_at.replace(tzinfo=MYT) if p.created_at.tzinfo is None else p.created_at
         age_hours = max(0.0, (now - p_created).total_seconds() / 3600.0)
         
-        # 计算互动热度分
         like_count = len(p.likes)
         comment_count = len(p.comments)
         base_score = 20 + (like_count * 5) + (comment_count * 10)
-        # 核心权重二：流内时间重力衰减
         feed_score = base_score / ((age_hours + 2) ** 1.5)
         
         image_urls = [f"/static/uploads/{img.image_path}" for img in p.images]
@@ -4259,6 +4295,7 @@ def get_timeline_feed():
             'feed_type': 'post',
             'category': p.category,
             'user_name': p.author.name if p.author else 'Unknown',
+            'is_owner': current_user_id == p.user_id,
             'content': p.content,
             'created_at': p.created_at.isoformat(),
             'image_urls': image_urls,
