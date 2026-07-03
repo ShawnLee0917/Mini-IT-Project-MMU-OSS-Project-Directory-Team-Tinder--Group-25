@@ -1,7 +1,7 @@
 from . import db
 from datetime import datetime, timedelta, timezone, UTC
 
-MYT = timezone(timedelta(hours=8))
+MYT = timezone(timedelta(hours=0))
 
 class ProjectMember(db.Model):
     __tablename__ = 'project_members'
