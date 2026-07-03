@@ -2826,7 +2826,10 @@ def get_my_notifications():
     
     current_user = get_current_user()
     
-    notifs = Notification.query.filter_by(user_id=current_user.id).order_by(Notification.created_at.desc()).limit(15).all()
+    notifs = Notification.query.filter_by(
+        user_id=current_user.id, 
+        is_read=False
+    ).order_by(Notification.created_at.desc()).limit(15).all()
     
     return jsonify([{
         'id': n.id,
@@ -2835,7 +2838,6 @@ def get_my_notifications():
         'is_read': n.is_read,
         'created_at': n.created_at.strftime('%Y-%m-%d %H:%M')
     } for n in notifs])
-
 @views.route('/api/notifications/mark-all-read', methods=['POST'])
 def mark_all_notifications_read():
     """Mark all badge and general notifications as read for the current user."""
