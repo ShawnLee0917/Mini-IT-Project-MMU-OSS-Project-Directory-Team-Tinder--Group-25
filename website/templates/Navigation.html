@@ -284,7 +284,10 @@
                 <div id="notif-dropdown" class="hidden absolute right-0 mt-4 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50">
                     <div class="bg-gray-50 px-4 py-3 border-b border-gray-100 flex justify-between items-center">
                         <h3 class="text-sm font-bold text-gray-800"><i class="fas fa-envelope-open-text text-red-500 mr-2"></i>Notification</h3>
-                        <span id="notif-count-text" class="text-xs text-gray-500 font-semibold bg-white px-2 py-0.5 rounded-full border">0</span>
+                        <div class="flex items-center gap-2">
+                            <button onclick="markAllAsRead()" class="text-[10px] text-blue-600 hover:text-blue-800 font-bold transition">Mark all read</button>
+                            <span id="notif-count-text" class="text-xs text-gray-500 font-semibold bg-white px-2 py-0.5 rounded-full border">0</span>
+                        </div>
                     </div>
                     <div id="notif-list" class="max-h-64 overflow-y-auto divide-y divide-gray-50 text-gray-800">
                         <div class="p-4 text-center text-xs text-gray-400 italic">No new notifications.</div>
@@ -317,7 +320,7 @@
             <a href="{{ url_for('views.profile') }}" class="hover:text-red-200 transition">My Profile</a>
             
             <button onclick="document.getElementById('notif-btn').click()" class="text-left text-yellow-300 hover:text-white transition flex justify-between items-center" id="mobile-notif-row">
-                <span><i class="fas fa-bell mr-2"></i> Project Invitations</span>
+                <span><i class="fas fa-bell mr-2"></i> Notification</span>
                 <span id="mobile-notif-badge" class="bg-yellow-400 text-red-900 px-2 rounded-full text-xs hidden">0</span>
             </button>
 
@@ -650,24 +653,29 @@
         return BADGE_ICONS[name.toLowerCase().trim()] || { icon: 'fas fa-medal', color: 'text-yellow-500', bg: 'bg-yellow-50' };
     }
 
-    //  Load Notifications (Invitations + Badge Queue) 
+// ── Load Notifications (Invitations + Badge Queue + System Notifs) ──
     async function loadInvitations() {
         if (IS_FILE) return;
         try {
-            const [invRes, badgeNotifs] = await Promise.all([
+            // 1. 同时发出 3 个请求：项目邀请、徽章提醒、普通系统通知
+            const [invRes, badgeNotifs, generalRes] = await Promise.all([
                 fetch(`${API}/my-invitations`),
-                fetchBadgeNotifications()
+                fetchBadgeNotifications(),
+                fetch(`${API}/my-notifications`) // <-- 修复：补上了之前遗漏的系统通知请求
             ]);
 
-            const invs  = invRes.ok ? await invRes.json() : [];
-            const queue = badgeNotifs; // [{id, badge_name}, ...]
+            // 2. 安全地解析数据
+            const invs = invRes.ok ? await invRes.json() : [];
+            const queue = badgeNotifs; // Badge 数据
+            const generalNotifs = generalRes.ok ? await generalRes.json() : []; // <-- 修复：定义了 generalNotifs
 
             const badgeEl      = document.getElementById('notif-badge');
             const mobileBadge  = document.getElementById('mobile-notif-badge');
             const countText    = document.getElementById('notif-count-text');
             const list         = document.getElementById('notif-list');
 
-            const totalCount = invs.length + queue.length;
+            // 3. 计算总数 (现在这行不会再报错崩溃了)
+            const totalCount = invs.length + queue.length + generalNotifs.length;
 
             if (totalCount > 0) {
                 badgeEl.textContent = totalCount;
@@ -681,7 +689,7 @@
                 countText.textContent = '0';
             }
 
-            // Badge notifications — one card per queued entry
+            // 渲染：徽章
             const badgeItems = queue.map(entry => {
                 const b = getBadgeIcon(entry.badge_name);
                 return `
@@ -699,9 +707,9 @@
                 </div>`;
             }).join('');
 
-            // Invitation notifications
+            // 渲染：邀请
             const invItems = invs.map(inv => `
-                <div class="p-4 hover:bg-gray-50 transition border-b border-gray-50 last:border-0" id="inv-card-${inv.id}">
+                <div class="p-4 hover:bg-gray-50 transition border-b border-gray-50" id="inv-card-${inv.id}">
                     <p class="text-xs text-gray-800 mb-3 leading-relaxed">
                         <span class="font-bold text-gray-900">${escapeHtml(inv.owner_name)}</span> invited you to join <span class="font-bold text-red-600">${escapeHtml(inv.project_name)}</span>
                     </p>
@@ -715,7 +723,19 @@
                 </div>
             `).join('');
 
-            list.innerHTML = (badgeItems + invItems) ||
+            // 渲染：系统消息(评论等)
+            const generalNotifItems = generalNotifs.map(n => `
+                <div class="p-4 hover:bg-gray-50 transition border-b border-gray-50">
+                    <p class="text-xs text-gray-800 leading-relaxed mb-2">${escapeHtml(n.content)}</p>
+                    <div class="flex justify-between items-center">
+                        <span class="text-[10px] text-gray-400">${n.created_at}</span>
+                        ${n.link_url ? `<a href="${n.link_url}" class="text-[10px] bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100 transition font-bold">View</a>` : ''}
+                    </div>
+                </div>
+            `).join('');
+
+            // 组合全部并输出
+            list.innerHTML = (generalNotifItems + badgeItems + invItems) || 
                 '<div class="p-6 text-center text-xs text-gray-400 italic">No new notifications.</div>';
 
         } catch (err) {
@@ -917,7 +937,7 @@
                 if (p.category === 'Question') {
                     badgeHTML = '<span class="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"><i class="fas fa-question-circle mr-1"></i>Question</span>';
                 } else if (p.category === 'Posts') {
-                    badgeHTML = '<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"><i class="fas fa-memo mr-1"></i>Posts</span>';
+                    badgeHTML = '<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"><i class="fas fa-pencil-alt mr-1"></i>Posts</span>';
                 } else {
                     badgeHTML = '<span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"><i class="fas fa-comment-dots mr-1"></i>Discussion</span>';
                 }
@@ -1337,6 +1357,15 @@
         loadAISuggestions();
         loadUserProjectsForPost();
     });
+
+function markAllAsRead() {
+    saveBadgeQueue([]); 
+    
+    loadInvitations();
+    
+    showNotif("All badges marked as read.");
+}
+
 
     // Re-poll badge + invitation notifications every 30 seconds
     setInterval(loadInvitations, 30000);
