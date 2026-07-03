@@ -458,65 +458,54 @@ const fileInput = document.getElementById('imageInput');
 const fileDisplay = document.getElementById('fileNameDisplay');
 const previewContainer = document.getElementById('imagePreviewContainer');
 
-// 核心安全改动：用标准的 JS 数组作为唯一数据源，避开复杂的 DataTransfer 内部索引问题
 let allFiles = []; 
 
-// 负责将 JS 数组中的文件同步到原生的 fileInput 表单中
 function syncFilesToInput() {
     const dt = new DataTransfer();
     allFiles.forEach(file => {
         dt.items.add(file);
     });
-    fileInput.files = dt.files; // 成功同步给隐藏的 input，供表单提交
+    fileInput.files = dt.files;
 }
 
 function renderImagePreviews() {
-    // 每次重新渲染前清空预览区域
+
     previewContainer.innerHTML = '';
     
     if (allFiles.length > 0) {
         fileDisplay.innerText = "Selected " + allFiles.length + " file(s).";
         
-        // 遍历我们的标准数组
         allFiles.forEach((file, index) => {
             if (!file.type.startsWith('image/')) return;
 
             const objectUrl = URL.createObjectURL(file);
 
-            // 1. 创建外层包装盒
             const imgWrapper = document.createElement('div');
             imgWrapper.className = 'relative group rounded-lg overflow-hidden shadow-sm border border-gray-200 aspect-video bg-white flex items-center justify-center';
             
-            // 关键：绝对禁止点击预览图区域时触发外层 label 的文件选择弹窗
             imgWrapper.onclick = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
             };
 
-            // 2. 创建图片标签
             const img = document.createElement('img');
             img.src = objectUrl;
             img.className = 'w-full h-full object-cover transition-transform duration-300 group-hover:scale-105';
             img.onload = () => URL.revokeObjectURL(objectUrl);
 
-            // 3. 创建删除按钮 (右上角悬停显示)
             const removeBtn = document.createElement('button');
-            removeBtn.type = 'button'; // 声明为普通按钮，绝对防止触发表单默认 submit
+            removeBtn.type = 'button';
             removeBtn.className = 'absolute top-2 right-2 bg-red-600/90 text-white rounded-full w-7 h-7 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700 z-10 cursor-pointer shadow-md';
             removeBtn.innerHTML = '<i class="fas fa-times text-sm"></i>';
             
-            // 4. 精确删除单张逻辑
             removeBtn.onclick = (e) => {
                 e.preventDefault();
-                e.stopPropagation(); // 阻止事件冒泡，防止触发 label 的点击
+                e.stopPropagation();
 
-                // 从 JS 纯数组中精确剔除当前索引的这一张照片
                 allFiles.splice(index, 1);
                 
-                // 将剔除后的新数组同步回 input 表单
                 syncFilesToInput();
                 
-                // 重新渲染界面
                 renderImagePreviews();
             };
 
@@ -529,12 +518,10 @@ function renderImagePreviews() {
     }
 }
 
-// 处理新加入的文件（点击或拖拽触发的累加逻辑）
 function handleFiles(newFiles) {
     for (let i = 0; i < newFiles.length; i++) {
         if (!newFiles[i].type.startsWith('image/')) continue;
 
-        // 图片去重检测：如果名字和大小完全一样，则不再重复添加
         const isDuplicate = allFiles.some(
             existing => existing.name === newFiles[i].name && existing.size === newFiles[i].size
         );
@@ -542,34 +529,29 @@ function handleFiles(newFiles) {
             allFiles.push(newFiles[i]);
         }
     }
-    syncFilesToInput();  // 保持表单数据同步
-    renderImagePreviews(); // 刷新预览
+    syncFilesToInput();
+    renderImagePreviews();
 }
 
 if (dropZone && fileInput) {
-    // 监听点击选择文件
     fileInput.addEventListener('change', function(e) {
         if (e.target.files && e.target.files.length > 0) {
-            // 将本次新选中的文件传给处理函数
             handleFiles(e.target.files);
         }
     });
 
-    // 拖拽悬停视觉效果
     dropZone.addEventListener('dragover', (e) => {
         e.preventDefault(); 
         dropZoneContent.classList.remove('border-gray-200', 'bg-gray-50');
         dropZoneContent.classList.add('border-red-400', 'bg-red-50');
     });
 
-    // 拖拽离开视觉恢复
     dropZone.addEventListener('dragleave', (e) => {
         e.preventDefault();
         dropZoneContent.classList.remove('border-red-400', 'bg-red-50');
         dropZoneContent.classList.add('border-gray-200', 'bg-gray-50');
     });
 
-    // 拖放文件处理
     dropZone.addEventListener('drop', (e) => {
         e.preventDefault();
         
@@ -612,7 +594,6 @@ if (dropZone && fileInput) {
         });
     }
 
-    // 执行导航初始化
     initNav();
 </script>
 

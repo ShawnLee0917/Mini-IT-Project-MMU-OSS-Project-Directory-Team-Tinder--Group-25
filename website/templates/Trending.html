@@ -348,7 +348,7 @@
     const API = '/api';
     const IS_FILE = window.location.protocol === 'file:';
 
-    // ── Tabs 切换逻辑 ────────────────────────────────────────────────────────
+    // ── Tabs ────────────────────────────────────────────────────────
     function switchTab(tab) {
         const btnTrending = document.getElementById('tab-trending');
         const btnAllTime = document.getElementById('tab-alltime');
@@ -368,7 +368,6 @@
         }
     }
 
-    // ── 汉堡菜单逻辑 ─────────────────────────────────────────────
     const menuBtn    = document.getElementById('menu-btn');
     const mobileMenu = document.getElementById('mobile-menu');
 
@@ -392,7 +391,6 @@
         el.addEventListener('click', closeMenu);
     });
 
-    // ── 用户状态与退出登录 ────────────────────────────────────
     async function initNav() {
         if (IS_FILE) {
             if (document.getElementById('nav-email')) document.getElementById('nav-email').textContent = '(offline)';
@@ -432,7 +430,6 @@
     document.getElementById('logout-btn').addEventListener('click', logout);
     document.getElementById('logout-btn-mobile').addEventListener('click', logout);
 
-    // 页面加载完毕后验证用户
     initNav();
 
     function toggleTheme() {
