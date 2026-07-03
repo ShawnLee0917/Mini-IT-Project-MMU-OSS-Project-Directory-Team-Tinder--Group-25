@@ -1264,6 +1264,7 @@ def project_page(project_id):
     current_user_role = None
     is_invited = False
     invitation_id = None
+    has_pending_request = False
     
     if current_user:
         if project.user_id == current_user.id:
@@ -1277,6 +1278,10 @@ def project_page(project_id):
                 if invite:
                     is_invited = True
                     invitation_id = invite.id
+                else:
+                    pending_request = JoinRequest.query.filter_by(project_id=project.id, user_id=current_user.id, status='pending').first()
+                    if pending_request:
+                        has_pending_request = True
 
     total_stars = ProjectStar.query.filter_by(project_id=project.id).count()
     
@@ -1286,6 +1291,17 @@ def project_page(project_id):
         if star_record:
             user_has_starred = True
 
+    has_reported_project = False
+    if current_user:
+        existing_report = ContentReport.query.filter_by(
+            reporter_id=current_user.id,
+            content_type='project',
+            content_id=project.id,
+            status='pending'
+        ).first()
+        if existing_report:
+            has_reported_project = True
+
     return render_template(
         "Project_Page.html", 
         project=project, 
@@ -1293,6 +1309,8 @@ def project_page(project_id):
         current_user_role=current_user_role,
         is_invited=is_invited,
         invitation_id=invitation_id,
+        has_pending_request=has_pending_request,
+        has_reported_project=has_reported_project,
         total_stars=total_stars,          
         user_has_starred=user_has_starred  
     )
@@ -2686,9 +2704,22 @@ def get_project_comments(project_id):
     if err:
         return err
     
+    current_user = get_current_user()
     project = Project.query.get_or_404(project_id)
     comments = ProjectComment.query.filter_by(project_id=project_id).order_by(ProjectComment.created_at.desc()).all()
-    
+
+    # Fetch the set of comment IDs this user has already reported (pending), in one query
+    reported_comment_ids = set()
+    if current_user and comments:
+        comment_ids = [c.id for c in comments]
+        reported_rows = ContentReport.query.filter(
+            ContentReport.reporter_id == current_user.id,
+            ContentReport.content_type == 'comment',
+            ContentReport.content_id.in_(comment_ids),
+            ContentReport.status == 'pending'
+        ).all()
+        reported_comment_ids = {r.content_id for r in reported_rows}
+
     return jsonify([{
         'id': c.id,
         'author_id': c.user_id,
@@ -2705,6 +2736,7 @@ def get_project_comments(project_id):
         'created_at': c.created_at.isoformat(),
         'updated_at': c.updated_at.isoformat(),
         'images': [{'id': img.id, 'url': f'/static/uploads/{img.image_path}'} for img in c.images],
+        'reported_by_me': c.id in reported_comment_ids,
     } for c in comments])
 
 
@@ -2771,7 +2803,6 @@ def create_project_comment(project_id):
                 img.image_path = filename
                 db.session.add(img)
                 
-    # 3. 触发通知逻辑
     project_owner = User.query.get(project.user_id)
     if project_owner:
         if project_owner.id != current_user.id:
@@ -2797,14 +2828,12 @@ def create_project_comment(project_id):
                 )
                 db.session.add(p_notif)
 
-    # 4. 统一提交并分配徽章 (属于 create_project_comment 函数的结尾)
     db.session.commit()
 
     # Auto-assign comment milestone badges
     sync_comment_badges(current_user.id)
     db.session.commit()
     
-    # 5. 正确返回响应数据
     return jsonify({
         'id': comment.id,
         'author_id': comment.user_id,
