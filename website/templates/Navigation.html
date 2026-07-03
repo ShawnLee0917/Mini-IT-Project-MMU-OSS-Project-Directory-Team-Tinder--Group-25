@@ -1358,14 +1358,24 @@
         loadUserProjectsForPost();
     });
 
-function markAllAsRead() {
-    saveBadgeQueue([]); 
-    
-    loadInvitations();
-    
-    showNotif("All badges marked as read.");
+async function markAllAsRead() {
+    try {
+        const res = await fetch(`${API}/notifications/mark-all-read`, { 
+            method: 'POST' 
+        });
+        
+        if (res.ok) {
+            showNotif("All notifications marked as read.");
+            await loadInvitations();
+        } else {
+            const data = await res.json();
+            showNotif(data.error || "Failed to mark as read", false);
+        }
+    } catch (err) {
+        console.error('Error marking all as read:', err);
+        showNotif("Network error", false);
+    }
 }
-
 
     // Re-poll badge + invitation notifications every 30 seconds
     setInterval(loadInvitations, 30000);
