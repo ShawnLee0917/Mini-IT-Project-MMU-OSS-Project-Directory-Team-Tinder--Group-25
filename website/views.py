@@ -4159,6 +4159,7 @@ def manage_project_updates(project_id):
 
         msg = 'Update posted successfully' if auto_approve else 'Update submitted for approval'
         return jsonify({'success': True, 'message': msg})
+    
 @views.route('/api/project/<int:project_id>/updates/<int:update_id>/<action>', methods=['POST'])
 def review_project_update(project_id, update_id, action):
     err = require_login()
@@ -4309,10 +4310,7 @@ def get_timeline_feed():
             'score': feed_score
         })
 
-    # =========================================================================
-    # 3. 汇入数据源 B：项目的官方更新进展 (ProjectUpdate)
-    # =========================================================================
-    if starred_project_ids: # 如果用户有关注的项目，才去查询更新
+    if starred_project_ids:
         updates = ProjectUpdate.query.filter(
             ProjectUpdate.is_approved == True,
             ProjectUpdate.project_id.in_(starred_project_ids) 
@@ -4327,7 +4325,6 @@ def get_timeline_feed():
             base_score = 50
             feed_score = base_score / ((age_hours + 2) ** 1.5)
             
-            # ✨ 新增：提取 Update 的图片 URL
             image_urls = [f"/static/uploads/{img.image_path}" for img in u.images] if hasattr(u, 'images') else []
             
             unified_feed.append({
@@ -4339,21 +4336,19 @@ def get_timeline_feed():
                 'title': u.title,
                 'status': u.status,
                 'content': u.content,
-                'image_urls': image_urls,  # ✨ 新增：将图片发给前端
+                'image_urls': image_urls,
                 'created_at': u.created_at.isoformat(),
                 'attached_project': {'id': u.project.id, 'name': u.project.project_name} if u.project else None,
                 'is_starred': is_starred,
                 'score': feed_score
             })
             
-    # 4. 执行级联精准排序：reverse=True 确保 is_starred 从 1 到 0 递减，score 从高到低递减
     unified_feed.sort(key=lambda x: (x['is_starred'], x['score']), reverse=True)
 
     return jsonify(unified_feed[:30])
 
 @views.route('/api/project/<int:project_id>/star', methods=['POST'])
 def toggle_project_star(project_id):
-    # 1. 验证用户是否登录 (请根据你实际 views.py 里获取登录用户的方法调整)
     email = session.get('user_email')
     if not email:
         return jsonify({'error': 'Please login to star a project.'}), 401
@@ -4362,25 +4357,20 @@ def toggle_project_star(project_id):
     if not current_user:
         return jsonify({'error': 'User not found.'}), 404
 
-    # 2. 验证项目是否存在
     project = Project.query.get_or_404(project_id)
     
-    # 3. 检查是否已经收藏过
     existing_star = ProjectStar.query.filter_by(user_id=current_user.id, project_id=project.id).first()
     
     if existing_star:
-        # 已经收藏过 -> 执行取消收藏 (Unlike)
         db.session.delete(existing_star)
         db.session.commit()
         is_starred = False
     else:
-        # 尚未收藏 -> 执行收藏 (Like)
         new_star = ProjectStar(user_id=current_user.id, project_id=project.id)
         db.session.add(new_star)
         db.session.commit()
         is_starred = True
         
-    # 4. 获取该项目最新的总收藏数，返回给前端实时更新 UI
     star_count = ProjectStar.query.filter_by(project_id=project.id).count()
     
     return jsonify({
