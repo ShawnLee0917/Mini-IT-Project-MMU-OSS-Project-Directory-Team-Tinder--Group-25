@@ -946,7 +946,7 @@ def api_admin_dismiss_report():
         return jsonify({'error': f'Database failure: {str(e)}'}), 500
     
 # --- ADDED: Auto-Email Sending Function ---
-# Reference: Python smtplib - https://docs.python.org/3/library/smtplib.html
+# Reference: Python smtplib - https://docs.python.org/3/library/smtplibsmtplib.html
 MAIL_USERNAME = os.environ.get("MAIL_USERNAME")
 MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD")
 
@@ -2835,6 +2835,26 @@ def get_my_notifications():
         'is_read': n.is_read,
         'created_at': n.created_at.strftime('%Y-%m-%d %H:%M')
     } for n in notifs])
+
+@views.route('/api/notifications/mark-all-read', methods=['POST'])
+def mark_all_notifications_read():
+    """Mark all badge and general notifications as read for the current user."""
+    err = require_login()
+    if err:
+        return err
+
+    user = get_current_user()
+
+    try:
+        BadgeNotification.query.filter_by(user_id=user.id, is_read=False).update({'is_read': True})
+        
+        Notification.query.filter_by(user_id=user.id, is_read=False).update({'is_read': True})
+        
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'All notifications marked as read'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
 
 @views.route('/api/project/<int:project_id>/comments/<int:comment_id>', methods=['DELETE'])
 def delete_project_comment(project_id, comment_id):
