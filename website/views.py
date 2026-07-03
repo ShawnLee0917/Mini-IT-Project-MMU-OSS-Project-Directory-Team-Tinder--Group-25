@@ -639,7 +639,7 @@ def api_report_content():
     report.content_id = content_id
     report.reason = reason
     report.description = description
-    report.status = 'pending'  # 👈 【核心修复】：显式指定状态为 pending，确保后台能查到
+    report.status = 'pending'  # Explicitly set status to pending so admin dashboard can find it
     
     db.session.add(report)
     db.session.commit()
@@ -896,14 +896,14 @@ def api_get_admin_logs():
 
 @views.route('/api/admin/dismiss-report', methods=['POST'])
 def api_admin_dismiss_report():
-    """管理面板：忽略/驳回举报记录"""
+    """Admin panel: dismiss/reject a report"""
     
-    # 1. 权限检查：确保函数名和你的验证逻辑一致
+    # 1. Permission check
     is_admin, user = check_admin_permission()
     if not is_admin:
         return jsonify({'error': 'Unauthorized access.'}), 403
 
-    # 2. 解析前端传来的 JSON
+    # 2. Parse JSON from frontend
     data = request.get_json(silent=True) or {}
     report_id = data.get('report_id')
 
@@ -911,20 +911,20 @@ def api_admin_dismiss_report():
         return jsonify({'error': 'Missing report ID.'}), 400
 
     try:
-        # 3. 查找举报记录（改用兼容性最强的 filter_by 方式）
+        # 3. Find the report record
         # 请确保 ContentReport 名字与你的 models.py 中完全一致
         report = ContentReport.query.filter_by(id=int(report_id)).first()
         
         if not report:
             return jsonify({'error': f'Report #{report_id} not found in database.'}), 404
 
-        # 4. 更新状态
+        # 4. Update status
         report.status = 'resolved' 
         
-        # 5. 安全地记录审计日志（将其完全隔离，防止因没有表或少字段导致整个接口崩溃）
+        # 5. Safely log audit entry
         try:
             log = AdminLog()
-            # 动态获取当前管理员 ID，如果没有就安全赋一个默认值 1
+            # Get current admin ID, fallback to 1 if not found
             log.admin_id = user.id if (user and hasattr(user, 'id')) else 1
             log.action = 'dismiss_report'
             log.target_type = 'report'
@@ -932,16 +932,16 @@ def api_admin_dismiss_report():
             log.details = f"[Admin Action] Dismissed report #{report_id}"
             db.session.add(log)
         except Exception as log_err:
-            # 如果是 AdminLog 报错，打印出来但不要 raise，让主逻辑继续走
-            print(f"安全跳过日志错误 (AdminLog Save Failed): {str(log_err)}")
+            # If AdminLog fails, print but don't raise — let main logic continue
+            print(f"Safely skipped log error (AdminLog Save Failed): {str(log_err)}")
 
-        # 6. 提交到数据库
+        # 6. Commit to database
         db.session.commit()
         return jsonify({'success': True, 'message': 'Report dismissed successfully.'}), 200
 
     except Exception as e:
         db.session.rollback()
-        # 核心调试：如果还报错，这行会在你运行 Flask 的 VS Code 终端里打印出真正的 Python 报错死因
+        # Debug: print real Python error in VS Code terminal if still failing
         print(f"\n💥 [CRITICAL ERROR] Dismiss API crashed due to: {str(e)}\n")
         return jsonify({'error': f'Database failure: {str(e)}'}), 500
     
@@ -1641,7 +1641,7 @@ def get_profile():
         'interests':      combined_interests,
         'dev_interests':  interests_data.get('dev_interests', []),
         'lang_interests': interests_data.get('lang_interests', []),
-        'is_admin':       user.is_admin or False,   # ← 加这行
+        'is_admin':       user.is_admin or False,   
     })
 
 
@@ -2723,7 +2723,7 @@ def create_project_comment(project_id):
     if not content:
         return jsonify({'error': 'Comment content is required'}), 400
 
-    # ─── 核心修改：在这里插入黑名单留言拦截雷达 ───
+    # ─── Core change: insert blacklist keyword filter here ───
     triggered_word = contains_banned_keywords(content)
     if triggered_word:
         return jsonify({
@@ -2734,7 +2734,7 @@ def create_project_comment(project_id):
     if comment_type not in ['normal', 'issue', 'suggestion']:
         return jsonify({'error': 'Invalid comment type'}), 400
 
-    # 后面是你原本的处理逻辑（比如保存评论到数据库、处理图片等）...
+    # Continue with original logic below (save comment, handle images, etc.)
     
 # Determine user role
     user_role = 'user'
@@ -3993,7 +3993,7 @@ def manage_project_updates(project_id):
                     'author_name': u.author.name if u.author else 'Unknown',
                     'created_at': u.created_at.isoformat(),
                     'is_approved': is_appr,
-                    'images': images_data  # 新增：将图片数据返回给前端
+                    'images': images_data  # Added: return image data to frontend
                 })
         return jsonify(result)
 
@@ -4091,11 +4091,11 @@ def review_project_update(project_id, update_id, action):
 
 
 # =====================================================================
-# ─── 管理员一键删除不良内容功能（ADMIN MODERATION） ───
+# ─── Admin: delete harmful content (ADMIN MODERATION) ───
 # =====================================================================
 
 def require_admin():
-    """安全拦截：验证当前登录用户是否为管理员"""
+    """Security check: verify current user is admin"""
     email = session.get('user_email')
     if not email:
         return jsonify({'error': 'Please log in first.'}), 401

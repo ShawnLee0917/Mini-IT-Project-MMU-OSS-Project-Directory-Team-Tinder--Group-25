@@ -1,5 +1,6 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import inspect, text
 import os
 
 db = SQLAlchemy()
@@ -45,6 +46,35 @@ def create_app():
                 print(f"Local initialization notice (Data might already exist): {e}")
 
     return app
+
+def _ensure_legacy_schema_columns():
+    """Add missing columns for older SQLite databases created before recent model upgrades."""
+    try:
+        inspector = inspect(db.engine)
+        if 'project_comments' not in inspector.get_table_names():
+            return
+
+        columns = {col['name'] for col in inspector.get_columns('project_comments')}
+        with db.engine.begin() as conn:
+            if 'is_deleted' not in columns:
+                conn.execute(text("ALTER TABLE project_comments ADD COLUMN is_deleted BOOLEAN DEFAULT 0"))
+            if 'deleted_by_id' not in columns:
+                conn.execute(text("ALTER TABLE project_comments ADD COLUMN deleted_by_id INTEGER"))
+            if 'deleted_by_role' not in columns:
+                conn.execute(text("ALTER TABLE project_comments ADD COLUMN deleted_by_role VARCHAR(20)"))
+            if 'deleted_at' not in columns:
+                conn.execute(text("ALTER TABLE project_comments ADD COLUMN deleted_at DATETIME"))
+
+                # ─── user_settings missing columns ───
+        if 'user_settings' in inspector.get_table_names():
+            us_columns = {col['name'] for col in inspector.get_columns('user_settings')}
+            with db.engine.begin() as conn:
+                if 'notify_badges' not in us_columns:
+                    conn.execute(text("ALTER TABLE user_settings ADD COLUMN notify_badges BOOLEAN DEFAULT 1"))
+
+    except Exception as e:
+        print(f"[SCHEMA] Warning during legacy column migration: {str(e)}")
+
 
 def _initialize_default_labels():
     """Initialize default comment labels if they don't exist"""
