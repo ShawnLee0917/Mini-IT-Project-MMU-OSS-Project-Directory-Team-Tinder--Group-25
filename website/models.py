@@ -80,7 +80,7 @@ class UserSettings(db.Model):
     auto_accept_collaborations = db.Column(db.Boolean, default=False)
     
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(MYT))
-    updated_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(MYT), onupdate=datetime.now(MYT))
+    updated_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(MYT), onupdate=lambda: datetime.now(MYT))
 
 class Notification(db.Model):
     __tablename__ = 'notifications'
@@ -200,7 +200,7 @@ class JoinRequest(db.Model):
     project_id = db.Column(db.Integer, db.ForeignKey('projects.id', ondelete='CASCADE'), nullable=False)
     status = db.Column(db.String(50), nullable=False, default='pending')  # 'pending', 'accepted', 'rejected'
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(MYT))
-    updated_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(MYT), onupdate=datetime.now(MYT))
+    updated_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(MYT), onupdate=lambda: datetime.now(MYT))
     
     # Relationships
     user = db.relationship('User', backref='join_requests')
@@ -236,7 +236,7 @@ class LeaveRequest(db.Model):
     reason = db.Column(db.Text, nullable=False)
     status = db.Column(db.String(50), nullable=False, default='pending')  # 'pending', 'approved', 'rejected'
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(MYT))
-    updated_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(MYT), onupdate=datetime.now(MYT))
+    updated_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(MYT), onupdate=lambda: datetime.now(MYT))
     approved_at = db.Column(db.DateTime, nullable=True)
     
     # Relationships
@@ -286,7 +286,7 @@ class ProjectComment(db.Model):
     deleted_at = db.Column(db.DateTime, nullable=True)
 
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(MYT))
-    updated_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(MYT), onupdate=datetime.now(MYT))
+    updated_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(MYT), onupdate=lambda: datetime.now(MYT))
     
     # Relationships
     author = db.relationship('User', foreign_keys=[user_id], backref='project_comments')
@@ -430,7 +430,7 @@ class ContentReport(db.Model):
     admin_comment = db.Column(db.Text, nullable=True)
     
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(MYT))
-    updated_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(MYT), onupdate=datetime.now(MYT))
+    updated_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(MYT), onupdate=lambda: datetime.now(MYT))
     
     # Relationships
     reporter = db.relationship('User', foreign_keys=[reporter_id], backref='reported_contents')
