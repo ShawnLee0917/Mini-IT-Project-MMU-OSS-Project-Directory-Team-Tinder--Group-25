@@ -465,6 +465,28 @@
     <img id="modalImage" src="" class="max-w-full max-h-[90vh] rounded-xl shadow-2xl object-contain" onclick="event.stopPropagation()">
 </div>
 
+<div id="delete-confirm-modal" class="hidden fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity duration-300">
+    <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-sm overflow-hidden transform transition-all scale-100">
+        <div class="p-6 text-center">
+                <div class="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-exclamation-triangle text-3xl text-red-500"></i>
+            </div>
+            
+            <h3 class="text-xl font-black text-gray-900 mb-2">Delete Post?</h3>
+            <p class="text-sm text-gray-500 mb-8 leading-relaxed">Are you sure you want to delete this post? This action cannot be undone.</p>
+            
+            <div class="flex gap-3">
+                <button id="cancel-delete-btn" class="flex-1 bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200 font-bold py-3 rounded-xl transition">
+                    Cancel
+                </button>
+                <button id="confirm-delete-btn" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl transition shadow-md shadow-red-200 flex items-center justify-center gap-2">
+                    <i class="fas fa-trash text-sm"></i> Delete
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 
 <script>
     const IS_FILE = window.location.protocol === 'file:';
@@ -653,28 +675,35 @@
         return BADGE_ICONS[name.toLowerCase().trim()] || { icon: 'fas fa-medal', color: 'text-yellow-500', bg: 'bg-yellow-50' };
     }
 
+
+async function dismissGeneralNotif(notifId) {
+    try {
+        await fetch(`${API}/notifications/${notifId}/dismiss`, { method: 'POST' });
+    } catch (err) {
+        console.error('Failed to dismiss notification:', err);
+    }
+    await loadInvitations();
+}
+
 // ── Load Notifications (Invitations + Badge Queue + System Notifs) ──
     async function loadInvitations() {
         if (IS_FILE) return;
         try {
-            // 1. 同时发出 3 个请求：项目邀请、徽章提醒、普通系统通知
             const [invRes, badgeNotifs, generalRes] = await Promise.all([
                 fetch(`${API}/my-invitations`),
                 fetchBadgeNotifications(),
-                fetch(`${API}/my-notifications`) // <-- 修复：补上了之前遗漏的系统通知请求
+                fetch(`${API}/my-notifications`)
             ]);
 
-            // 2. 安全地解析数据
             const invs = invRes.ok ? await invRes.json() : [];
-            const queue = badgeNotifs; // Badge 数据
-            const generalNotifs = generalRes.ok ? await generalRes.json() : []; // <-- 修复：定义了 generalNotifs
+            const queue = badgeNotifs;
+            const generalNotifs = generalRes.ok ? await generalRes.json() : [];
 
             const badgeEl      = document.getElementById('notif-badge');
             const mobileBadge  = document.getElementById('mobile-notif-badge');
             const countText    = document.getElementById('notif-count-text');
             const list         = document.getElementById('notif-list');
 
-            // 3. 计算总数 (现在这行不会再报错崩溃了)
             const totalCount = invs.length + queue.length + generalNotifs.length;
 
             if (totalCount > 0) {
@@ -689,7 +718,6 @@
                 countText.textContent = '0';
             }
 
-            // 渲染：徽章
             const badgeItems = queue.map(entry => {
                 const b = getBadgeIcon(entry.badge_name);
                 return `
@@ -707,7 +735,6 @@
                 </div>`;
             }).join('');
 
-            // 渲染：邀请
             const invItems = invs.map(inv => `
                 <div class="p-4 hover:bg-gray-50 transition border-b border-gray-50" id="inv-card-${inv.id}">
                     <p class="text-xs text-gray-800 mb-3 leading-relaxed">
@@ -723,18 +750,20 @@
                 </div>
             `).join('');
 
-            // 渲染：系统消息(评论等)
             const generalNotifItems = generalNotifs.map(n => `
-                <div class="p-4 hover:bg-gray-50 transition border-b border-gray-50">
+                <div class="p-4 hover:bg-gray-50 transition border-b border-gray-50" id="notif-${n.id}">
                     <p class="text-xs text-gray-800 leading-relaxed mb-2">${escapeHtml(n.content)}</p>
                     <div class="flex justify-between items-center">
                         <span class="text-[10px] text-gray-400">${n.created_at}</span>
-                        ${n.link_url ? `<a href="${n.link_url}" class="text-[10px] bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100 transition font-bold">View</a>` : ''}
+                        <div class="flex items-center gap-3">
+                            ${n.link_url ? `<a href="${n.link_url}" class="text-[10px] bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100 transition font-bold">View</a>` : ''}
+                            <button onclick="dismissGeneralNotif(${n.id})" class="text-[10px] text-gray-400 hover:text-red-500 transition font-medium flex items-center">
+                                <i class="fas fa-check mr-1"></i>Got it
+                            </button>
+                        </div>
                     </div>
                 </div>
             `).join('');
-
-            // 组合全部并输出
             list.innerHTML = (generalNotifItems + badgeItems + invItems) || 
                 '<div class="p-6 text-center text-xs text-gray-400 italic">No new notifications.</div>';
 
@@ -1060,14 +1089,18 @@
     }
 
     async function deletePost(postId) {
-        if (!confirm('Are you sure you want to delete this post?')) return;
+        const confirmed = await customConfirm();
+        if (!confirmed) return;
+        
         try {
             const res = await fetch(`${API}/community_posts/${postId}`, { method: 'DELETE' });
             if (res.ok) { 
                 document.getElementById(`post-${postId}`).remove(); 
                 showNotif('Post deleted'); 
             }
-        } catch (err) { showNotif('Error deleting post', false); }
+        } catch (err) { 
+            showNotif('Error deleting post', false); 
+        }
     }
 
     // ── Nested Comments Logic ────────────────────────────────────────────────
@@ -1358,27 +1391,52 @@
         loadUserProjectsForPost();
     });
 
-async function markAllAsRead() {
-    try {
-        const res = await fetch(`${API}/notifications/mark-all-read`, { 
-            method: 'POST' 
-        });
-        
-        if (res.ok) {
-            showNotif("All notifications marked as read.");
-            await loadInvitations();
-        } else {
-            const data = await res.json();
-            showNotif(data.error || "Failed to mark as read", false);
+    async function markAllAsRead() {
+        try {
+            const res = await fetch(`${API}/notifications/mark-all-read`, { 
+                method: 'POST' 
+            });
+            
+            if (res.ok) {
+                showNotif("All notifications marked as read.");
+                await loadInvitations();
+            } else {
+                const data = await res.json();
+                showNotif(data.error || "Failed to mark as read", false);
+            }
+        } catch (err) {
+            console.error('Error marking all as read:', err);
+            showNotif("Network error", false);
         }
-    } catch (err) {
-        console.error('Error marking all as read:', err);
-        showNotif("Network error", false);
     }
-}
 
     // Re-poll badge + invitation notifications every 30 seconds
     setInterval(loadInvitations, 30000);
+
+function customConfirm() {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('delete-confirm-modal');
+        const btnConfirm = document.getElementById('confirm-delete-btn');
+        const btnCancel = document.getElementById('cancel-delete-btn');
+
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+
+        const handleConfirm = () => { cleanup(); resolve(true); };
+        const handleCancel = () => { cleanup(); resolve(false); };
+
+        function cleanup() {
+            modal.classList.add('hidden');
+            document.body.style.overflow = 'auto';
+            btnConfirm.removeEventListener('click', handleConfirm);
+            btnCancel.removeEventListener('click', handleCancel);
+        }
+
+        btnConfirm.addEventListener('click', handleConfirm);
+        btnCancel.addEventListener('click', handleCancel);
+    });
+}
+
 </script>
 </body>
 </html>
