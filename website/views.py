@@ -947,7 +947,8 @@ def api_admin_dismiss_report():
     
 # --- ADDED: Auto-Email Sending Function ---
 # Reference: Python smtplib - https://docs.python.org/3/library/smtplib.html
-resend.api_key = os.environ.get("RESEND_API_KEY", "missing_api_key")
+MAIL_USERNAME = os.environ.get("MAIL_USERNAME")
+MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD")
 
 def send_otp_email(receiver_email, otp_code):
     message = f"\n{'='*70}\n[DEVELOPMENT MODE] OTP CODE FOR: {receiver_email}\n{'='*70}\nOTP CODE: {otp_code}\nVerification URL: http://127.0.0.1:5000/verify\nDirect OTP URL: http://127.0.0.1:5000/test_otp/{receiver_email}\n{'='*70}\n"
@@ -961,28 +962,36 @@ def send_otp_email(receiver_email, otp_code):
     logging.info(message)
     current_app.logger.info(message)
 
-    try:
-        params = {
-            "from": "MMU OSSD <onboarding@resend.dev>",
-            "to": [receiver_email],
-            "subject": "MMU OSSD Verification Code",
-            "html": f"""
-            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2>Welcome to MMU OSSD!</h2>
-                <p>Your 6-digit verification code is: <strong style="font-size: 24px; color: #dc2626;">{otp_code}</strong></p>
-                <p>This code will expire in 15 minutes.</p>
-            </div>
-            """
-        }
+    if not MAIL_USERNAME or not MAIL_PASSWORD:
+        print("SMTP Error: MAIL_USERNAME or MAIL_PASSWORD not found in .env file.")
+        return False
 
-        email_response = resend.Emails.send(params)
-        print(f"OTP email successfully sent to {receiver_email} via Resend. ID: {email_response.get('id')}")
+    try:
+        html_content = f"""
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>Welcome to MMU OSSD!</h2>
+            <p>Your 6-digit verification code is: <strong style="font-size: 24px; color: #dc2626;">{otp_code}</strong></p>
+            <p>This code will expire in 15 minutes.</p>
+        </div>
+        """
+        msg = MIMEText(html_content, 'html')
+        msg['Subject'] = "MMU OSSD Verification Code"
+        msg['From'] = f"MMU OSSD <{MAIL_USERNAME}>"
+        msg['To'] = receiver_email
+
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(MAIL_USERNAME, MAIL_PASSWORD)
+        server.send_message(msg)
+        server.quit()
+        
+        print(f"OTP email successfully sent to {receiver_email} via Gmail SMTP.")
         return True
         
     except Exception as e:
-        print(f"Resend Email Automation Error: {e}")
+        print(f"SMTP Email Automation Error: {e}")
         return False
-    
+        
 @views.route('/')
 @views.route('/home')
 def home():
