@@ -280,12 +280,11 @@
             {% endif %}
 
             <div class="flex gap-3 mt-6 flex-wrap">
-                <button id="star-btn" onclick="toggleProjectStar()" class="bg-amber-50 text-amber-600 px-6 py-3 rounded-xl font-bold hover:bg-amber-100 transition flex items-center gap-2 border border-amber-200 shadow-sm">
-                    <i id="star-icon" class="{% if user_has_starred %}fas{% else %}far{% endif %} fa-star text-xl transition-transform duration-300"></i> 
-                    <span id="star-text">{% if user_has_starred %}Starred{% else %}Star{% endif %}</span>
-                    <span id="star-count" class="ml-1 bg-white/60 text-amber-700 px-2 py-0.5 rounded-lg text-sm border border-amber-200">{{ total_stars }}</span>
-                </button>
-                {% if current_user_role in ['owner', 'admin'] %}
+                <button id="fav-btn" onclick="toggleProjectFavorite()" class="bg-amber-50 text-amber-600 px-6 py-3 rounded-xl font-bold hover:bg-amber-100 transition flex items-center gap-2 border border-amber-200 shadow-sm">
+                    <i id="fav-icon" class="{% if user_has_starred %}fas{% else %}far{% endif %} fa-star text-xl transition-transform duration-300"></i> 
+                    <span id="fav-text">{% if user_has_starred %}Favourited{% else %}Favourite{% endif %}</span>
+                    <span id="fav-count" class="ml-1 bg-white/60 text-amber-700 px-2 py-0.5 rounded-lg text-sm border border-amber-200">{{ total_stars }}</span>
+                </button>                {% if current_user_role in ['owner', 'admin'] %}
                     <a href="{{ url_for('views.edit_project', project_id=project.id) }}" class="bg-yellow-100 text-yellow-700 px-6 py-3 rounded-xl font-bold hover:bg-yellow-200 transition flex items-center gap-2 border border-yellow-300">
                         <i class="fas fa-edit text-xl"></i> Edit
                     </a>
@@ -894,7 +893,7 @@
         }
     });
 
-    // ─── 举报功能控制脚本 ───
+    // ─── Report feature control ───
     let currentReportData = {
         content_type: 'project',
         content_id: projectId
@@ -927,18 +926,18 @@ function openReportModal(contentType, contentId) {
 function closeReportModal() {
     document.getElementById('report-modal').classList.add('hidden');
     
-    // 关闭弹窗时重置 Other 输入框状态
+    // Reset 'Other' input when modal closes
     document.getElementById('other-reason-container').classList.add('hidden');
     const otherInput = document.getElementById('other_reason_text');
     otherInput.removeAttribute('required');
     otherInput.value = '';
     
-    // 将单选框恢复到第一个默认勾选
+    // Reset radio button to first option
     const firstRadio = document.querySelector('input[name="report_reason"]');
     if (firstRadio) firstRadio.checked = true;
 }
 
-// 监听单选框的切换事件，动态显示/隐藏文本框
+// Listen for radio button change events, show/hide text input dynamically
 document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('input[name="report_reason"]').forEach((radio) => {
         radio.addEventListener('change', function() {
@@ -946,13 +945,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const otherInput = document.getElementById('other_reason_text');
             
             if (this.value === 'Other') {
-                otherContainer.classList.remove('hidden'); // 显示输入框
-                otherInput.setAttribute('required', 'required'); // 变成必填
-                otherInput.focus(); // 自动聚焦
+                otherContainer.classList.remove('hidden'); // Show input
+                otherInput.setAttribute('required', 'required'); // Make required
+                otherInput.focus(); // Auto focus
             } else {
-                otherContainer.classList.add('hidden'); // 隐藏输入框
-                otherInput.removeAttribute('required'); // 取消必填
-                otherInput.value = ''; // 清空内容
+                otherContainer.classList.add('hidden'); // Hide input
+                otherInput.removeAttribute('required'); // Remove required
+                otherInput.value = ''; // Clear value
             }
         });
     });
@@ -998,14 +997,14 @@ async function submitReport(event) {
             })
         });
 
-        // ─── 新增防御逻辑：如果后端重定向到了登录页（HTML），fetch 的 redirected 属性会为 true ───
+        // ─── Defense logic: if backend redirects to login page, fetch's redirected will be true ───
         if (response.redirected) {
             alert('Your session has expired. Redirecting to login page...');
-            window.location.href = response.url; // 引导用户去登录
+            window.location.href = response.url; // Redirect user to login
             return;
         }
 
-        // 检查返回的是否是 JSON
+        // Check if response is JSON
         const contentType = response.headers.get("content-type");
         if (!contentType || !contentType.includes("application/json")) {
             alert(`Error: Server didn't return JSON. (Status: ${response.status})`);
@@ -1020,7 +1019,7 @@ async function submitReport(event) {
             alert(`Error: ${data.error || 'Unknown error occurred'}`);
         }
     } catch (error) {
-        console.error("Fetch 发生错误:", error);
+        console.error("Fetch error:", error);
         alert('Failed to send report. Please ensure you are logged in and try again.');
     }
 }
@@ -1810,12 +1809,19 @@ async function saveEditComment() {
 
 // Delete project (project owner only) — hard delete, removes project entirely
 async function confirmDeleteProject() {
+    // Temporarily swap icon to trash
+    const iconBox = document.getElementById('confirmModalIcon');
+    
     const confirmed = await showConfirmModal(
         'Delete Project',
         'Are you sure you want to permanently delete this project? This cannot be undone — all comments, members, and data will be removed.',
         'Yes, Delete Project',
         'danger'
     );
+    
+    // Swap icon to trash
+    iconBox.innerHTML = '<i class="fas fa-trash"></i>';
+    
     if (!confirmed) return;
     document.getElementById('delete-project-form').submit();
 }
@@ -2607,51 +2613,52 @@ function closeUpdateModal() {
     // ────────────────────────────────────────────────────────────────────
     // Project Star / Favorite System
     // ────────────────────────────────────────────────────────────────────
-    async function toggleProjectStar() {
-        if (!currentUserId) {
-            await showAlertModal('Login Required', 'Please log in to star this project.');
-            window.location.href = '/login';
-            return;
-        }
 
-        const btn = document.getElementById('star-btn');
-        const icon = document.getElementById('star-icon');
-        const text = document.getElementById('star-text');
-        const countSpan = document.getElementById('star-count');
-
-        btn.disabled = true;
-
-        try {
-            const res = await fetch(`${API}/project/${projectId}/star`, {
-                method: 'POST'
-            });
-            const data = await res.json();
-            
-            if (res.ok) {
-                if (data.starred) {
-                    icon.classList.remove('far');
-                    icon.classList.add('fas');
-                    text.textContent = 'Starred';
-                } else {
-                    icon.classList.remove('fas');
-                    icon.classList.add('far');
-                    text.textContent = 'Star';
-                }
-                
-                icon.classList.add('scale-150');
-                setTimeout(() => icon.classList.remove('scale-150'), 250);
-                
-                countSpan.textContent = data.star_count;
-            } else {
-                await showAlertModal('Error', data.error || 'Failed to toggle star');
-            }
-        } catch (err) {
-            console.error('Error toggling project star:', err);
-            await showAlertModal('Error', 'A network error occurred.');
-        } finally {
-            btn.disabled = false;
-        }
+async function toggleProjectFavorite() {
+    if (!currentUserId) {
+        await showAlertModal('Login Required', 'Please log in to favourite this project.');
+        window.location.href = '/login';
+        return;
     }
+
+    const btn = document.getElementById('fav-btn');
+    const icon = document.getElementById('fav-icon');
+    const text = document.getElementById('fav-text');
+    const countSpan = document.getElementById('fav-count');
+
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`${API}/project/${projectId}/star`, {
+            method: 'POST'
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+            if (data.starred) {
+                icon.classList.remove('far');
+                icon.classList.add('fas');
+                text.textContent = 'Favourited'; 
+            } else {
+                icon.classList.remove('fas');
+                icon.classList.add('far');
+                text.textContent = 'Favourite';  
+            }
+            
+            icon.classList.add('scale-150');
+            setTimeout(() => icon.classList.remove('scale-150'), 250);
+            
+            countSpan.textContent = data.star_count;
+        } else {
+            await showAlertModal('Error', data.error || 'Failed to toggle favourite');
+        }
+    } catch (err) {
+        console.error('Error toggling project favourite:', err);
+        await showAlertModal('Error', 'A network error occurred.');
+    } finally {
+        btn.disabled = false;
+    }
+}
 
     function toggleTheme() {
     const htmlEl = document.documentElement;

@@ -248,7 +248,7 @@
         <div class="px-6 py-4 flex flex-col space-y-4 font-semibold">
             <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
             <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
-            <a href="{{ url_for('views.qna_page') }}" class="hover:text-red-200 transition">Q&A</a>
+            <a href="{{ url_for('views.hottest_projects') }}" class="hover:text-red-200 transition">Hottest Projects</a>
             <a href="{{ url_for('views.profile') }}" class="hover:text-red-200 transition">My Profile</a>
             <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
             <a href="{{ url_for('views.list_project') }}" class="hover:text-red-200 transition">List Your Project</a>
@@ -348,13 +348,15 @@
 
                     <div class="mt-6">
                         <label class="block cursor-pointer" id="drop-zone">
-                            <div id="drop-zone-content" class="h-40 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-gray-400 transition-all duration-300 hover:border-red-200 hover:bg-red-50 group">
+                            <div id="drop-zone-content" class="min-h-[10rem] py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-gray-400 transition-all duration-300 hover:border-red-200 hover:bg-red-50 group">
                                 <i class="fas fa-cloud-upload-alt mb-2 text-2xl group-hover:text-red-400 transition"></i>
                                 <span class="text-[10px] font-bold uppercase tracking-widest mt-1">Drag & Drop or Click to Choose</span>
                                 <input type="file" name="screenshots" class="hidden" accept="image/*" id="imageInput" multiple>
                                 <p id="fileNameDisplay" class="text-xs mt-2 text-red-600 font-semibold"></p>
+                                
+                                <div id="imagePreviewContainer" class="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4 w-full px-6"></div>
                             </div>
-                        </label>
+                        </label>                    
                     </div>
 
                     <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r-xl">
@@ -450,18 +452,135 @@
         }
     }
 
-    const dropZone = document.getElementById('drop-zone');
-    const dropZoneContent = document.getElementById('drop-zone-content');
-    const fileInput = document.getElementById('imageInput');
-    const fileDisplay = document.getElementById('fileNameDisplay');
+const dropZone = document.getElementById('drop-zone');
+const dropZoneContent = document.getElementById('drop-zone-content');
+const fileInput = document.getElementById('imageInput');
+const fileDisplay = document.getElementById('fileNameDisplay');
+const previewContainer = document.getElementById('imagePreviewContainer');
 
-    function updateFileDisplay(files) {
-        if (files && files.length > 0) {
-            fileDisplay.innerText = "Selected " + files.length + " file(s).";
-        } else {
-            fileDisplay.innerText = "";
+// 核心安全改动：用标准的 JS 数组作为唯一数据源，避开复杂的 DataTransfer 内部索引问题
+let allFiles = []; 
+
+// 负责将 JS 数组中的文件同步到原生的 fileInput 表单中
+function syncFilesToInput() {
+    const dt = new DataTransfer();
+    allFiles.forEach(file => {
+        dt.items.add(file);
+    });
+    fileInput.files = dt.files; // 成功同步给隐藏的 input，供表单提交
+}
+
+function renderImagePreviews() {
+    // 每次重新渲染前清空预览区域
+    previewContainer.innerHTML = '';
+    
+    if (allFiles.length > 0) {
+        fileDisplay.innerText = "Selected " + allFiles.length + " file(s).";
+        
+        // 遍历我们的标准数组
+        allFiles.forEach((file, index) => {
+            if (!file.type.startsWith('image/')) return;
+
+            const objectUrl = URL.createObjectURL(file);
+
+            // 1. 创建外层包装盒
+            const imgWrapper = document.createElement('div');
+            imgWrapper.className = 'relative group rounded-lg overflow-hidden shadow-sm border border-gray-200 aspect-video bg-white flex items-center justify-center';
+            
+            // 关键：绝对禁止点击预览图区域时触发外层 label 的文件选择弹窗
+            imgWrapper.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            };
+
+            // 2. 创建图片标签
+            const img = document.createElement('img');
+            img.src = objectUrl;
+            img.className = 'w-full h-full object-cover transition-transform duration-300 group-hover:scale-105';
+            img.onload = () => URL.revokeObjectURL(objectUrl);
+
+            // 3. 创建删除按钮 (右上角悬停显示)
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button'; // 声明为普通按钮，绝对防止触发表单默认 submit
+            removeBtn.className = 'absolute top-2 right-2 bg-red-600/90 text-white rounded-full w-7 h-7 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700 z-10 cursor-pointer shadow-md';
+            removeBtn.innerHTML = '<i class="fas fa-times text-sm"></i>';
+            
+            // 4. 精确删除单张逻辑
+            removeBtn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation(); // 阻止事件冒泡，防止触发 label 的点击
+
+                // 从 JS 纯数组中精确剔除当前索引的这一张照片
+                allFiles.splice(index, 1);
+                
+                // 将剔除后的新数组同步回 input 表单
+                syncFilesToInput();
+                
+                // 重新渲染界面
+                renderImagePreviews();
+            };
+
+            imgWrapper.appendChild(img);
+            imgWrapper.appendChild(removeBtn);
+            previewContainer.appendChild(imgWrapper);
+        });
+    } else {
+        fileDisplay.innerText = "";
+    }
+}
+
+// 处理新加入的文件（点击或拖拽触发的累加逻辑）
+function handleFiles(newFiles) {
+    for (let i = 0; i < newFiles.length; i++) {
+        if (!newFiles[i].type.startsWith('image/')) continue;
+
+        // 图片去重检测：如果名字和大小完全一样，则不再重复添加
+        const isDuplicate = allFiles.some(
+            existing => existing.name === newFiles[i].name && existing.size === newFiles[i].size
+        );
+        if (!isDuplicate) {
+            allFiles.push(newFiles[i]);
         }
     }
+    syncFilesToInput();  // 保持表单数据同步
+    renderImagePreviews(); // 刷新预览
+}
+
+if (dropZone && fileInput) {
+    // 监听点击选择文件
+    fileInput.addEventListener('change', function(e) {
+        if (e.target.files && e.target.files.length > 0) {
+            // 将本次新选中的文件传给处理函数
+            handleFiles(e.target.files);
+        }
+    });
+
+    // 拖拽悬停视觉效果
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault(); 
+        dropZoneContent.classList.remove('border-gray-200', 'bg-gray-50');
+        dropZoneContent.classList.add('border-red-400', 'bg-red-50');
+    });
+
+    // 拖拽离开视觉恢复
+    dropZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        dropZoneContent.classList.remove('border-red-400', 'bg-red-50');
+        dropZoneContent.classList.add('border-gray-200', 'bg-gray-50');
+    });
+
+    // 拖放文件处理
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        
+        dropZoneContent.classList.remove('border-red-400', 'bg-red-50');
+        dropZoneContent.classList.add('border-gray-200', 'bg-gray-50');
+
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            handleFiles(e.dataTransfer.files);
+        }
+    });
+}
 
     if (dropZone && fileInput) {
         fileInput.addEventListener('change', function() {

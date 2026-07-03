@@ -286,6 +286,24 @@
         </div>
 
     <script>
+    function showAdminConfirm(title, message, confirmText = 'Confirm') {
+    return new Promise((resolve) => {
+        document.getElementById('adminConfirmTitle').textContent = title;
+        document.getElementById('adminConfirmMessage').textContent = message;
+        document.getElementById('adminConfirmSubmit').textContent = confirmText;
+        document.getElementById('adminConfirmModal').classList.remove('hidden');
+
+        const cleanup = (result) => {
+            document.getElementById('adminConfirmModal').classList.add('hidden');
+            document.getElementById('adminConfirmCancel').onclick = null;
+            document.getElementById('adminConfirmSubmit').onclick = null;
+            resolve(result);
+        };
+
+        document.getElementById('adminConfirmCancel').onclick = () => cleanup(false);
+        document.getElementById('adminConfirmSubmit').onclick = () => cleanup(true);
+    });
+}
         const CONTENT_TYPE_LABELS = {
             project: 'project',
             comment: 'comment',
@@ -305,7 +323,8 @@
                 ? `Permanently remove this reported ${label}?`
                 : `Dismiss this report? The ${label} will remain visible.`;
 
-            if (!confirm(confirmMsg)) return;
+            const ok = await showAdminConfirm('Confirm Action', confirmMsg, 'Yes, Confirm');
+            if (!ok) return;
 
             const apiUrl = actionType === 'take_down'
                 ? `/api/admin/approve-report/${reportId}`
@@ -342,7 +361,8 @@
         }
 
         async function deleteContent(type, id) {
-            if (!confirm(`Are you sure you want to delete this ${type}? This action cannot be undone.`)) {
+            const ok = await showAdminConfirm('Delete Content', `Are you sure you want to delete this ${type}? This action cannot be undone.`, 'Yes, Delete');
+            if (!ok) {
                 return;
             }
 
@@ -515,7 +535,8 @@
         }
         
         async function adminDeleteBadge(badgeId) {
-            if (!confirm("Are you sure you want to revoke this badge from the user?")) return;
+            const ok = await showAdminConfirm('Revoke Badge', 'Are you sure you want to revoke this badge from the user?', 'Yes, Revoke');
+            if (!ok) return;
             try {
                 const res = await fetch(`/api/admin/badges/${badgeId}`, { method: 'DELETE' });
                 if (res.ok) {
@@ -534,5 +555,21 @@
             loadUserBadges();
         });
     </script>
+    <!-- Confirm Modal -->
+<div id="adminConfirmModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
+    <div id="adminConfirmContent" class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 transform transition-all">
+        <div class="flex flex-col items-center text-center">
+            <div id="adminConfirmIcon" class="w-16 h-16 bg-red-50 border-4 border-red-100 text-red-500 rounded-full flex items-center justify-center mb-5 text-2xl">
+                <i class="fas fa-trash"></i>
+            </div>
+            <h3 id="adminConfirmTitle" class="text-xl font-black text-gray-900 mb-2">Are you sure?</h3>
+            <p id="adminConfirmMessage" class="text-sm text-gray-500 font-medium mb-8">This action cannot be undone.</p>
+            <div class="flex gap-4 w-full">
+                <button id="adminConfirmCancel" class="flex-1 bg-gray-100 text-gray-600 px-4 py-3 rounded-xl font-bold hover:bg-gray-200 transition text-sm">Cancel</button>
+                <button id="adminConfirmSubmit" class="flex-1 bg-red-600 text-white px-4 py-3 rounded-xl font-bold hover:bg-red-700 shadow-lg shadow-red-200 transition text-sm">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
 </body>
 </html>

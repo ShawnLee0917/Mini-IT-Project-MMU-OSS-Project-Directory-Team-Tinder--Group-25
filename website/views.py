@@ -1,5 +1,6 @@
 from werkzeug import datastructures
 import os
+import resend
 import random
 import smtplib
 import sys
@@ -10,7 +11,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 import uuid
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify, session
-from .models import Question, QuestionComment, QuestionFavorite, QuestionLike, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, QuestionCommentImage, QuestionImage, JoinRequest, LeaveRequest, MemberHistory, ProjectCommentImage, UserSettings, ProjectMember, CommunityPostComment, CommunityPost, CommunityPostLike, CommunityPostImage, CommunityPostFavorite, CommunityPostCommentImage, ProjectViewLog, ProjectUpdate, ContentReport, AdminLog, SuspendedUser, ContentFlagKeyword, ProjectStar, BadgeNotification
+from .models import  Notification, db, User, Skill, Badge, Comment, Project, ProjectImage, Suggestion, ProjectComment, CommentLabel, JoinRequest, LeaveRequest, MemberHistory, ProjectCommentImage, UserSettings, ProjectMember, CommunityPostComment, CommunityPost, CommunityPostLike, CommunityPostImage, CommunityPostFavorite, CommunityPostCommentImage, ProjectViewLog, ProjectUpdate, ContentReport, AdminLog, SuspendedUser, ContentFlagKeyword, ProjectStar, BadgeNotification
 from datetime import datetime, timezone, timedelta
 
 views = Blueprint('views', __name__)
@@ -262,13 +263,6 @@ def _enrich_pending_reports(reports):
                 item['target_preview'] = (comment.content or '')[:120]
             else:
                 item['target_preview'] = 'Comment may have been removed already.'
-
-        elif report.content_type == 'question':
-            question = Question.query.get(report.content_id)
-            if question:
-                item['target_label'] = question.title
-                item['target_link'] = f'/qna/{report.content_id}'
-                item['target_preview'] = (question.body or '')[:120]
 
         elif report.content_type == 'post':
             post = CommunityPost.query.get(report.content_id)
@@ -645,7 +639,7 @@ def api_report_content():
     report.content_id = content_id
     report.reason = reason
     report.description = description
-    report.status = 'pending'  # 👈 【核心修复】：显式指定状态为 pending，确保后台能查到
+    report.status = 'pending'  # Explicitly set status to pending so admin dashboard can find it
     
     db.session.add(report)
     db.session.commit()
@@ -673,12 +667,7 @@ def api_approve_report(report_id):
             content = Project.query.get(report.content_id)
             if content:
                 db.session.delete(content)
-                
-        elif report.content_type == 'question':
-            content = Question.query.get(report.content_id)
-            if content:
-                db.session.delete(content)
-                
+                                
         elif report.content_type == 'comment':
             content = ProjectComment.query.get(report.content_id)
             if content:
@@ -907,14 +896,14 @@ def api_get_admin_logs():
 
 @views.route('/api/admin/dismiss-report', methods=['POST'])
 def api_admin_dismiss_report():
-    """管理面板：忽略/驳回举报记录"""
+    """Admin panel: dismiss/reject a report"""
     
-    # 1. 权限检查：确保函数名和你的验证逻辑一致
+    # 1. Permission check
     is_admin, user = check_admin_permission()
     if not is_admin:
         return jsonify({'error': 'Unauthorized access.'}), 403
 
-    # 2. 解析前端传来的 JSON
+    # 2. Parse JSON from frontend
     data = request.get_json(silent=True) or {}
     report_id = data.get('report_id')
 
@@ -922,20 +911,20 @@ def api_admin_dismiss_report():
         return jsonify({'error': 'Missing report ID.'}), 400
 
     try:
-        # 3. 查找举报记录（改用兼容性最强的 filter_by 方式）
+        # 3. Find the report record
         # 请确保 ContentReport 名字与你的 models.py 中完全一致
         report = ContentReport.query.filter_by(id=int(report_id)).first()
         
         if not report:
             return jsonify({'error': f'Report #{report_id} not found in database.'}), 404
 
-        # 4. 更新状态
+        # 4. Update status
         report.status = 'resolved' 
         
-        # 5. 安全地记录审计日志（将其完全隔离，防止因没有表或少字段导致整个接口崩溃）
+        # 5. Safely log audit entry
         try:
             log = AdminLog()
-            # 动态获取当前管理员 ID，如果没有就安全赋一个默认值 1
+            # Get current admin ID, fallback to 1 if not found
             log.admin_id = user.id if (user and hasattr(user, 'id')) else 1
             log.action = 'dismiss_report'
             log.target_type = 'report'
@@ -943,28 +932,24 @@ def api_admin_dismiss_report():
             log.details = f"[Admin Action] Dismissed report #{report_id}"
             db.session.add(log)
         except Exception as log_err:
-            # 如果是 AdminLog 报错，打印出来但不要 raise，让主逻辑继续走
-            print(f"安全跳过日志错误 (AdminLog Save Failed): {str(log_err)}")
+            # If AdminLog fails, print but don't raise — let main logic continue
+            print(f"Safely skipped log error (AdminLog Save Failed): {str(log_err)}")
 
-        # 6. 提交到数据库
+        # 6. Commit to database
         db.session.commit()
         return jsonify({'success': True, 'message': 'Report dismissed successfully.'}), 200
 
     except Exception as e:
         db.session.rollback()
-        # 核心调试：如果还报错，这行会在你运行 Flask 的 VS Code 终端里打印出真正的 Python 报错死因
+        # Debug: print real Python error in VS Code terminal if still failing
         print(f"\n💥 [CRITICAL ERROR] Dismiss API crashed due to: {str(e)}\n")
         return jsonify({'error': f'Database failure: {str(e)}'}), 500
     
 # --- ADDED: Auto-Email Sending Function ---
 # Reference: Python smtplib - https://docs.python.org/3/library/smtplib.html
-def send_otp_email(receiver_email, otp_code):
-    # =====================================================================
-    # ⚠️ IMPORTANT: Replace with your real Gmail and 16-digit Google App Password ⚠️
-    # =====================================================================
-    sender_email = "kohkonghao4@gmail.com" 
-    sender_password = "wlas kitq zrpa qpbb"
+resend.api_key = os.environ.get("RESEND_API_KEY", "missing_api_key")
 
+def send_otp_email(receiver_email, otp_code):
     message = f"\n{'='*70}\n[DEVELOPMENT MODE] OTP CODE FOR: {receiver_email}\n{'='*70}\nOTP CODE: {otp_code}\nVerification URL: http://127.0.0.1:5000/verify\nDirect OTP URL: http://127.0.0.1:5000/test_otp/{receiver_email}\n{'='*70}\n"
     
     print(message, flush=True)
@@ -976,25 +961,28 @@ def send_otp_email(receiver_email, otp_code):
     logging.info(message)
     current_app.logger.info(message)
 
-    if sender_email == "your_email@gmail.com" or sender_password == "your_16_digit_app_password":
-        print("\n WARNING: Email credentials not set! Using development mode. Check the terminal for the OTP.")
-        return True  # Allow registration for testing
-
-    msg = MIMEText(f"Welcome to MMU OSSD!\n\nYour 6-digit verification code is: {otp_code}\n\nThis code will expire in 15 minutes.")
-    msg['Subject'] = 'MMU OSSD Verification Code'
-    msg['From'] = sender_email
-    msg['To'] = receiver_email
-
     try:
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            server.login(sender_email, sender_password)
-            server.send_message(msg)
-        print(f" OTP email automatically sent to {receiver_email}")
-        return True
-    except Exception as e:
-        print(f" Email Automation Error: {e}")
-        return False
+        params = {
+            "from": "MMU OSSD <onboarding@resend.dev>",
+            "to": [receiver_email],
+            "subject": "MMU OSSD Verification Code",
+            "html": f"""
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2>Welcome to MMU OSSD!</h2>
+                <p>Your 6-digit verification code is: <strong style="font-size: 24px; color: #dc2626;">{otp_code}</strong></p>
+                <p>This code will expire in 15 minutes.</p>
+            </div>
+            """
+        }
 
+        email_response = resend.Emails.send(params)
+        print(f"OTP email successfully sent to {receiver_email} via Resend. ID: {email_response.get('id')}")
+        return True
+        
+    except Exception as e:
+        print(f"Resend Email Automation Error: {e}")
+        return False
+    
 @views.route('/')
 @views.route('/home')
 def home():
@@ -1207,24 +1195,6 @@ def view_user_profile(user_id):
             show_private_message = True
     
     return render_template("User_Profile.html", profile_user=user, current_user=current_user, show_private_message=show_private_message)
-
-@views.route('/qna/delete/<int:question_id>')
-def qna_delete_page(question_id):
-    """Display delete confirmation page for a question"""
-    q = Question.query.get_or_404(question_id)
-    user = get_current_user()
-    
-    # Check if user is the owner
-    if not user or q.user_id != user.id:
-        flash("You don't have permission to delete this question.", "error")
-        return redirect(url_for('views.qna_page'))
-    
-    return render_template("QnA_Delete.html", question=q)
-
-
-@views.route('/qna')
-def qna_page():
-    return render_template('QnA.html')
 
 @views.route('/project/<int:project_id>')
 def project_page(project_id):
@@ -1665,12 +1635,13 @@ def get_profile():
         'avatar_url':     avatar_url,
         'rank':           user.rank,
         'karma':          user.karma,
+            
         'skills':         [s.skill for s in skills],
         'badges':         [b.badge for b in badges],
         'interests':      combined_interests,
         'dev_interests':  interests_data.get('dev_interests', []),
         'lang_interests': interests_data.get('lang_interests', []),
-        'is_admin':       user.is_admin or False,   # ← 加这行
+        'is_admin':       user.is_admin or False,   
     })
 
 
@@ -1872,6 +1843,12 @@ def update_settings():
     notifications = data.get('notifications', {})
     if 'qna_answers' in notifications:
         settings.notify_qna_new_answers = notifications['qna_answers']
+    if 'project_comments' in notifications:
+        settings.notify_project_comments = notifications['project_comments']
+    if 'project_comments_own' in notifications:
+        settings.notify_project_comments_own = notifications['project_comments_own']
+    if 'join_request' in notifications:
+        settings.notify_join_request = notifications['join_request']
     if 'project_comments' in notifications:
         settings.notify_project_comments = notifications['project_comments']
     if 'profile_views' in notifications:
@@ -2146,471 +2123,6 @@ def accept_suggestion(project_id):
     return jsonify({'success': True, 'message': 'Project suggested to you!'})
 
 
-# Q&A API
-
-@views.route('/api/questions', methods=['GET'])
-def get_questions():
-    """Return all questions, newest first, with like/fav/comment counts and current user's status."""
-    # We allow unauthenticated reads; current user detected if logged in
-    current_user_id = None
-    if 'user_email' in session:
-        u = User.query.filter_by(email=session['user_email']).first()
-        if u:
-            current_user_id = u.id
-
-    questions = db.session.query(Question, User.name).join(
-        User, Question.user_id == User.id
-    ).order_by(Question.created_at.desc()).limit(100).all()
-
-    result = []
-    for q, author_name in questions:
-        like_count = QuestionLike.query.filter_by(question_id=q.id).count()
-        fav_count  = QuestionFavorite.query.filter_by(question_id=q.id).count()
-        cmt_count  = QuestionComment.query.filter_by(question_id=q.id).count()
-
-        user_liked = False
-        user_faved = False
-        if current_user_id:
-            user_liked = QuestionLike.query.filter_by(
-                user_id=current_user_id, question_id=q.id).first() is not None
-            user_faved = QuestionFavorite.query.filter_by(
-                user_id=current_user_id, question_id=q.id).first() is not None
-
-        image_urls = [f'/static/uploads/{img.image_path}' for img in q.images]
-
-        result.append({
-            'id':           q.id,
-            'user_id':      q.user_id,
-            'author_name':  author_name,
-            'title':        q.title,
-            'body':         q.body,
-            'image_url':    f'/static/uploads/{q.image_path}' if q.image_path else '',
-            'image_urls':   image_urls,
-            'created_at':   q.created_at.isoformat(),
-            'like_count':   like_count,
-            'fav_count':    fav_count,
-            'comment_count': cmt_count,
-            'user_liked':   user_liked,
-            'user_faved':   user_faved,
-            'is_owner':     (current_user_id == q.user_id),
-        })
-
-    return jsonify(result)
-
-
-@views.route('/api/questions', methods=['POST'])
-def post_question():
-    err = require_login()
-    if err:
-        return err
-
-    # Support multipart (with image) and plain JSON
-    if request.content_type and 'multipart' in request.content_type:
-        title = request.form.get('title', '').strip()
-        body  = request.form.get('body', '').strip()
-    else:
-        data  = request.get_json(silent=True) or {}
-        title = data.get('title', '').strip()
-        body  = data.get('body', '').strip()
-
-    if not title:
-        return jsonify({'error': 'Title is required'}), 400
-    if not body:
-        return jsonify({'error': 'Question body is required'}), 400
-    if len(title) > 300:
-        return jsonify({'error': 'Title too long (max 300 chars)'}), 400
-    if len(body) > 5000:
-        return jsonify({'error': 'Body too long (max 5000 chars)'}), 400
-
-    user = User.query.filter_by(email=session['user_email']).first()
-    q = Question()
-    q.user_id = user.id
-    q.title = title
-    q.body = body
-
-    # Handle optional multiple images
-    if 'images' in request.files:
-        files = request.files.getlist('images')
-        for file in files:
-            if file and file.filename and allowed_file(file.filename):
-                ext = file.filename.rsplit('.', 1)[1].lower()
-                filename = f"q_{uuid.uuid4().hex}.{ext}"
-                file.save(os.path.join(UPLOAD_FOLDER, filename))
-                img = QuestionImage()
-                img.image_path = filename
-                q.images.append(img)
-
-    db.session.add(q)
-    db.session.commit()
-    return jsonify({'success': True, 'id': q.id})
-
-
-@views.route('/api/questions/<int:question_id>', methods=['DELETE'])
-def delete_question(question_id):
-    err = require_login()
-    if err:
-        return err
-
-    user = User.query.filter_by(email=session['user_email']).first()
-    q = Question.query.get(question_id)
-
-    if not q:
-        return jsonify({'error': 'Question not found'}), 404
-    if q.user_id != user.id:
-        return jsonify({'error': 'Not authorised'}), 403
-
-    db.session.delete(q)
-    db.session.commit()
-    return jsonify({'success': True})
-
-
-@views.route('/api/questions/<int:question_id>', methods=['PUT'])
-def edit_question(question_id):
-    err = require_login()
-    if err:
-        return err
-
-    user = User.query.filter_by(email=session['user_email']).first()
-    q = Question.query.get(question_id)
-
-    if not q:
-        return jsonify({'error': 'Question not found'}), 404
-    if q.user_id != user.id:
-        return jsonify({'error': 'Not authorised'}), 403
-
-    # Support multipart (with images) and plain JSON
-    if request.content_type and 'multipart' in request.content_type:
-        title = request.form.get('title', '').strip()
-        body = request.form.get('body', '').strip()
-    else:
-        data = request.get_json(silent=True) or {}
-        title = data.get('title', '').strip()
-        body = data.get('body', '').strip()
-
-    if not title:
-        return jsonify({'error': 'Title is required'}), 400
-    if not body:
-        return jsonify({'error': 'Question body is required'}), 400
-    if len(title) > 300:
-        return jsonify({'error': 'Title too long (max 300 chars)'}), 400
-    if len(body) > 5000:
-        return jsonify({'error': 'Body too long (max 5000 chars)'}), 400
-
-    q.title = title
-    q.body = body
-
-    # Handle optional new images
-    if 'images' in request.files:
-        files = request.files.getlist('images')
-        for file in files:
-            if file and file.filename and allowed_file(file.filename):
-                ext = file.filename.rsplit('.', 1)[1].lower()
-                filename = f"q_{uuid.uuid4().hex}.{ext}"
-                file.save(os.path.join(UPLOAD_FOLDER, filename))
-                img = QuestionImage()
-                img.image_path = filename
-                q.images.append(img)
-
-    db.session.commit()
-    return jsonify({'success': True, 'id': q.id})
-
-
-@views.route('/api/question-images/<int:image_id>', methods=['DELETE'])
-def delete_question_image(image_id):
-    err = require_login()
-    if err:
-        return err
-
-    user = User.query.filter_by(email=session['user_email']).first()
-    img = QuestionImage.query.get(image_id)
-    if not img:
-        return jsonify({'error': 'Image not found'}), 404
-    
-    q = img.question
-    if q.user_id != user.id:
-        return jsonify({'error': 'Not authorised'}), 403
-
-    db.session.delete(img)
-    db.session.commit()
-    return jsonify({'success': True})
-
-
-@views.route('/api/comment-images/<int:image_id>', methods=['DELETE'])
-def delete_qna_comment_image(image_id):
-    err = require_login()
-    if err:
-        return err
-
-    user = User.query.filter_by(email=session['user_email']).first()
-    img = QuestionCommentImage.query.get(image_id)
-    if not img:
-        return jsonify({'error': 'Image not found'}), 404
-    
-    c = img.comment
-    if c.user_id != user.id:
-        return jsonify({'error': 'Not authorised'}), 403
-
-    db.session.delete(img)
-    db.session.commit()
-    return jsonify({'success': True})
-
-
-@views.route('/api/questions/<int:question_id>/like', methods=['POST'])
-def toggle_like(question_id):
-    err = require_login()
-    if err:
-        return err
-
-    user = User.query.filter_by(email=session['user_email']).first()
-    existing = QuestionLike.query.filter_by(
-        user_id=user.id, question_id=question_id).first()
-
-    if existing:
-        db.session.delete(existing)
-        liked = False
-    else:
-        ql = QuestionLike()
-        ql.user_id = user.id
-        ql.question_id = question_id
-        db.session.add(ql)
-        liked = True
-
-    db.session.commit()
-    count = QuestionLike.query.filter_by(question_id=question_id).count()
-    return jsonify({'liked': liked, 'like_count': count})
-
-
-@views.route('/api/questions/<int:question_id>/favorite', methods=['POST'])
-def toggle_favorite(question_id):
-    err = require_login()
-    if err:
-        return err
-
-    user = User.query.filter_by(email=session['user_email']).first()
-    existing = QuestionFavorite.query.filter_by(
-        user_id=user.id, question_id=question_id).first()
-
-    if existing:
-        db.session.delete(existing)
-        faved = False
-    else:
-        qf = QuestionFavorite()
-        qf.user_id = user.id
-        qf.question_id = question_id
-        db.session.add(qf)
-        faved = True
-
-    db.session.commit()
-    count = QuestionFavorite.query.filter_by(question_id=question_id).count()
-    return jsonify({'faved': faved, 'fav_count': count})
-
-
-@views.route('/api/questions/<int:question_id>/comments', methods=['GET'])
-def get_question_comments(question_id):
-    rows = db.session.query(QuestionComment, User.name).join(
-        User, QuestionComment.user_id == User.id
-    ).filter(QuestionComment.question_id == question_id
-    ).order_by(QuestionComment.created_at.asc()).all()
-
-    current_user_id = None
-    if 'user_email' in session:
-        u = User.query.filter_by(email=session['user_email']).first()
-        if u:
-            current_user_id = u.id
-
-    result = [{
-        'id':          c.id,
-        'author_id':   c.user_id,
-        'author_name': name,
-        'body':        c.body,
-        'parent_id':   c.parent_id,
-        'created_at':  c.created_at.isoformat(),
-        'is_owner':    (current_user_id == c.user_id),
-        'image_urls':  [f'/static/uploads/{img.image_path}' for img in c.images],
-    } for c, name in rows]
-
-    return jsonify(result)
-
-
-@views.route('/api/questions/<int:question_id>/comments', methods=['POST'])
-def post_question_comment(question_id):
-    err = require_login()
-    if err:
-        return err
-
-    # Support multipart (with images) and plain JSON
-    if request.content_type and 'multipart' in request.content_type:
-        body = request.form.get('body', '').strip()
-    else:
-        data = request.get_json(silent=True) or {}
-        body = data.get('body', '').strip()
-
-    if not body:
-        return jsonify({'error': 'Comment cannot be empty'}), 400
-    if len(body) > 1000:
-        return jsonify({'error': 'Comment too long (max 1000 chars)'}), 400
-
-    q = Question.query.get(question_id)
-    if not q:
-        return jsonify({'error': 'Question not found'}), 404
-
-    parent_id = None
-    if request.content_type and 'multipart' in request.content_type:
-        parent_id = request.form.get('parent_id', None)
-    else:
-        data = request.get_json(silent=True) or {}
-        parent_id = data.get('parent_id', None)
-    
-    if parent_id:
-        parent = QuestionComment.query.get(parent_id)
-        if not parent or parent.question_id != question_id:
-            parent_id = None
-
-    user = User.query.filter_by(email=session['user_email']).first()
-    c = QuestionComment()
-    c.user_id = user.id
-    c.question_id = question_id
-    c.body = body
-    c.parent_id = parent_id
-    
-    # Handle optional multiple images
-    if 'images' in request.files:
-        files = request.files.getlist('images')
-        for file in files:
-            if file and file.filename and allowed_file(file.filename):
-                ext = file.filename.rsplit('.', 1)[1].lower()
-                filename = f"c_{uuid.uuid4().hex}.{ext}"
-                file.save(os.path.join(UPLOAD_FOLDER, filename))
-                img = QuestionCommentImage()
-                img.image_path = filename
-                c.images.append(img)
-    
-    db.session.add(c)
-    db.session.commit()
-    return jsonify({'success': True, 'id': c.id})
-
-
-# ---------------------------------------------------------------------------
-# Delete comment
-# ---------------------------------------------------------------------------
-
-@views.route('/api/questions/<int:question_id>/comments/<int:comment_id>', methods=['DELETE'])
-def delete_question_comment(question_id, comment_id):
-    err = require_login()
-    if err:
-        return err
-
-    user = User.query.filter_by(email=session['user_email']).first()
-    c = QuestionComment.query.get(comment_id)
-    
-    if not c or c.question_id != question_id:
-        return jsonify({'error': 'Comment not found'}), 404
-        
-    q = Question.query.get(question_id)
-    is_q_owner = (q and q.user_id == user.id)
-    
-    if c.user_id != user.id and not is_q_owner:
-        return jsonify({'error': 'Not authorised'}), 403
-
-    db.session.delete(c)
-    db.session.commit()
-    return jsonify({'success': True})
-
-@views.route('/api/questions/<int:question_id>/comments/<int:comment_id>', methods=['PUT'])
-def edit_question_comment(question_id, comment_id):
-    err = require_login()
-    if err:
-        return err
-
-    user = User.query.filter_by(email=session['user_email']).first()
-    c = QuestionComment.query.get(comment_id)
-    if not c or c.question_id != question_id:
-        return jsonify({'error': 'Comment not found'}), 404
-    if c.user_id != user.id:
-        return jsonify({'error': 'Not authorised'}), 403
-
-    # Support multipart (with images) and plain JSON
-    if request.content_type and 'multipart' in request.content_type:
-        body = request.form.get('body', '').strip()
-    else:
-        data = request.get_json(silent=True) or {}
-        body = data.get('body', '').strip()
-
-    if not body:
-        return jsonify({'error': 'Comment cannot be empty'}), 400
-    if len(body) > 1000:
-        return jsonify({'error': 'Comment too long (max 1000 chars)'}), 400
-
-    c.body = body
-    
-    # Handle optional new images
-    if 'images' in request.files:
-        files = request.files.getlist('images')
-        for file in files:
-            if file and file.filename and allowed_file(file.filename):
-                ext = file.filename.rsplit('.', 1)[1].lower()
-                filename = f"c_{uuid.uuid4().hex}.{ext}"
-                file.save(os.path.join(UPLOAD_FOLDER, filename))
-                img = QuestionCommentImage()
-                img.image_path = filename
-                c.images.append(img)
-    
-    db.session.commit()
-    return jsonify({'success': True, 'body': c.body})
-
-
-# ---------------------------------------------------------------------------
-# Liked / Favorited question lists
-# ---------------------------------------------------------------------------
-
-def _build_question_result(q, author_name, current_user_id):
-    like_count = QuestionLike.query.filter_by(question_id=q.id).count()
-    fav_count  = QuestionFavorite.query.filter_by(question_id=q.id).count()
-    cmt_count  = QuestionComment.query.filter_by(question_id=q.id).count()
-    user_liked = QuestionLike.query.filter_by(user_id=current_user_id, question_id=q.id).first() is not None
-    user_faved = QuestionFavorite.query.filter_by(user_id=current_user_id, question_id=q.id).first() is not None
-    image_urls = [f'/static/uploads/{img.image_path}' for img in q.images]
-    return {
-        'id': q.id, 'user_id': q.user_id, 'author_name': author_name,
-        'title': q.title, 'body': q.body,
-        'image_url': f'/static/uploads/{q.image_path}' if q.image_path else '',
-        'image_urls': image_urls,
-        'created_at': q.created_at.isoformat(),
-        'like_count': like_count, 'fav_count': fav_count, 'comment_count': cmt_count,
-        'user_liked': user_liked, 'user_faved': user_faved,
-        'is_owner': (current_user_id == q.user_id),
-    }
-
-
-@views.route('/api/questions/liked', methods=['GET'])
-def get_liked_questions():
-    err = require_login()
-    if err:
-        return err
-    user = User.query.filter_by(email=session['user_email']).first()
-    rows = db.session.query(Question, User.name).join(
-        User, Question.user_id == User.id
-    ).join(QuestionLike, QuestionLike.question_id == Question.id
-    ).filter(QuestionLike.user_id == user.id
-    ).order_by(Question.created_at.desc()).all()
-    return jsonify([_build_question_result(q, n, user.id) for q, n in rows])
-
-
-@views.route('/api/questions/favorited', methods=['GET'])
-def get_favorited_questions():
-    err = require_login()
-    if err:
-        return err
-    user = User.query.filter_by(email=session['user_email']).first()
-    rows = db.session.query(Question, User.name).join(
-        User, Question.user_id == User.id
-    ).join(QuestionFavorite, QuestionFavorite.question_id == Question.id
-    ).filter(QuestionFavorite.user_id == user.id
-    ).order_by(Question.created_at.desc()).all()
-    return jsonify([_build_question_result(q, n, user.id) for q, n in rows])
-
-
-
 # =====================================================================
 # API: Project Member Invitations 
 # =====================================================================
@@ -2832,19 +2344,28 @@ def request_join_project(project_id):
         if existing_request.status == 'pending':
             return jsonify({"error": "You have already sent a join request"}), 400
         elif existing_request.status == 'rejected':
-            # Delete the old rejected request and allow user to submit a new one
             db.session.delete(existing_request)
-            db.session.commit()
+            join_request = JoinRequest(user_id=current_user.id, project_id=project_id, status='pending')
+            db.session.add(join_request)
         elif existing_request.status == 'accepted':
             existing_request.status = 'pending'
-            db.session.commit()
-            return jsonify({"success": "Join request sent successfully!"}), 200
     else:
-        join_request = JoinRequest(user_id=current_user.id, project_id=project_id, status='pending')  # type: ignore
+        join_request = JoinRequest(user_id=current_user.id, project_id=project_id, status='pending')
         db.session.add(join_request)
-        db.session.commit()
-        return jsonify({"success": "Join request sent successfully!"}), 201
+        
+    project_owner = User.query.get(project.user_id)
+    if project_owner and project_owner.settings and getattr(project_owner.settings, 'notify_join_request', True):
+        join_notif = Notification(
+            user_id=project_owner.id,
+            content=f"🤝 {current_user.name} requested to join 【{project.project_name}】",
+            link_url=f"/project/{project.id}"
+        )
+        db.session.add(join_notif)
+    # ==========================================
     
+    db.session.commit()
+    return jsonify({"success": "Join request sent successfully!"}), 201    
+
 @views.route('/api/project/<int:project_id>/join-requests', methods=['GET'])
 def get_join_requests(project_id):
     """Get all join requests for a project (only for project lead)"""
@@ -3202,7 +2723,7 @@ def create_project_comment(project_id):
     if not content:
         return jsonify({'error': 'Comment content is required'}), 400
 
-    # ─── 核心修改：在这里插入黑名单留言拦截雷达 ───
+    # ─── Core change: insert blacklist keyword filter here ───
     triggered_word = contains_banned_keywords(content)
     if triggered_word:
         return jsonify({
@@ -3213,7 +2734,7 @@ def create_project_comment(project_id):
     if comment_type not in ['normal', 'issue', 'suggestion']:
         return jsonify({'error': 'Invalid comment type'}), 400
 
-    # 后面是你原本的处理逻辑（比如保存评论到数据库、处理图片等）...
+    # Continue with original logic below (save comment, handle images, etc.)
     
 # Determine user role
     user_role = 'user'
@@ -3229,7 +2750,6 @@ def create_project_comment(project_id):
     db.session.add(comment)
     db.session.flush()  # Get comment.id before committing
     
-    # Handle multiple image uploads
     if 'images' in request.files:
         files = request.files.getlist('images')
         for file in files:
@@ -3241,13 +2761,41 @@ def create_project_comment(project_id):
                 img.comment_id = comment.id
                 img.image_path = filename
                 db.session.add(img)
-    
+                
+    # 3. 触发通知逻辑
+    project_owner = User.query.get(project.user_id)
+    if project_owner:
+        if project_owner.id != current_user.id:
+            if project_owner.settings and getattr(project_owner.settings, 'notify_project_comments_own', True):
+                owner_notif = Notification(
+                    user_id=project_owner.id,
+                    content=f"🔔 {current_user.name} commented on your project 【{project.project_name}】。",
+                    link_url=f"/project/{project.id}"
+                )
+                db.session.add(owner_notif)
+
+        participants = db.session.query(User).join(ProjectComment, ProjectComment.user_id == User.id)\
+            .filter(ProjectComment.project_id == project.id)\
+            .filter(User.id != project_owner.id)\
+            .filter(User.id != current_user.id).distinct().all()
+
+        for p in participants:
+            if p.settings and getattr(p.settings, 'notify_project_comments', True):
+                p_notif = Notification(
+                    user_id=p.id,
+                    content=f"💬 You have participated in the discussion of project 【{project.project_name}】 and it has new follow-up comments.",
+                    link_url=f"/project/{project.id}"
+                )
+                db.session.add(p_notif)
+
+    # 4. 统一提交并分配徽章 (属于 create_project_comment 函数的结尾)
     db.session.commit()
 
     # Auto-assign comment milestone badges
     sync_comment_badges(current_user.id)
     db.session.commit()
     
+    # 5. 正确返回响应数据
     return jsonify({
         'id': comment.id,
         'author_id': comment.user_id,
@@ -3261,6 +2809,23 @@ def create_project_comment(project_id):
         'images': [{'id': img.id, 'url': f'/static/uploads/{img.image_path}'} for img in comment.images],
     }), 201
 
+
+@views.route('/api/my-notifications', methods=['GET'])
+def get_my_notifications():
+    err = require_login()
+    if err: return err
+    
+    current_user = get_current_user()
+    
+    notifs = Notification.query.filter_by(user_id=current_user.id).order_by(Notification.created_at.desc()).limit(15).all()
+    
+    return jsonify([{
+        'id': n.id,
+        'content': n.content,
+        'link_url': n.link_url,
+        'is_read': n.is_read,
+        'created_at': n.created_at.strftime('%Y-%m-%d %H:%M')
+    } for n in notifs])
 
 @views.route('/api/project/<int:project_id>/comments/<int:comment_id>', methods=['DELETE'])
 def delete_project_comment(project_id, comment_id):
@@ -4153,13 +3718,27 @@ def delete_community_post(post_id):
     err = require_login()
     if err: return err
     current_user = get_current_user()
+    
     post = CommunityPost.query.get_or_404(post_id)
+    
     if post.user_id != current_user.id:
         return jsonify({'error': 'Unauthorized'}), 403
-    db.session.delete(post)
-    db.session.commit()
-    return jsonify({'success': True})
-
+    
+    try:
+        CommunityPostComment.query.filter_by(post_id=post.id).delete()
+        
+        CommunityPostImage.query.filter_by(post_id=post.id).delete() 
+        
+        db.session.delete(post)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Post deleted successfully'})
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Delete Error: {str(e)}") 
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+    
 @views.route('/api/community_posts/<int:post_id>/like', methods=['POST'])
 def toggle_community_post_like(post_id):
     err = require_login()
@@ -4414,7 +3993,7 @@ def manage_project_updates(project_id):
                     'author_name': u.author.name if u.author else 'Unknown',
                     'created_at': u.created_at.isoformat(),
                     'is_approved': is_appr,
-                    'images': images_data  # 新增：将图片数据返回给前端
+                    'images': images_data  # Added: return image data to frontend
                 })
         return jsonify(result)
 
@@ -4512,11 +4091,11 @@ def review_project_update(project_id, update_id, action):
 
 
 # =====================================================================
-# ─── 管理员一键删除不良内容功能（ADMIN MODERATION） ───
+# ─── Admin: delete harmful content (ADMIN MODERATION) ───
 # =====================================================================
 
 def require_admin():
-    """安全拦截：验证当前登录用户是否为管理员"""
+    """Security check: verify current user is admin"""
     email = session.get('user_email')
     if not email:
         return jsonify({'error': 'Please log in first.'}), 401
