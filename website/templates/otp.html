@@ -81,7 +81,7 @@
 
             <p class="text-center text-sm text-gray-400 mt-6">
                 Didn't get a code? 
-                <a href="/register" class="text-red-600 font-bold hover:underline">Try registering again</a>
+                <button type="button" id="resend-btn" class="text-red-600 font-bold hover:underline">Resend OTP</button>
             </p>
         </div>
     </div>
@@ -192,6 +192,38 @@
         }
     });
     // ---------------------------------------------------
+    document.getElementById('resend-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('resend-btn');
+    const email = document.getElementById('email').value.trim();
+
+    if (!email) {
+        showStatus('Please enter your email first.');
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+
+    try {
+        const res = await fetch('/api/resend_otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+            showStatus('New OTP sent! Check the terminal.', false);
+        } else {
+            showStatus(data.error || 'Failed to resend OTP.');
+        }
+    } catch {
+        showStatus('Connection error.');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Resend OTP';
+    }
+});
 </script>
 </body>
 </html>

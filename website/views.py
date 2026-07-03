@@ -957,6 +957,7 @@ def api_admin_dismiss_report():
         return jsonify({'error': f'Database failure: {str(e)}'}), 500
     
 # --- ADDED: Auto-Email Sending Function ---
+# Reference: Python smtplib - https://docs.python.org/3/library/smtplib.html
 def send_otp_email(receiver_email, otp_code):
     # =====================================================================
     # ⚠️ IMPORTANT: Replace with your real Gmail and 16-digit Google App Password ⚠️
@@ -1015,6 +1016,7 @@ def verify_page():
     return render_template("otp.html")
 
 # --- ADDED: New Endpoint for verifying the OTP ---
+# Reference: Flask session management - https://flask.palletsprojects.com/en/stable/quickstart/#sessions
 @views.route('/api/verify_otp', methods=['POST'])
 def api_verify_otp():
     data = request.get_json(silent=True) or {}
@@ -1030,6 +1032,25 @@ def api_verify_otp():
         return jsonify({'success': True, 'message': 'Account verified!'})
         
     return jsonify({'error': 'Invalid code. Please check and try again.'}), 401
+
+@views.route('/api/resend_otp', methods=['POST'])
+def api_resend_otp():
+    data = request.get_json(silent=True) or {}
+    email = data.get('email', '').strip().lower()
+    
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({'error': 'User not found.'}), 404
+    if user.is_verified:
+        return jsonify({'error': 'Account already verified.'}), 400
+    
+    otp_code = str(random.randint(100000, 999999))
+    user.otp = otp_code
+    db.session.commit()
+    
+    send_otp_email(email, otp_code)
+    print(f"[RESEND OTP] {email} → {otp_code}")
+    return jsonify({'success': True, 'message': 'OTP resent.'})
 
 # --- ADDED: Simple test route to display OTP ---
 @views.route('/test_otp/<email>')
@@ -1060,6 +1081,7 @@ def reset_password():
     return render_template('reset_password.html')
 
 # ── API: Request password reset OTP ─────────────────────────────────────────
+# Reference: Python smtplib - https://docs.python.org/3/library/smtplib.html
 @views.route('/api/forgot-password', methods=['POST'])
 def api_forgot_password():
     data  = request.get_json(silent=True) or {}
@@ -1146,24 +1168,16 @@ def my_projects():
         flash("Please login to view your projects.", "error")
         return redirect(url_for('views.login'))
 
-    # One-time cleanup: hard-delete any legacy soft-deleted projects left from the old system
-    legacy_deleted = Project.query.filter(
-        Project.user_id == current_user.id,
-        Project.status == 'Deleted'
-    ).all()
-    for p in legacy_deleted:
-        CommunityPost.query.filter_by(attached_project_id=p.id).update({'attached_project_id': None})
-        db.session.delete(p)
-    if legacy_deleted:
-        db.session.commit()
-
     own_projects = Project.query.filter(
         Project.user_id == current_user.id,
-        Project.status.notin_(['Deleted', 'Suspended'])
+        Project.status != 'Suspended'
     ).order_by(Project.created_at.desc()).all()
     
     memberships = current_user.project_memberships.all()
-    joined_projects = [membership.project for membership in memberships]
+    joined_projects = [
+        membership.project for membership in memberships 
+        if membership.project.status != 'Suspended'
+    ]
     
     # Update current user's last_seen timestamp
     current_user.last_seen = datetime.now(timezone.utc)
@@ -1220,21 +1234,13 @@ def project_page(project_id):
     
     # 🌟 HISTORICAL LOCK: If the project is soft-deleted/suspended, intercept and display moderation reason
     if project.status == 'Suspended':
-        # Retrieve why this specific project was soft-deleted by checking enforcement logs
-        report = ContentReport.query.filter_by(
-            target_type='project', 
-            target_id=project_id
-        ).order_by(ContentReport.created_at.desc()).first()
-        
-        reason = report.reason if report else "Violated community guidelines or plagiarism regulations."
-        ban_time = report.created_at.strftime('%Y-%m-%d %H:%M UTC') if report else "Recently"
-        
-        return render_template(
-            'project_banned.html', 
-            project=project, 
-            reason=reason, 
-            ban_time=ban_time
-        )
+        # Admin can still view the project normally
+        if current_user and getattr(current_user, 'is_admin', False):
+            pass  # Admin sees the project as normal
+        else:
+            # Non-admin gets a 404
+            from flask import abort
+            abort(404)
 
     # ==========================================
     # Keep your original analytics & logic completely untouched below
@@ -1533,6 +1539,7 @@ def delete_project(project_id):
         print(f"Error deleting project: {e}")
     return redirect(url_for('views.my_projects'))
 
+# Reference: Werkzeug security - https://werkzeug.palletsprojects.com/en/stable/utils/#werkzeug.security.generate_password_hash
 @views.route('/api/register', methods=['POST'])
 def api_register():
     import json
@@ -1960,9 +1967,10 @@ def get_projects():
     if not user:
         return jsonify({'error': 'User not found'}), 404
     
-    projects = Project.query.filter_by(user_id=user.id).order_by(
-        Project.created_at.desc()
-    ).all()
+    projects = Project.query.filter(
+    Project.user_id == user.id,
+    Project.status != 'Suspended'
+).order_by(Project.created_at.desc()).all()
     
     return jsonify([{
         'id': p.id,
@@ -1977,7 +1985,9 @@ def get_projects():
 @views.route('/api/all-projects', methods=['GET'])
 def get_all_projects():
     """Get all projects for search page"""
-    projects = Project.query.order_by(Project.created_at.desc()).all()
+    projects = Project.query.filter(
+    Project.status != 'Suspended'
+).order_by(Project.created_at.desc()).all()
     
     return jsonify([{
         'id': p.id,
@@ -4517,6 +4527,7 @@ def require_admin():
     return None
 
 
+# Reference: Flask-SQLAlchemy filtering - https://flask-sqlalchemy.palletsprojects.com/en/stable/queries/
 @views.route('/admin/dashboard')
 def admin_dashboard_page():
     """Render admin moderation panel with projects, comments, posts, and pending reports."""
