@@ -6,6 +6,7 @@ import smtplib
 import sys
 import logging
 import json
+import cloudinary.uploader
 from email.mime.text import MIMEText
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -1416,21 +1417,21 @@ def list_project():
         new_project.status = 'Active'
 
         db.session.add(new_project)
-        db.session.commit()
+        
+        db.session.flush() 
 
         # Handle screenshots upload
         files = request.files.getlist('screenshots') 
         for file in files:
             if file and file.filename != '':
-                ext = os.path.splitext(file.filename)[1]
-                filename = str(uuid.uuid4()) + ext 
-                
-                file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-                file.save(file_path)
+                upload_result = cloudinary.uploader.upload(file, folder="mmu_ossd/projects")
+                image_url = upload_result.get('secure_url')
 
                 new_image = ProjectImage()
-                new_image.filename = filename
-                new_image.project_id = new_project.id
+                new_image.filename = image_url 
+                
+                new_image.project_id = new_project.id  
+                
                 db.session.add(new_image)
 
         db.session.commit()
@@ -1454,7 +1455,6 @@ def list_project():
         return redirect(url_for('views.upload_success'))
     
     return render_template("List_Your_Project.html")
-
 @views.route('/edit_project/<int:project_id>', methods=['GET', 'POST'])
 def edit_project(project_id):
     current_user = get_current_user()
@@ -1490,22 +1490,17 @@ def edit_project(project_id):
         for img_id in images_to_delete:
             image_record = ProjectImage.query.get(img_id)
             if image_record and image_record.project_id == project.id:
-                old_file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], image_record.filename)
-                if os.path.exists(old_file_path):
-                    os.remove(old_file_path)
+
                 db.session.delete(image_record)
 
         files = request.files.getlist('screenshots')
         for file in files:
             if file and file.filename != '':
-                ext = os.path.splitext(file.filename)[1]
-                new_filename = str(uuid.uuid4()) + ext
-                
-                file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], new_filename)
-                file.save(file_path)
+                upload_result = cloudinary.uploader.upload(file, folder="mmu_ossd/projects")
+                image_url = upload_result.get('secure_url')
                 
                 new_image = ProjectImage()
-                new_image.filename = new_filename
+                new_image.filename = image_url
                 new_image.project_id = project.id
                 db.session.add(new_image)
 
@@ -1667,7 +1662,10 @@ def get_profile():
     skills = Skill.query.filter_by(user_id=user.id).all()
     badges = Badge.query.filter_by(user_id=user.id).all()
     
-    avatar_url = f"/static/uploads/{user.avatar_path}" if user.avatar_path else ''
+    if user.avatar_path:
+        avatar_url = user.avatar_path if user.avatar_path.startswith('http') else f"/static/uploads/{user.avatar_path}"
+    else:
+        avatar_url = ''    
     interests_data = parse_interests(user.interests)
     # Combine both interest types for frontend
     combined_interests = interests_data.get('dev_interests', []) + interests_data.get('lang_interests', [])
@@ -1705,11 +1703,14 @@ def get_user_profile(user_id):
     if is_private and current_user_id != user.id:
         return jsonify({'error': 'This profile is private', 'is_private': True}), 403
 
-    
     skills = Skill.query.filter_by(user_id=user.id).all()
     badges = Badge.query.filter_by(user_id=user.id).all()
     
-    avatar_url = f"/static/uploads/{user.avatar_path}" if user.avatar_path else ''
+    if user.avatar_path:
+        avatar_url = user.avatar_path if user.avatar_path.startswith('http') else f"/static/uploads/{user.avatar_path}"
+    else:
+        avatar_url = ''
+    
     interests_data = parse_interests(user.interests)
     # Combine both interest types for frontend
     combined_interests = interests_data.get('dev_interests', []) + interests_data.get('lang_interests', [])
@@ -1794,17 +1795,23 @@ def upload_avatar():
     if not allowed_file(file.filename):
         return jsonify({'error': 'Allowed types: PNG, JPG, GIF, WEBP'}), 400
 
-    ext      = file.filename.rsplit('.', 1)[1].lower()
-    filename = f"{uuid.uuid4().hex}.{ext}"
-    file.save(os.path.join(UPLOAD_FOLDER, filename))
+    ext = file.filename.rsplit('.', 1)[1].lower()
+    public_id = f"user_{session['user_email'].replace('@', '_')}"
+
+    upload_result = cloudinary.uploader.upload(
+        file, 
+        folder="mmu_ossd/avatars",
+        public_id=public_id,
+        overwrite=True
+    )
+    secure_url = upload_result.get('secure_url')
 
     email = session['user_email']
     user = User.query.filter_by(email=email).first()
-    user.avatar_path = filename
+    user.avatar_path = secure_url
     db.session.commit()
 
-    return jsonify({'success': True, 'avatar_url': f'/static/uploads/{filename}'})
-
+    return jsonify({'success': True, 'avatar_url': secure_url})
 
 # ── Settings API ────────────────────────────────────────────────────────
 
@@ -2764,7 +2771,7 @@ def get_project_comments(project_id):
         'deleted_at': c.deleted_at.isoformat() if getattr(c, 'deleted_at', None) else None,
         'created_at': c.created_at.isoformat(),
         'updated_at': c.updated_at.isoformat(),
-        'images': [{'id': img.id, 'url': f'/static/uploads/{img.image_path}'} for img in c.images],
+        'images': [{'id': img.id, 'url': img.image_path if img.image_path.startswith('http') else f'/static/uploads/{img.image_path}'} for img in c.images],        
         'reported_by_me': c.id in reported_comment_ids,
     } for c in comments])
 
@@ -2804,9 +2811,7 @@ def create_project_comment(project_id):
     if comment_type not in ['normal', 'issue', 'suggestion']:
         return jsonify({'error': 'Invalid comment type'}), 400
 
-    # Continue with original logic below (save comment, handle images, etc.)
-    
-# Determine user role
+    # Determine user role
     user_role = 'user'
     if current_user.id == project.user_id:
         user_role = 'owner'
@@ -2824,12 +2829,13 @@ def create_project_comment(project_id):
         files = request.files.getlist('images')
         for file in files:
             if file and file.filename != '' and allowed_file(file.filename):
-                ext = os.path.splitext(file.filename)[1]
-                filename = str(uuid.uuid4()) + ext
-                file.save(os.path.join(UPLOAD_FOLDER, filename))
+
+                upload_result = cloudinary.uploader.upload(file, folder="mmu_ossd/comments")
+                image_url = upload_result.get('secure_url')
+                
                 img = ProjectCommentImage()
                 img.comment_id = comment.id
-                img.image_path = filename
+                img.image_path = image_url
                 db.session.add(img)
                 
     project_owner = User.query.get(project.user_id)
@@ -2873,9 +2879,8 @@ def create_project_comment(project_id):
         'label': comment.label,
         'user_role': comment.user_role,
         'created_at': comment.created_at.isoformat(),
-        'images': [{'id': img.id, 'url': f'/static/uploads/{img.image_path}'} for img in comment.images],
+        'images': [{'id': img.id, 'url': img.image_path if img.image_path.startswith('http') else f'/static/uploads/{img.image_path}'} for img in comment.images],
     }), 201
-
 
 @views.route('/api/my-notifications', methods=['GET'])
 def get_my_notifications():
@@ -2953,12 +2958,6 @@ def delete_project_comment(project_id, comment_id):
         deleted_by_role = 'admin'
     # ──────────────────────────────────────────────────────────────────
 
-    # Delete associated images from disk
-    for img in comment.images:
-        file_path = os.path.join(UPLOAD_FOLDER, img.image_path)
-        if os.path.exists(file_path):
-            os.remove(file_path)
-
     # Soft-delete with full audit trail
     comment.content = "This message was deleted."
     comment.is_deleted = True
@@ -3032,9 +3031,6 @@ def delete_comment_image(project_id, comment_id, image_id):
     if img.comment_id != comment_id:
         return jsonify({'error': 'Image not found in this comment'}), 404
 
-    file_path = os.path.join(UPLOAD_FOLDER, img.image_path)
-    if os.path.exists(file_path):
-        os.remove(file_path)
 
     db.session.delete(img)
     db.session.commit()
@@ -3064,19 +3060,20 @@ def add_comment_images(project_id, comment_id):
     files = request.files.getlist('images')
     for file in files:
         if file and file.filename != '' and allowed_file(file.filename):
-            ext = os.path.splitext(file.filename)[1]
-            filename = str(uuid.uuid4()) + ext
-            file.save(os.path.join(UPLOAD_FOLDER, filename))
+
+            upload_result = cloudinary.uploader.upload(file, folder="mmu_ossd/comments")
+            image_url = upload_result.get('secure_url')
+            
             img = ProjectCommentImage()
             img.comment_id = comment.id
-            img.image_path = filename
+            img.image_path = image_url
             db.session.add(img)
             db.session.flush()
-            added.append({'id': img.id, 'url': f'/static/uploads/{filename}'})
+            
+            added.append({'id': img.id, 'url': image_url})
 
     db.session.commit()
     return jsonify({'success': True, 'images': added})
-
 
 @views.route('/api/project/<int:project_id>/comments/<int:comment_id>/label', methods=['PUT'])
 def update_comment_label(project_id, comment_id):
@@ -3525,7 +3522,10 @@ def get_public_user_profile(user_id):
     skills = Skill.query.filter_by(user_id=user.id).all()
     badges = Badge.query.filter_by(user_id=user.id).all()
     
-    avatar_url = f"/static/uploads/{user.avatar_path}" if user.avatar_path else ''
+    if user.avatar_path:
+        avatar_url = user.avatar_path if user.avatar_path.startswith('http') else f"/static/uploads/{user.avatar_path}"
+    else:
+        avatar_url = ''    
     interests_list = [i.strip() for i in user.interests.split(',') if i.strip()] if user.interests else []
 
     return jsonify({
@@ -3737,9 +3737,15 @@ def get_community_posts():
             user_liked = any(like.user_id == current_user_id for like in p.likes)
             user_faved = any(fav.user_id == current_user_id for fav in p.favorites)
             
-        image_urls = [f"/static/uploads/{img.image_path}" for img in p.images]
-        if p.image_path and f"/static/uploads/{p.image_path}" not in image_urls:
-            image_urls.insert(0, f"/static/uploads/{p.image_path}")
+        image_urls = [
+            img.image_path if img.image_path.startswith('http') else f"/static/uploads/{img.image_path}" 
+            for img in p.images
+        ]
+        
+        if getattr(p, 'image_path', None):
+            main_img_url = p.image_path if p.image_path.startswith('http') else f"/static/uploads/{p.image_path}"
+            if main_img_url not in image_urls:
+                image_urls.insert(0, main_img_url)
             
         result.append({
             'id': p.id,
@@ -3771,7 +3777,13 @@ def create_community_post():
     attached_project_id = request.form.get('attached_project_id')
     
     if not content: return jsonify({'error': 'Post content cannot be empty'}), 400
-    
+
+    triggered_word = contains_banned_keywords(content)
+    if triggered_word:
+        return jsonify({
+            'error': f"Post blocked: Your text contains the unallowed keyword '{triggered_word}'."
+        }), 400
+
     if not attached_project_id or not attached_project_id.isdigit():
         return jsonify({'error': 'You must attach a project to make a post.'}), 400
         
@@ -3788,14 +3800,15 @@ def create_community_post():
     if link_url: post.link_url = link_url
         
     if 'images' in request.files:
-        import uuid
+
         files = request.files.getlist('images')
+
         for file in files:
             if file and file.filename and allowed_file(file.filename):
-                ext = file.filename.rsplit('.', 1)[1].lower()
-                filename = f"post_{uuid.uuid4().hex}.{ext}"
-                file.save(os.path.join(current_app.config.get('UPLOAD_FOLDER', UPLOAD_FOLDER), filename))
-                img_record = CommunityPostImage(image_path=filename)
+                upload_result = cloudinary.uploader.upload(file, folder="mmu_ossd/posts")
+                image_url = upload_result.get('secure_url')
+                
+                img_record = CommunityPostImage(image_path=image_url)
                 post.images.append(img_record)
 
     db.session.add(post)
@@ -3901,7 +3914,10 @@ def manage_community_post_comments(post_id):
             'content': c.content,
             'parent_id': c.parent_id,
             'created_at': c.created_at.isoformat(),
-            'image_urls': [f"/static/uploads/{img.image_path}" for img in c.images]
+            'image_urls': [
+                img.image_path if img.image_path.startswith('http') else f"/static/uploads/{img.image_path}" 
+                for img in c.images
+            ]
         } for c in comments]
         return jsonify(result)
         
@@ -3915,26 +3931,33 @@ def manage_community_post_comments(post_id):
             parent_id = data.get('parent_id')
         
         if not content: return jsonify({'error': 'Comment cannot be empty'}), 400
+
+        triggered_word = contains_banned_keywords(content)
+        if triggered_word:
+            return jsonify({
+                'error': f"Comment blocked: Your text contains the unallowed keyword '{triggered_word}'."
+            }), 400
+
         if parent_id and str(parent_id).isdigit(): parent_id = int(parent_id)
         else: parent_id = None
             
         comment = CommunityPostComment(post_id=post_id, user_id=current_user.id, content=content, parent_id=parent_id)
         
         if 'images' in request.files:
-            import uuid
+
             files = request.files.getlist('images')
             for file in files:
                 if file and file.filename and allowed_file(file.filename):
-                    ext = file.filename.rsplit('.', 1)[1].lower()
-                    filename = f"c_{uuid.uuid4().hex}.{ext}"
-                    file.save(os.path.join(current_app.config.get('UPLOAD_FOLDER', UPLOAD_FOLDER), filename))
-                    img = CommunityPostCommentImage(image_path=filename)
+                    upload_result = cloudinary.uploader.upload(file, folder="mmu_ossd/post_comments")
+                    image_url = upload_result.get('secure_url')
+                    
+                    img = CommunityPostCommentImage(image_path=image_url)
                     comment.images.append(img)
                     
         db.session.add(comment)
         db.session.commit()
         return jsonify({'success': True, 'message': 'Comment added'})
-
+    
 @views.route('/api/community_posts/<int:post_id>/comments/<int:comment_id>', methods=['DELETE'])
 def delete_community_post_comment(post_id, comment_id):
     err = require_login()
@@ -4095,9 +4118,10 @@ def manage_project_updates(project_id):
                 images_data = []
                 if hasattr(u, 'images'):
                     for img in u.images:
+                        img_url = img.image_path if img.image_path.startswith('http') else url_for('static', filename=f'uploads/{img.image_path}')
                         images_data.append({
                             'id': img.id,
-                            'url': url_for('static', filename=f'uploads/{img.image_path}')
+                            'url': img_url
                         })
 
                 result.append({
@@ -4129,6 +4153,12 @@ def manage_project_updates(project_id):
         if not title or not content:
             return jsonify({'error': 'Title and content are required'}), 400
 
+        triggered_word = contains_banned_keywords(content) or contains_banned_keywords(title)
+        if triggered_word:
+            return jsonify({
+                'error': f"Update blocked: Your text contains the unallowed keyword '{triggered_word}'."
+            }), 400
+
         auto_approve = current_user_role in ['owner', 'admin']
 
         new_update = ProjectUpdate(
@@ -4143,26 +4173,16 @@ def manage_project_updates(project_id):
         db.session.flush() 
 
         if 'images' in request.files:
-            import uuid
-            import os
-            
-            ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
-            def allowed_file(filename):
-                return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
             files = request.files.getlist('images')
-            upload_folder = current_app.config.get('UPLOAD_FOLDER', 'static/uploads')
-            os.makedirs(upload_folder, exist_ok=True)
             
             for file in files:
                 if file and file.filename != '' and allowed_file(file.filename):
-                    ext = os.path.splitext(file.filename)[1]
-                    filename = str(uuid.uuid4()) + ext
-                    file.save(os.path.join(upload_folder, filename))
+                    upload_result = cloudinary.uploader.upload(file, folder="mmu_ossd/project_updates")
+                    image_url = upload_result.get('secure_url')
                     
                     try:
                         from .models import ProjectUpdateImage
-                        img = ProjectUpdateImage(update_id=new_update.id, image_path=filename)
+                        img = ProjectUpdateImage(update_id=new_update.id, image_path=image_url)
                         db.session.add(img)
                     except ImportError:
                         pass 
@@ -4171,7 +4191,7 @@ def manage_project_updates(project_id):
 
         msg = 'Update posted successfully' if auto_approve else 'Update submitted for approval'
         return jsonify({'success': True, 'message': msg})
-    
+            
 @views.route('/api/project/<int:project_id>/updates/<int:update_id>/<action>', methods=['POST'])
 def review_project_update(project_id, update_id, action):
     err = require_login()
@@ -4300,7 +4320,10 @@ def get_timeline_feed():
         base_score = 20 + (like_count * 5) + (comment_count * 10)
         feed_score = base_score / ((age_hours + 2) ** 1.5)
         
-        image_urls = [f"/static/uploads/{img.image_path}" for img in p.images]
+        image_urls = [
+            img.image_path if img.image_path.startswith('http') else f"/static/uploads/{img.image_path}" 
+            for img in p.images
+        ]
         
         unified_feed.append({
             'feed_id': f"post_{p.id}",
@@ -4337,7 +4360,10 @@ def get_timeline_feed():
             base_score = 50
             feed_score = base_score / ((age_hours + 2) ** 1.5)
             
-            image_urls = [f"/static/uploads/{img.image_path}" for img in u.images] if hasattr(u, 'images') else []
+            image_urls = [
+                img.image_path if img.image_path.startswith('http') else f"/static/uploads/{img.image_path}" 
+                for img in u.images
+            ] if hasattr(u, 'images') else []
             
             unified_feed.append({
                 'feed_id': f"update_{u.id}",
