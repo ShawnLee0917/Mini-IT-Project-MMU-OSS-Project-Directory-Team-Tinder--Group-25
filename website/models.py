@@ -383,6 +383,7 @@ class CommunityPostCommentImage(db.Model):
     image_path = db.Column(db.String(255), nullable=False)
 
 class ProjectUpdate(db.Model):
+    __tablename__ = 'project_updates'
     id = db.Column(db.Integer, primary_key=True)
     project_id = db.Column(db.Integer, db.ForeignKey('projects.id', ondelete='CASCADE'), nullable=False) 
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
@@ -399,7 +400,7 @@ class ProjectUpdateImage(db.Model):
     __tablename__ = 'project_update_images'
     
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    update_id = db.Column(db.Integer, db.ForeignKey('project_update.id', ondelete='CASCADE'), nullable=False)
+    update_id = db.Column(db.Integer, db.ForeignKey('project_updates.id', ondelete='CASCADE'), nullable=False)
     image_path = db.Column(db.String(255), nullable=False)
 
 

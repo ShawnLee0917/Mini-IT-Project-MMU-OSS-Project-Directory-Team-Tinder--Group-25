@@ -2,12 +2,22 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import inspect, text
 import os
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
 
 db = SQLAlchemy()
 
 
 def create_app():
     app = Flask(__name__)
+
+    cloudinary.config(
+        cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME'),
+        api_key = os.environ.get('CLOUDINARY_API_KEY'),
+        api_secret = os.environ.get('CLOUDINARY_API_SECRET'),
+        secure = True
+    )
     
     app.secret_key = os.environ.get('SECRET_KEY', 'mmu-ossd-secret-key-2026')
     

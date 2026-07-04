@@ -452,121 +452,92 @@
         }
     }
 
-const dropZone = document.getElementById('drop-zone');
-const dropZoneContent = document.getElementById('drop-zone-content');
-const fileInput = document.getElementById('imageInput');
-const fileDisplay = document.getElementById('fileNameDisplay');
-const previewContainer = document.getElementById('imagePreviewContainer');
+    const dropZone = document.getElementById('drop-zone');
+    const dropZoneContent = document.getElementById('drop-zone-content');
+    const fileInput = document.getElementById('imageInput');
+    const fileDisplay = document.getElementById('fileNameDisplay');
+    const previewContainer = document.getElementById('imagePreviewContainer');
 
-let allFiles = []; 
+    let allFiles = []; 
 
-function syncFilesToInput() {
-    const dt = new DataTransfer();
-    allFiles.forEach(file => {
-        dt.items.add(file);
-    });
-    fileInput.files = dt.files;
-}
-
-function renderImagePreviews() {
-
-    previewContainer.innerHTML = '';
-    
-    if (allFiles.length > 0) {
-        fileDisplay.innerText = "Selected " + allFiles.length + " file(s).";
-        
-        allFiles.forEach((file, index) => {
-            if (!file.type.startsWith('image/')) return;
-
-            const objectUrl = URL.createObjectURL(file);
-
-            const imgWrapper = document.createElement('div');
-            imgWrapper.className = 'relative group rounded-lg overflow-hidden shadow-sm border border-gray-200 aspect-video bg-white flex items-center justify-center';
-            
-            imgWrapper.onclick = (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-            };
-
-            const img = document.createElement('img');
-            img.src = objectUrl;
-            img.className = 'w-full h-full object-cover transition-transform duration-300 group-hover:scale-105';
-            img.onload = () => URL.revokeObjectURL(objectUrl);
-
-            const removeBtn = document.createElement('button');
-            removeBtn.type = 'button';
-            removeBtn.className = 'absolute top-2 right-2 bg-red-600/90 text-white rounded-full w-7 h-7 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700 z-10 cursor-pointer shadow-md';
-            removeBtn.innerHTML = '<i class="fas fa-times text-sm"></i>';
-            
-            removeBtn.onclick = (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-
-                allFiles.splice(index, 1);
-                
-                syncFilesToInput();
-                
-                renderImagePreviews();
-            };
-
-            imgWrapper.appendChild(img);
-            imgWrapper.appendChild(removeBtn);
-            previewContainer.appendChild(imgWrapper);
+    function syncFilesToInput() {
+        const dt = new DataTransfer();
+        allFiles.forEach(file => {
+            dt.items.add(file);
         });
-    } else {
-        fileDisplay.innerText = "";
+        fileInput.files = dt.files;
     }
-}
 
-function handleFiles(newFiles) {
-    for (let i = 0; i < newFiles.length; i++) {
-        if (!newFiles[i].type.startsWith('image/')) continue;
-
-        const isDuplicate = allFiles.some(
-            existing => existing.name === newFiles[i].name && existing.size === newFiles[i].size
-        );
-        if (!isDuplicate) {
-            allFiles.push(newFiles[i]);
-        }
-    }
-    syncFilesToInput();
-    renderImagePreviews();
-}
-
-if (dropZone && fileInput) {
-    fileInput.addEventListener('change', function(e) {
-        if (e.target.files && e.target.files.length > 0) {
-            handleFiles(e.target.files);
-        }
-    });
-
-    dropZone.addEventListener('dragover', (e) => {
-        e.preventDefault(); 
-        dropZoneContent.classList.remove('border-gray-200', 'bg-gray-50');
-        dropZoneContent.classList.add('border-red-400', 'bg-red-50');
-    });
-
-    dropZone.addEventListener('dragleave', (e) => {
-        e.preventDefault();
-        dropZoneContent.classList.remove('border-red-400', 'bg-red-50');
-        dropZoneContent.classList.add('border-gray-200', 'bg-gray-50');
-    });
-
-    dropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
+    function renderImagePreviews() {
+        previewContainer.innerHTML = '';
         
-        dropZoneContent.classList.remove('border-red-400', 'bg-red-50');
-        dropZoneContent.classList.add('border-gray-200', 'bg-gray-50');
+        if (allFiles.length > 0) {
+            fileDisplay.innerText = "Selected " + allFiles.length + " file(s).";
+            
+            allFiles.forEach((file, index) => {
+                if (!file.type.startsWith('image/')) return;
 
-        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-            handleFiles(e.dataTransfer.files);
+                const objectUrl = URL.createObjectURL(file);
+
+                const imgWrapper = document.createElement('div');
+                imgWrapper.className = 'relative group rounded-lg overflow-hidden shadow-sm border border-gray-200 aspect-video bg-white flex items-center justify-center';
+                
+                imgWrapper.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                };
+
+                const img = document.createElement('img');
+                img.src = objectUrl;
+                img.className = 'w-full h-full object-cover transition-transform duration-300 group-hover:scale-105';
+                img.onload = () => URL.revokeObjectURL(objectUrl);
+
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'absolute top-2 right-2 bg-red-600/90 text-white rounded-full w-7 h-7 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700 z-10 cursor-pointer shadow-md';
+                removeBtn.innerHTML = '<i class="fas fa-times text-sm"></i>';
+                
+                removeBtn.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    allFiles.splice(index, 1);
+                    
+                    syncFilesToInput();
+                    
+                    renderImagePreviews();
+                };
+
+                imgWrapper.appendChild(img);
+                imgWrapper.appendChild(removeBtn);
+                previewContainer.appendChild(imgWrapper);
+            });
+        } else {
+            fileDisplay.innerText = "";
         }
-    });
-}
+    }
 
+    function handleFiles(newFiles) {
+        for (let i = 0; i < newFiles.length; i++) {
+            if (!newFiles[i].type.startsWith('image/')) continue;
+
+            const isDuplicate = allFiles.some(
+                existing => existing.name === newFiles[i].name && existing.size === newFiles[i].size
+            );
+            if (!isDuplicate) {
+                allFiles.push(newFiles[i]);
+            }
+        }
+        syncFilesToInput();
+        renderImagePreviews();
+    }
+
+    // ── 唯一正确的事件监听块 ─────────────────────────────────────────────
     if (dropZone && fileInput) {
-        fileInput.addEventListener('change', function() {
-            updateFileDisplay(this.files);
+        fileInput.addEventListener('change', function(e) {
+            if (e.target.files && e.target.files.length > 0) {
+                handleFiles(e.target.files);
+            }
         });
 
         dropZone.addEventListener('dragover', (e) => {
@@ -588,12 +559,12 @@ if (dropZone && fileInput) {
             dropZoneContent.classList.add('border-gray-200', 'bg-gray-50');
 
             if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                fileInput.files = e.dataTransfer.files;
-                updateFileDisplay(fileInput.files);
+                handleFiles(e.dataTransfer.files);
             }
         });
     }
 
+    // 启动导航栏初始化
     initNav();
 </script>
 

@@ -384,9 +384,9 @@
                     {% if project.images %}
                         {% for image in project.images %}
                         <div class="rounded-2xl border border-gray-100 overflow-hidden shadow-sm group cursor-pointer gallery-img"
-                            data-src="{{ url_for('static', filename='uploads/' + image.filename) }}">
+                            data-src="{{ image.filename if image.filename.startswith('http') else url_for('static', filename='uploads/' + image.filename) }}">
                             
-                            <img src="{{ url_for('static', filename='uploads/' + image.filename) }}" 
+                            <img src="{{ image.filename if image.filename.startswith('http') else url_for('static', filename='uploads/' + image.filename) }}" 
                                 class="w-full h-48 object-cover group-hover:scale-105 transition duration-500">
                         </div>
                         {% endfor %}

@@ -397,7 +397,7 @@
                                     
                                     <input type="checkbox" name="delete_images" value="{{ image.id }}" id="del_img_{{ image.id }}" class="hidden peer">
                                     
-                                    <img src="{{ url_for('static', filename='uploads/' + image.filename) }}" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 peer-checked:scale-100 peer-checked:opacity-40">
+                                    <img src="{{ image.filename if image.filename.startswith('http') else url_for('static', filename='uploads/' + image.filename) }}" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 peer-checked:scale-100 peer-checked:opacity-40">
                                     
                                     <label for="del_img_{{ image.id }}" class="absolute top-2 right-2 bg-red-600/90 text-white rounded-full w-7 h-7 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700 z-10 cursor-pointer shadow-md peer-checked:opacity-100 peer-checked:bg-gray-700">
                                         <i class="fas fa-times text-sm peer-checked:hidden"></i>
