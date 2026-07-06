@@ -423,7 +423,8 @@
                                         <p id="editFileNameDisplay" class="text-xs mt-2 text-red-600 font-semibold"></p>
                                     </div>
                                 </label>
-                            </div>                        </div>
+                            </div>
+                        </div>
                     </section>
 
                     <div class="pt-6 flex flex-col md:flex-row gap-4">
@@ -431,13 +432,12 @@
                             class="flex-grow bg-red-600 text-white px-8 py-4 rounded-2xl font-black hover:bg-red-700 transform hover:-translate-y-1 transition shadow-xl shadow-red-200">
                             SAVE ALL CHANGES
                         </button>
-                        <a href="{{ url_for('views.project_page', project_id=project.id) }}"
-                            class="px-8 py-4 text-center text-gray-500 font-bold hover:text-gray-800 transition">
+                        <button type="button" id="discard-btn"
+                            class="px-8 py-4 text-center text-gray-600 bg-white border-2 border-gray-200 font-bold rounded-2xl hover:bg-gray-50 hover:text-gray-900 transition">
                             Discard Changes
-                        </a>
+                        </button>
                     </div>
-                </form>
-                
+                </form> 
                 {% if project.user_id == current_user.id %}
                 <div class="p-8 pt-0">
                     <hr class="border-red-100 mb-6">
@@ -480,6 +480,35 @@
         </div>
     </div>
     {% endif %}
+
+    <div id="discardModal"
+        class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm transition-opacity duration-300">
+        <div class="bg-white rounded-[24px] shadow-2xl max-w-sm w-full p-8 transform scale-100 transition-transform">
+            
+            <div class="flex flex-col items-center text-center">
+                <div class="w-16 h-16 bg-red-50 border-[3px] border-red-100 text-red-500 rounded-full flex items-center justify-center mb-5 text-2xl">
+                    <i class="fas fa-arrow-right-from-bracket"></i>
+                </div>
+
+                <h3 class="text-2xl font-bold text-gray-900 mb-3">Leave site?</h3>
+                <p class="text-gray-500 font-medium mb-8 leading-relaxed">
+                    Changes you made may not be saved. Are you sure you want to leave?
+                </p>
+
+                <div class="flex gap-4 w-full">
+                    <button type="button" onclick="hideDiscardModal()"
+                        class="flex-1 bg-gray-50 text-gray-700 px-6 py-3.5 rounded-xl font-bold hover:bg-gray-100 transition">
+                        Cancel
+                    </button>
+                    <a href="{{ url_for('views.project_page', project_id=project.id) }}" id="confirm-discard-btn"
+                        class="flex-1 bg-red-600 text-white px-6 py-3.5 rounded-xl font-bold hover:bg-red-700 transition shadow-md shadow-red-200 flex items-center justify-center">
+                        Leave
+                    </a>
+                </div>
+            </div>
+            
+        </div>
+    </div>
 
     <script>
         // ── Logout ────────────────────────────────────────────────────────────
@@ -672,6 +701,30 @@
 
             editForm.addEventListener('submit', () => {
                 formChanged = false;
+            });
+        }
+
+        const discardBtn = document.getElementById('discard-btn');
+        const discardModal = document.getElementById('discardModal');
+        const confirmDiscardBtn = document.getElementById('confirm-discard-btn');
+
+        if (discardBtn) {
+            discardBtn.addEventListener('click', () => {
+                if (formChanged) {
+                    discardModal.classList.remove('hidden');
+                } else {
+                    window.location.href = confirmDiscardBtn.href;
+                }
+            });
+        }
+
+        function hideDiscardModal() {
+            discardModal.classList.add('hidden');
+        }
+
+        if (confirmDiscardBtn) {
+            confirmDiscardBtn.addEventListener('click', () => {
+                formChanged = false; 
             });
         }
     </script>
