@@ -971,16 +971,16 @@ MAIL_USERNAME = os.environ.get("MAIL_USERNAME")
 MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD")
 
 def send_otp_email(receiver_email, otp_code):
-    message = f"\n{'='*70}\n[DEVELOPMENT MODE] OTP CODE FOR: {receiver_email}\n{'='*70}\nOTP CODE: {otp_code}\nVerification URL: http://127.0.0.1:5000/verify\nDirect OTP URL: http://127.0.0.1:5000/test_otp/{receiver_email}\n{'='*70}\n"
+    #message = f"\n{'='*70}\n[DEVELOPMENT MODE] OTP CODE FOR: {receiver_email}\n{'='*70}\nOTP CODE: {otp_code}\nVerification URL: http://127.0.0.1:5000/verify\nDirect OTP URL: http://127.0.0.1:5000/test_otp/{receiver_email}\n{'='*70}\n"
     
-    print(message, flush=True)
-    sys.stdout.write(message)
-    sys.stdout.flush()
-    sys.stderr.write(message)
-    sys.stderr.flush()
+    #print(message, flush=True)
+    #sys.stdout.write(message)
+    #sys.stdout.flush()
+    #sys.stderr.write(message)
+    #sys.stderr.flush()
     
-    logging.info(message)
-    current_app.logger.info(message)
+    #logging.info(message)
+    #current_app.logger.info(message)
 
     if not MAIL_USERNAME or not MAIL_PASSWORD:
         print("SMTP Error: MAIL_USERNAME or MAIL_PASSWORD not found in .env file.")
