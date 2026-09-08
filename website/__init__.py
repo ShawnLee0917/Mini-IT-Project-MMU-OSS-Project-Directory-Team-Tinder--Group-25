@@ -119,11 +119,11 @@ def _initialize_admin_system():
     try:
         # ─── Hardcoded admin emails ───
         ADMIN_EMAILS = [
-            'kohkonghao@mmu.edu.my',
-            'koh.kong.hao@student.mmu.edu.my',
             'Lee.Kai.Shuen@student.mmu.edu.my',
-            'lee.kai.shuen@student.mmu.edu.my',
-            'theng.zhong.yee@student.mmu.edu.my',
+            'lee.kai.shuen1@student.mmu.edu.my',
+            'theng.zhong.yee@student.mmu.edu.my'
+            'theng.zhong.yee1@student.mmu.edu.my',
+            'klpoh@mmu.edu.my',
         ]
         
         for email in ADMIN_EMAILS:
