@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terms of Service | MMU OSSD</title>
+    <script>
+        const currentTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', currentTheme);
+    </script>
+    <meta name="description" content="Terms of Service for the MMU Open Source Software Directory">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" rel="stylesheet">
+    <style>
+
+        /* This is get from Google Fonts. */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+
+        body { font-family: 'Inter', sans-serif; }
+        #avatar-wrapper:hover #avatar-overlay { opacity: 1; }
+        #avatar-overlay { transition: opacity 0.2s; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in { animation: fadeIn 0.35s ease both; }
+
+                :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f3f4f6;
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --border-color: #e5e7eb;
+        }
+
+        html[data-theme="dark"] {
+            --bg-primary: #0f0f0f;
+            --bg-secondary: #1a1a1a;
+            --text-primary: #e5e7eb;
+            --text-secondary: #a1a1a1;
+            --border-color: #333333;
+        }
+        
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+        
+        html[data-theme="dark"] .border-gray-200 {
+    border-color: var(--border-color) !important;
+}
+        /* Dark theme overrides */
+        html[data-theme="dark"] body {
+            background-color: var(--bg-secondary);
+        }
+        
+        html[data-theme="dark"] header {
+            background-color: var(--bg-primary) !important;
+            border-color: var(--border-color) !important;
+        }
+        
+        html[data-theme="dark"] header h2,
+        html[data-theme="dark"] header p {
+            color: var(--text-primary) !important;
+        }
+        
+        html[data-theme="dark"] .bg-white {
+            background-color: var(--bg-primary) !important;
+            border-color: var(--border-color) !important;
+        }
+        
+        html[data-theme="dark"] .bg-gray-50 {
+            background-color: var(--bg-secondary) !important;
+        }
+        
+        html[data-theme="dark"] .text-gray-900,
+        html[data-theme="dark"] .text-gray-800 {
+            color: var(--text-primary) !important;
+        }
+        
+        html[data-theme="dark"] .text-gray-500,
+        html[data-theme="dark"] .text-gray-600,
+        html[data-theme="dark"] .text-gray-700 {
+            color: var(--text-secondary) !important;
+        }
+        
+        html[data-theme="dark"] .border-gray-200,
+        html[data-theme="dark"] .border-gray-100 {
+            border-color: var(--border-color) !important;
+        }
+        
+        html[data-theme="dark"] .text-gray-400 {
+            color: var(--text-secondary) !important;
+        }
+        
+        html[data-theme="dark"] input,
+        html[data-theme="dark"] textarea,
+        html[data-theme="dark"] select {
+            background-color: var(--bg-secondary) !important;
+            color: var(--text-primary) !important;
+            border-color: var(--border-color) !important;
+        }
+        
+        html[data-theme="dark"] input:focus,
+        html[data-theme="dark"] textarea:focus,
+        html[data-theme="dark"] select:focus {
+            background-color: var(--bg-primary) !important;
+        }
+
+        html[data-theme="dark"] .bg-gray-100 {
+            background-color: #262626 !important;
+        }
+
+        html[data-theme="dark"] .hover\:bg-gray-200:hover {
+            background-color: #333333 !important;
+        }
+
+        html[data-theme="dark"] #logout-btn,
+        html[data-theme="dark"] #logout-btn-mobile {
+            background-color: #ffffff !important;
+            color: #dc2626 !important;
+        }
+
+        html[data-theme="dark"] #logout-btn:hover,
+        html[data-theme="dark"] #logout-btn-mobile:hover {
+            background-color: #f3f4f6 !important;
+        }
+
+        /* ── Animated Hamburger Button ─────────────────────────── */
+        .hamburger {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            border-radius: 8px;
+            padding: 6px;
+            gap: 5px;
+            transition: background 0.2s ease;
+            position: relative;
+        }
+        .hamburger:hover {
+            background: rgba(255,255,255,0.15);
+        }
+        .hamburger:focus-visible {
+            outline: 2px solid rgba(255,255,255,0.6);
+            outline-offset: 2px;
+        }
+        .hamburger .bar {
+            display: block;
+            width: 22px;
+            height: 2.5px;
+            border-radius: 99px;
+            background: #fff;
+            transition: transform 0.35s cubic-bezier(0.23, 1, 0.32, 1),
+                        opacity   0.25s ease,
+                        width     0.3s ease;
+            transform-origin: center;
+        }
+        /* Open state — morph into X */
+        .hamburger.is-open .bar:nth-child(1) {
+            transform: translateY(7.5px) rotate(45deg);
+        }
+        .hamburger.is-open .bar:nth-child(2) {
+            opacity: 0;
+            width: 0;
+        }
+        .hamburger.is-open .bar:nth-child(3) {
+            transform: translateY(-7.5px) rotate(-45deg);
+        }
+
+        /* ── Mobile menu slide-down animation ──────────────────── */
+        #mobile-menu {
+            max-height: 0;
+            overflow: hidden;
+            opacity: 0;
+            transition: max-height 0.38s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.28s ease;
+        }
+        #mobile-menu.menu-open {
+            max-height: 500px;
+            opacity: 1;
+        }
+        #mobile-menu a, #mobile-menu button, #mobile-menu div {
+            transform: translateY(-6px);
+            opacity: 0;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+        }
+        #mobile-menu.menu-open a, #mobile-menu.menu-open button, #mobile-menu.menu-open div {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        #mobile-menu a:nth-child(1)  { transition-delay: 0.05s; }
+        #mobile-menu a:nth-child(2)  { transition-delay: 0.09s; }
+        #mobile-menu a:nth-child(3)  { transition-delay: 0.13s; }
+        #mobile-menu a:nth-child(4)  { transition-delay: 0.17s; }
+        #mobile-menu a:nth-child(5)  { transition-delay: 0.21s; }
+        #mobile-menu button          { transition-delay: 0.25s; }
+        #mobile-menu #nav-email-mobile { transition-delay: 0.29s; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+
+    <nav class="bg-red-700 text-white shadow-md sticky top-0 z-50">
+        <div class="container mx-auto px-6 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <button id="menu-btn" class="hamburger" aria-label="Toggle menu" aria-expanded="false">
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                </button>
+                <a href="{{ url_for('views.home') }}" class="hover:opacity-80 transition flex items-center gap-4">
+                    <i class="fas fa-arrow-left text-xl"></i>
+                    <h1 class="text-2xl font-extrabold tracking-tighter">
+                        MMU <span class="font-light text-red-200">OSSD</span>
+                    </h1>
+                </a>
+            </div>
+            <div class="hidden md:flex space-x-8 items-center font-medium">
+                <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
+                <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
+            <a href="{{ url_for('views.hottest_projects') }}" class="text-white transition">Hottest Projects</a>
+                <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
+                <a href="{{ url_for('views.profile') }}" class="bg-red-900 hover:bg-red-950 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-400 transition">
+                    <span id="nav-email" class="text-sm">{{ session.get('user_email', 'Guest') }}</span>
+                    <i class="fas fa-user-circle text-lg text-red-200"></i>
+                </a>
+                <button id="logout-btn" class="bg-white text-red-700 hover:bg-red-50 text-xs font-bold px-3 py-2 rounded-xl transition">
+                    <i class="fas fa-sign-out-alt mr-1"></i>Logout
+                </button>
+            </div>
+        </div>
+
+        <div id="mobile-menu" class="bg-red-800 border-t border-red-600 shadow-inner">
+            <div class="px-6 py-4 flex flex-col space-y-4 font-semibold">
+                <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
+                <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
+               <a href="{{ url_for('views.hottest_projects') }}" class="hover:text-red-200 transition">Hottest Projects</a>
+                <a href="{{ url_for('views.profile') }}" class="hover:text-red-200 transition">My Profile</a>
+                <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
+                <a href="{{ url_for('views.list_project') }}" class="hover:text-red-200 transition">List Your Project</a>
+                <button id="logout-btn-mobile" class="text-left text-red-200 hover:text-white transition text-sm">
+                    <i class="fas fa-sign-out-alt mr-1"></i> Logout
+                </button>
+                <a href="{{ url_for('views.profile') }}" class="block pt-2 border-t border-red-700 text-xs font-light opacity-80 hover:opacity-100 hover:text-red-200 transition" id="nav-email-mobile">
+                    {{ session.get('user_email', 'Guest') }}
+                </a>
+            </div>
+        </div>
+    </nav>
+
+<header class="bg-white border-b py-14">
+    <div class="container mx-auto px-6 max-w-4xl">
+        <h2 class="text-4xl font-black text-gray-900">Terms of Service</h2>
+        <p class="text-gray-500 mt-3 text-lg">Last updated: September 2026</p>
+    </div>
+</header>
+
+<main class="container mx-auto px-6 py-14">
+    <div class="max-w-4xl mx-auto bg-white p-8 md:p-12 rounded-3xl border border-gray-100 shadow-sm space-y-8 text-gray-600 leading-relaxed">
+
+        <p>
+            These Terms of Service ("Terms") govern your access to and use of MMU OSSD (the "platform"). By
+            registering for an account or otherwise using the platform, you agree to be bound by these Terms.
+        </p>
+
+        <section>
+            <h3 class="text-xl font-black text-gray-900 mb-3">1. Eligibility</h3>
+            <p>
+                MMU OSSD is intended for use by Multimedia University students, staff, and affiliates. Registration
+                requires a valid MMU-affiliated email address and completion of the OTP email verification step.
+            </p>
+        </section>
+
+        <section>
+            <h3 class="text-xl font-black text-gray-900 mb-3">2. Your Account</h3>
+            <ul class="space-y-2 list-disc list-inside">
+                <li>You are responsible for maintaining the confidentiality of your login credentials.</li>
+                <li>You agree to provide accurate profile information and to keep it reasonably up to date.</li>
+                <li>You are responsible for all activity that occurs under your account.</li>
+            </ul>
+        </section>
+
+        <section>
+            <h3 class="text-xl font-black text-gray-900 mb-3">3. Project Listings and Content</h3>
+            <ul class="space-y-2 list-disc list-inside">
+                <li>You retain ownership of the projects, code references, and content you list on the platform.</li>
+                <li>By posting a project, comment, or suggestion, you grant MMU OSSD a license to display that content to other users as part of the platform's normal operation.</li>
+                <li>You are solely responsible for the accuracy of your project listings and for having the right to share any content you upload, including images.</li>
+                <li>Project owners may hard-delete their own projects; deletion is permanent and cannot be undone.</li>
+            </ul>
+        </section>
+
+        <section>
+            <h3 class="text-xl font-black text-gray-900 mb-3">4. Acceptable Use</h3>
+            <p>You agree not to:</p>
+            <ul class="space-y-2 list-disc list-inside mt-2">
+                <li>Post spam, harmful, inappropriate, or infringing content.</li>
+                <li>Impersonate another person or misrepresent your affiliation with MMU.</li>
+                <li>Attempt to circumvent the platform's content moderation, reporting, or security systems.</li>
+                <li>Use the platform for any unlawful purpose.</li>
+            </ul>
+            <p class="mt-2">
+                Content that violates these Terms may be flagged, removed, or reported through our moderation
+                system, and repeat violations may result in account suspension.
+            </p>
+        </section>
+
+        <section>
+            <h3 class="text-xl font-black text-gray-900 mb-3">5. Badges and Gamification</h3>
+            <p>
+                Badges, rankings, and related recognitions are provided for engagement purposes only and carry no
+                monetary or academic value. We reserve the right to adjust badge criteria or revoke badges awarded
+                in error.
+            </p>
+        </section>
+
+        <section>
+            <h3 class="text-xl font-black text-gray-900 mb-3">6. Termination</h3>
+            <p>
+                We may suspend or terminate accounts that violate these Terms or engage in abusive behavior toward
+                the platform or other users. You may stop using the platform, or request account deletion, at any
+                time.
+            </p>
+        </section>
+
+        <section>
+            <h3 class="text-xl font-black text-gray-900 mb-3">7. Disclaimer</h3>
+            <p>
+                MMU OSSD is provided "as is," as an ongoing student-built project, without warranties of any kind.
+                We do not guarantee uninterrupted availability or that the platform will be free of errors.
+            </p>
+        </section>
+
+        <section>
+            <h3 class="text-xl font-black text-gray-900 mb-3">8. Changes to These Terms</h3>
+            <p>
+                We may revise these Terms from time to time. Continued use of the platform after changes are posted
+                constitutes acceptance of the revised Terms.
+            </p>
+        </section>
+
+        <section>
+            <h3 class="text-xl font-black text-gray-900 mb-3">9. Contact</h3>
+            <p>
+                Questions about these Terms can be directed to the platform administrators through your MMU student
+                email.
+            </p>
+        </section>
+
+        <div class="pt-6 border-t border-gray-100 flex flex-wrap gap-3">
+            <a href="{{ url_for('views.privacy_policy') }}" class="bg-gray-100 text-gray-700 px-6 py-3 rounded-xl font-bold hover:bg-gray-200 transition">
+                View Privacy Policy
+            </a>
+            <a href="{{ url_for('views.home') }}" class="bg-gray-100 text-gray-700 px-6 py-3 rounded-xl font-bold hover:bg-gray-200 transition">
+                Back to Home
+            </a>
+        </div>
+    </div>
+</main>
+
+<footer class="bg-gray-100 border-t mt-20 py-10">
+    <div class="container mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div class="text-center md:text-left text-gray-400 text-sm">
+            &copy; 2026 Multimedia University Open Source Software Directory
+        </div>
+        <div class="flex items-center gap-6 text-sm font-semibold text-gray-500">
+            <a href="{{ url_for('views.about') }}" class="hover:text-red-600 transition">About</a>
+            <a href="{{ url_for('views.privacy_policy') }}" class="hover:text-red-600 transition">Privacy Policy</a>
+            <a href="{{ url_for('views.terms_of_service') }}" class="hover:text-red-600 transition">Terms of Service</a>
+        </div>
+    </div>
+</footer>
+
+<script>
+    const API = '/api';
+
+    // ── Smooth Mobile Menu Toggle ─────────────────────────────────────────────
+    const menuBtn    = document.getElementById('menu-btn');
+    const mobileMenu = document.getElementById('mobile-menu');
+
+    function openMenu() {
+        mobileMenu.classList.add('menu-open');
+        menuBtn.classList.add('is-open');
+        menuBtn.setAttribute('aria-expanded', 'true');
+    }
+
+    function closeMenu() {
+        mobileMenu.classList.remove('menu-open');
+        menuBtn.classList.remove('is-open');
+        menuBtn.setAttribute('aria-expanded', 'false');
+    }
+
+    menuBtn.addEventListener('click', () => {
+        mobileMenu.classList.contains('menu-open') ? closeMenu() : openMenu();
+    });
+
+    mobileMenu.querySelectorAll('a, button').forEach(el => {
+        el.addEventListener('click', closeMenu);
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!menuBtn.contains(e.target) && !mobileMenu.contains(e.target)) {
+            closeMenu();
+        }
+    });
+
+    async function logout() {
+        await fetch(`${API}/logout`, { method: 'POST' });
+        window.location.href = '/login';
+    }
+
+    document.getElementById('logout-btn').addEventListener('click', logout);
+    document.getElementById('logout-btn-mobile').addEventListener('click', logout);
+
+    function toggleTheme() {
+        const htmlEl = document.documentElement;
+        const newTheme = htmlEl.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        htmlEl.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+    }
+</script>
+</body>
+</html>
