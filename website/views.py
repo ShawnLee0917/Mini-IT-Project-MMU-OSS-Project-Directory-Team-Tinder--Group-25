@@ -1171,6 +1171,18 @@ def search():
     all_projects = Project.query.order_by(Project.created_at.desc()).all()
     return render_template("Search.html", projects=all_projects)
 
+@views.route('/about')
+def about():
+    return render_template("About.html")
+
+@views.route('/privacy-policy')
+def privacy_policy():
+    return render_template("Privacy_policy.html")
+
+@views.route('/terms-of-service')
+def terms_of_service():
+    return render_template("Term_of_service.html")
+
 @views.route('/suggestions')
 def suggestions():
     if 'user_email' not in session:
@@ -2761,6 +2773,7 @@ def get_project_comments(project_id):
         'author_id': c.user_id,
         'author_name': c.author.name,
         'author_email': c.author.email,
+        'author_avatar': (c.author.avatar_path if c.author.avatar_path.startswith('http') else f'/static/uploads/{c.author.avatar_path}') if c.author.avatar_path else '',
         'content': c.content,
         'comment_type': c.comment_type,
         'label': c.label,
