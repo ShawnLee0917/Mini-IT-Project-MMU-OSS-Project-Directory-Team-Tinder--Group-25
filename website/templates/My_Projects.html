@@ -94,6 +94,11 @@
             color: var(--text-primary) !important;
             border-color: var(--border-color) !important;
         }
+
+        html[data-theme="dark"] footer {
+            background-color: #262626 !important;
+            border-color: var(--border-color) !important;
+        }
         
         html[data-theme="dark"] input:focus,
         html[data-theme="dark"] textarea:focus,
@@ -219,8 +224,8 @@
         <div class="hidden md:flex space-x-8 items-center font-medium">
             <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
             <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
-            <a href="{{ url_for('views.hottest_projects') }}" class="text-white transition">Hottest Projects</a>
-            <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
+            <a href="{{ url_for('views.hottest_projects') }}" class="hover:text-red-200 transition">Hottest Projects</a>
+            <a href="{{ url_for('views.my_projects') }}" class="text-red-200 border-b-2 border-red-200">My Projects</a>
             <a href="{{ url_for('views.profile') }}" class="bg-red-800 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-500/50 cursor-pointer hover:bg-red-900 transition">
                 <span id="nav-email" class="text-sm">{{ session.get('user_email', 'Guest') }}</span>
                 <i class="fas fa-user-circle text-lg"></i>
@@ -353,6 +358,19 @@
         </div>
     </section>
 </main>
+
+<footer class="bg-gray-100 border-t mt-20 py-10">
+    <div class="container mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div class="text-center md:text-left text-gray-400 text-sm">
+            &copy; 2026 CampusBuilds. All rights reserved.
+        </div>
+        <div class="flex items-center gap-6 text-sm font-semibold text-gray-500">
+            <a href="{{ url_for('views.about') }}" class="hover:text-red-600 transition">About</a>
+            <a href="{{ url_for('views.privacy_policy') }}" class="hover:text-red-600 transition">Privacy Policy</a>
+            <a href="{{ url_for('views.terms_of_service') }}" class="hover:text-red-600 transition">Terms of Service</a>
+        </div>
+    </div>
+</footer>
 
 <script>
     const IS_FILE = window.location.protocol === 'file:';

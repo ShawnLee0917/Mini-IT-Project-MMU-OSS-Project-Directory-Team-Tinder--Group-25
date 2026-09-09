@@ -135,6 +135,10 @@
             background-color: #f3f4f6 !important;
         }
 
+        html[data-theme="dark"] footer {
+            border-color: var(--border-color) !important;
+        }
+
                 /* ── Animated Hamburger Button ─────────────────────────── */
         .hamburger {
             display: flex;
@@ -276,7 +280,7 @@
     <div class="container mx-auto px-6">
         <div class="max-w-4xl">
         <h2 class="text-4xl font-black text-gray-900">Join a Mission</h2>
-        <p class="text-gray-500 mt-2 text-lg">Find projects that match your skills and keep the MMU legacy alive.</p>
+        <p class="text-gray-500 mt-2 text-lg">Find projects that match your skills.</p>
             
         <div class="mt-8 flex flex-col md:flex-row gap-4">
             <div class="relative flex-grow">
@@ -445,8 +449,15 @@
 </template>
 
 <footer class="bg-gray-100 border-t mt-20 py-10">
-    <div class="container mx-auto px-6 text-center text-gray-400 text-sm">
-        &copy; 2026 Multimedia University Open Source Software Directory
+    <div class="container mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div class="text-center md:text-left text-gray-400 text-sm">
+            &copy; 2026 CampusBuilds. All rights reserved.
+        </div>
+        <div class="flex items-center gap-6 text-sm font-semibold text-gray-500">
+            <a href="{{ url_for('views.about') }}" class="hover:text-red-600 transition">About</a>
+            <a href="{{ url_for('views.privacy_policy') }}" class="hover:text-red-600 transition">Privacy Policy</a>
+            <a href="{{ url_for('views.terms_of_service') }}" class="hover:text-red-600 transition">Terms of Service</a>
+        </div>
     </div>
 </footer>
 
