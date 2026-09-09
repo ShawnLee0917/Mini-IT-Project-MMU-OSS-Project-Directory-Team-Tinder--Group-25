@@ -585,9 +585,16 @@
                     </h5>
                     <div class="flex items-center gap-4 justify-between">
                         <a href="{% if project.user %}{{ url_for('views.view_user_profile', user_id=project.user.id) }}{% else %}#{% endif %}" class="flex items-center gap-4 flex-1 text-decoration-none hover:opacity-80 transition rounded-lg p-2 -m-2">
+                            {% set lead_avatar = project.user.avatar_path if project.user and project.user.avatar_path else '' %}
+                            {% if lead_avatar %}
+                            <img src="{{ lead_avatar if lead_avatar.startswith('http') else '/static/uploads/' + lead_avatar }}"
+                                alt="{{ project.user.name }}"
+                                class="w-12 h-12 rounded-full object-cover flex-shrink-0">
+                            {% else %}
                             <div class="w-12 h-12 rounded-full bg-red-100 border-2 border-red-200 flex items-center justify-center text-red-600 font-bold text-lg flex-shrink-0">
                                 {{ project.user.name[0] | upper if project.user else 'U' }}
                             </div>
+                            {% endif %}
                             <div class="min-w-0 flex-1">
                                 <div class="font-bold text-gray-900">{{ project.user.name if project.user else 'Anonymous User' }}</div>
                                 <div class="text-xs text-gray-500">{{ project.user.faculty if project.user else 'MMU Student' }}</div>
@@ -835,6 +842,19 @@
         </div>
     </div>
 </div>
+
+<footer class="bg-gray-100 border-t mt-20 py-10">
+    <div class="container mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div class="text-center md:text-left text-gray-400 text-sm">
+            &copy; 2026 Multimedia University Open Source Software Directory
+        </div>
+        <div class="flex items-center gap-6 text-sm font-semibold text-gray-500">
+            <a href="{{ url_for('views.about') }}" class="hover:text-red-600 transition">About</a>
+            <a href="{{ url_for('views.privacy_policy') }}" class="hover:text-red-600 transition">Privacy Policy</a>
+            <a href="{{ url_for('views.terms_of_service') }}" class="hover:text-red-600 transition">Terms of Service</a>
+        </div>
+    </div>
+</footer>
 
 <script id="page-data" type="application/json">
 {
@@ -1467,9 +1487,11 @@ function createCommentHTML(comment) {
         return `
             <div class="bg-white p-6 rounded-2xl border border-gray-100">
                 <div class="flex items-start gap-4">
-                    <div class="w-10 h-10 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center font-bold flex-shrink-0">
+                    ${comment.author_avatar
+                        ? `<img src="${comment.author_avatar}" alt="${escapeHtml(comment.author_name || '')}" class="w-10 h-10 rounded-full object-cover flex-shrink-0">`
+                        : `<div class="w-10 h-10 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center font-bold flex-shrink-0">
                         ${comment.author_name ? comment.author_name[0].toUpperCase() : '?'}
-                    </div>
+                    </div>`}
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-2">
                             <span class="font-semibold text-gray-400 text-sm">${comment.author_name || 'Unknown'}</span>
@@ -1597,9 +1619,11 @@ function createCommentHTML(comment) {
         <div class="bg-white p-6 rounded-2xl border border-gray-100 group relative hover:shadow-md transition">
             ${actionBar}
             <div class="flex items-start gap-4">
-                <div class="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-bold flex-shrink-0 cursor-pointer hover:opacity-80 transition user-profile-link" data-user-id="${comment.author_id}">
+                ${comment.author_avatar
+                    ? `<img src="${comment.author_avatar}" alt="${escapeHtml(comment.author_name)}" class="w-10 h-10 rounded-full object-cover flex-shrink-0 cursor-pointer hover:opacity-80 transition user-profile-link" data-user-id="${comment.author_id}">`
+                    : `<div class="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-bold flex-shrink-0 cursor-pointer hover:opacity-80 transition user-profile-link" data-user-id="${comment.author_id}">
                     ${comment.author_name[0].toUpperCase()}
-                </div>
+                </div>`}
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2 flex-wrap">
                         <span class="font-semibold text-gray-900 cursor-pointer hover:text-red-600 transition user-profile-link ${roleClass}" data-user-id="${comment.author_id}">${roleIcon} ${comment.author_name}</span>
