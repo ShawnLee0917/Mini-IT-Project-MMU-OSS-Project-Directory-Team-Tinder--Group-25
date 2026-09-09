@@ -329,9 +329,9 @@
                             {{ profile_user.name[0] | upper }}
                         </div>
                         <img id="avatar-img"
-                            src="{% if profile_user.avatar_path %}/static/uploads/{{ profile_user.avatar_path }}{% endif %}"
+                            src="{{ avatar_url }}"
                             alt="Profile photo"
-                            class="{% if not profile_user.avatar_path %}hidden{% endif %} w-24 h-24 rounded-full object-cover absolute inset-0">
+                            class="{% if not avatar_url %}hidden{% endif %} w-24 h-24 rounded-full object-cover absolute inset-0">
                     </div>
 
                     <h2 class="text-2xl font-black">{{ profile_user.name }}</h2>
@@ -511,6 +511,19 @@
         </div>
         {% endif %}
     </main>
+
+    <footer class="bg-gray-100 border-t mt-20 py-10">
+    <div class="container mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div class="text-center md:text-left text-gray-400 text-sm">
+            &copy; 2026 Multimedia University Open Source Software Directory
+        </div>
+        <div class="flex items-center gap-6 text-sm font-semibold text-gray-500">
+            <a href="{{ url_for('views.about') }}" class="hover:text-red-600 transition">About</a>
+            <a href="{{ url_for('views.privacy_policy') }}" class="hover:text-red-600 transition">Privacy Policy</a>
+            <a href="{{ url_for('views.terms_of_service') }}" class="hover:text-red-600 transition">Terms of Service</a>
+        </div>
+    </div>
+</footer>
 
     <script>
         const API = '/api';
