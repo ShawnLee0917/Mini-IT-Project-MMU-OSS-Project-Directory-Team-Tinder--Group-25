@@ -354,6 +354,19 @@
     </section>
 </main>
 
+<footer class="bg-gray-100 border-t mt-20 py-10">
+    <div class="container mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div class="text-center md:text-left text-gray-400 text-sm">
+            &copy; 2026 Multimedia University Open Source Software Directory
+        </div>
+        <div class="flex items-center gap-6 text-sm font-semibold text-gray-500">
+            <a href="{{ url_for('views.about') }}" class="hover:text-red-600 transition">About</a>
+            <a href="{{ url_for('views.privacy_policy') }}" class="hover:text-red-600 transition">Privacy Policy</a>
+            <a href="{{ url_for('views.terms_of_service') }}" class="hover:text-red-600 transition">Terms of Service</a>
+        </div>
+    </div>
+</footer>
+
 <script>
     const IS_FILE = window.location.protocol === 'file:';
     const API = '/api';
