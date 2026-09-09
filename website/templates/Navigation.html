@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MMU Open Source Directory</title>
+    <title>CampusBuilds</title>
     <!-- This is the Tailwind CSS that i used for the website. -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!--https://cdnjs.com/ -->
@@ -128,6 +128,11 @@
         }
 
         html[data-theme="dark"] .divide-gray-50 {
+            border-color: var(--border-color) !important;
+        }
+
+        html[data-theme="dark"] footer {
+            background-color: #262626 !important;
             border-color: var(--border-color) !important;
         }
 
@@ -265,7 +270,7 @@
             </button>
 
             <h1 class="text-2xl font-extrabold tracking-tighter">
-                MMU <span class="font-light text-red-200">OSSD</span>
+                Campus <span class="font-light text-red-200">Builds</span>
             </h1>
         </div>
 
@@ -439,7 +444,7 @@
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div class="bg-gradient-to-r from-red-600 to-red-700 px-6 py-4 flex items-center justify-between">
                 <h3 class="font-black text-white text-base flex items-center gap-2">
-                    <i class="fas fa-brain"></i> AI Suggested Projects
+                    <i class="fas fa-brain"></i> Projects You May Be Interested In
                 </h3>
                 <span class="text-[10px] font-bold bg-white/20 text-white px-2 py-1 rounded-full tracking-widest uppercase">Smart Match</span>
             </div>
@@ -490,7 +495,7 @@
 <footer class="bg-gray-100 border-t mt-20 py-10">
     <div class="container mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
         <div class="text-center md:text-left text-gray-400 text-sm">
-            &copy; 2026 Multimedia University Open Source Software Directory
+            &copy; 2026 CampusBuilds. All rights reserved.
         </div>
         <div class="flex items-center gap-6 text-sm font-semibold text-gray-500">
             <a href="{{ url_for('views.about') }}" class="hover:text-red-600 transition">About</a>

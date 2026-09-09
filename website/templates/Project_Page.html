@@ -107,6 +107,10 @@
             color: #dc2626 !important;
         }
 
+        html[data-theme="dark"] footer {
+            border-color: var(--border-color) !important;
+        }
+
         html[data-theme="dark"] #logout-btn:hover,
         html[data-theme="dark"] #logout-btn-mobile:hover {
             background-color: #f3f4f6 !important;
@@ -799,7 +803,7 @@
                     <h4 class="text-xs font-black text-white uppercase tracking-widest flex items-center gap-2">
                         <i class="fas fa-brain text-red-400"></i> Similar Projects
                     </h4>
-                    <span class="text-[10px] font-bold bg-white/15 text-gray-300 px-2 py-0.5 rounded-full tracking-widest uppercase">AI</span>
+                    <span class="text-[10px] font-bold bg-white/15 text-gray-300 px-2 py-0.5 rounded-full tracking-widest uppercase">Smart Match</span>
                 </div>
                 <div id="similar-projects-list" class="divide-y divide-gray-50">
                     <div class="p-5 text-center text-gray-400 text-sm">
@@ -846,7 +850,7 @@
 <footer class="bg-gray-100 border-t mt-20 py-10">
     <div class="container mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
         <div class="text-center md:text-left text-gray-400 text-sm">
-            &copy; 2026 Multimedia University Open Source Software Directory
+            &copy; 2026 CampusBuilds. All rights reserved.
         </div>
         <div class="flex items-center gap-6 text-sm font-semibold text-gray-500">
             <a href="{{ url_for('views.about') }}" class="hover:text-red-600 transition">About</a>
