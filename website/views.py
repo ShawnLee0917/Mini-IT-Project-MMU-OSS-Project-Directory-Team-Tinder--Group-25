@@ -8,6 +8,7 @@ import logging
 import json
 import cloudinary.uploader
 from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 import uuid
@@ -983,10 +984,17 @@ def send_otp_email(receiver_email, otp_code):
     #current_app.logger.info(message)
 
     if not MAIL_USERNAME or not MAIL_PASSWORD:
-        print("SMTP Error: MAIL_USERNAME or MAIL_PASSWORD not found in .env file.")
-        return False
+            print("SMTP Error: MAIL_USERNAME or MAIL_PASSWORD not found in .env file.")
+            return False
 
     try:
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = "MMU OSSD Verification Code"
+        msg['From'] = f"MMU OSSD <{MAIL_USERNAME}>"
+        msg['To'] = receiver_email
+
+        text_content = f"Welcome to MMU OSSD!\n\nYour 6-digit verification code is: {otp_code}\n\nThis code will expire in 15 minutes."
+
         html_content = f"""
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
             <h2>Welcome to MMU OSSD!</h2>
@@ -994,10 +1002,12 @@ def send_otp_email(receiver_email, otp_code):
             <p>This code will expire in 15 minutes.</p>
         </div>
         """
-        msg = MIMEText(html_content, 'html')
-        msg['Subject'] = "MMU OSSD Verification Code"
-        msg['From'] = f"MMU OSSD <{MAIL_USERNAME}>"
-        msg['To'] = receiver_email
+
+        part1 = MIMEText(text_content, 'plain')
+        part2 = MIMEText(html_content, 'html')
+
+        msg.attach(part1)
+        msg.attach(part2)
 
         server = smtplib.SMTP('smtp.gmail.com', 587)
         server.starttls()
@@ -1010,8 +1020,8 @@ def send_otp_email(receiver_email, otp_code):
         
     except Exception as e:
         print(f"SMTP Email Automation Error: {e}")
-        return False
-        
+        return False        
+    
 @views.route('/')
 @views.route('/home')
 def home():
