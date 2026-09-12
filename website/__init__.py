@@ -46,14 +46,13 @@ def create_app():
     
     app.register_blueprint(views, url_prefix='/')
 
-    if not db_url:
-        with app.app_context():
-            db.create_all()
-            try:
-                _initialize_default_labels()
-                _initialize_admin_system()
-            except Exception as e:
-                print(f"Local initialization notice (Data might already exist): {e}")
+    with app.app_context():
+        db.create_all()
+        try:
+            _initialize_default_labels()
+            _initialize_admin_system()
+        except Exception as e:
+            print(f"Local initialization notice (Data might already exist): {e}")
 
     return app
 
@@ -121,7 +120,7 @@ def _initialize_admin_system():
         ADMIN_EMAILS = [
             'Lee.Kai.Shuen@student.mmu.edu.my',
             'lee.kai.shuen1@student.mmu.edu.my',
-            'theng.zhong.yee@student.mmu.edu.my'
+            'theng.zhong.yee@student.mmu.edu.my',
             'theng.zhong.yee1@student.mmu.edu.my',
             'klpoh@mmu.edu.my',
         ]
