@@ -5,6 +5,7 @@ import random
 import smtplib
 import sys
 import logging
+import requests
 import json
 import cloudinary.uploader
 from email.mime.text import MIMEText
@@ -966,13 +967,16 @@ def api_admin_dismiss_report():
         print(f"\n💥 [CRITICAL ERROR] Dismiss API crashed due to: {str(e)}\n")
         return jsonify({'error': f'Database failure: {str(e)}'}), 500
     
-# --- ADDED: Auto-Email Sending Function ---
-# Reference: Python smtplib - https://docs.python.org/3/library/smtplibsmtplib.html
-MAIL_USERNAME = os.environ.get("MAIL_USERNAME")
-MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD")
+
+    # --- ADDED: Auto-Email Sending Function ---
+    # Reference: Python smtplib - https://docs.python.org/3/library/smtplibsmtplib.html
+    #message = f"\n{'='*70}\n[DEVELOPMENT MODE] OTP CODE FOR: {receiver_email}\n{'='*70}\nOTP CODE: {otp_code}\nVerification URL: http://127.0.0.1:5000/verify\nDirect OTP URL: http://127.0.0.1:5000/test_otp/{receiver_email}\n{'='*70}\n"
+
+# 获取 Mailgun 环境变量
+MAILGUN_DOMAIN = os.environ.get("MAILGUN_DOMAIN")
+MAILGUN_API_KEY = os.environ.get("MAILGUN_API_KEY")
 
 def send_otp_email(receiver_email, otp_code):
-    #message = f"\n{'='*70}\n[DEVELOPMENT MODE] OTP CODE FOR: {receiver_email}\n{'='*70}\nOTP CODE: {otp_code}\nVerification URL: http://127.0.0.1:5000/verify\nDirect OTP URL: http://127.0.0.1:5000/test_otp/{receiver_email}\n{'='*70}\n"
     
     #print(message, flush=True)
     #sys.stdout.write(message)
@@ -982,46 +986,42 @@ def send_otp_email(receiver_email, otp_code):
     
     #logging.info(message)
     #current_app.logger.info(message)
+    
+    if not MAILGUN_DOMAIN or not MAILGUN_API_KEY:
+        print("Mailgun Error: Missing API Key or Domain in environment variables.")
+        return False
 
-    if not MAIL_USERNAME or not MAIL_PASSWORD:
-            print("SMTP Error: MAIL_USERNAME or MAIL_PASSWORD not found in .env file.")
-            return False
+    text_content = f"Welcome to CampusBuilds!\n\nYour 6-digit verification code is: {otp_code}\n\nThis code will expire in 15 minutes."
+    
+    html_content = f"""
+    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2>Welcome to CampusBuilds!</h2>
+        <p>Your 6-digit verification code is: <strong style="font-size: 24px; color: #dc2626;">{otp_code}</strong></p>
+        <p>This code will expire in 15 minutes.</p>
+    </div>
+    """
 
     try:
-        msg = MIMEMultipart('alternative')
-        msg['Subject'] = "MMU OSSD Verification Code"
-        msg['From'] = f"MMU OSSD <{MAIL_USERNAME}>"
-        msg['To'] = receiver_email
-
-        text_content = f"Welcome to MMU OSSD!\n\nYour 6-digit verification code is: {otp_code}\n\nThis code will expire in 15 minutes."
-
-        html_content = f"""
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2>Welcome to MMU OSSD!</h2>
-            <p>Your 6-digit verification code is: <strong style="font-size: 24px; color: #dc2626;">{otp_code}</strong></p>
-            <p>This code will expire in 15 minutes.</p>
-        </div>
-        """
-
-        part1 = MIMEText(text_content, 'plain')
-        part2 = MIMEText(html_content, 'html')
-
-        msg.attach(part1)
-        msg.attach(part2)
-
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
-        server.login(MAIL_USERNAME, MAIL_PASSWORD)
-        server.send_message(msg)
-        server.quit()
+        response = requests.post(
+            f"https://api.mailgun.net/v3/{MAILGUN_DOMAIN}/messages",
+            auth=("api", MAILGUN_API_KEY),
+            data={
+                "from": f"CampusBuilds <noreply@{MAILGUN_DOMAIN}>",
+                "to": [receiver_email],
+                "subject": "CampusBuilds Verification Code",
+                "text": text_content,
+                "html": html_content
+            }
+        )
+        response.raise_for_status()
         
-        print(f"OTP email successfully sent to {receiver_email} via Gmail SMTP.")
+        print(f"OTP email successfully sent to {receiver_email} via Mailgun.")
         return True
         
     except Exception as e:
-        print(f"SMTP Email Automation Error: {e}")
-        return False        
-    
+        print(f"Mailgun Email API Error: {e}")
+        return False
+        
 @views.route('/')
 @views.route('/home')
 def home():
