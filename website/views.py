@@ -1436,7 +1436,7 @@ def list_project():
         new_project.languages = langs 
         new_project.roles_needed = roles 
         new_project.description = desc
-        new_project.status = 'Active'
+        new_project.status = request.form.get('status', 'Active')
 
         db.session.add(new_project)
         
