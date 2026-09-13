@@ -972,7 +972,6 @@ def api_admin_dismiss_report():
     # Reference: Python smtplib - https://docs.python.org/3/library/smtplibsmtplib.html
     #message = f"\n{'='*70}\n[DEVELOPMENT MODE] OTP CODE FOR: {receiver_email}\n{'='*70}\nOTP CODE: {otp_code}\nVerification URL: http://127.0.0.1:5000/verify\nDirect OTP URL: http://127.0.0.1:5000/test_otp/{receiver_email}\n{'='*70}\n"
 
-# 获取 Mailgun 环境变量
 MAILGUN_DOMAIN = os.environ.get("MAILGUN_DOMAIN")
 MAILGUN_API_KEY = os.environ.get("MAILGUN_API_KEY")
 
@@ -2326,6 +2325,49 @@ def respond_to_invitation(request_id, action):
         
     db.session.commit()
     return jsonify({'success': msg})
+
+@views.route('/api/project/<int:project_id>/transfer_ownership/<int:user_id>', methods=['PUT'])
+def transfer_project_ownership(project_id, user_id):
+    """Transfer project ownership to an existing member"""
+    err = require_login()
+    if err: return err
+    
+    project = Project.query.get_or_404(project_id)
+    current_user = get_current_user()
+    
+    if project.user_id != current_user.id:
+        return jsonify({"error": "Unauthorized. Only the Project Lead can transfer ownership."}), 403
+        
+    target_member = ProjectMember.query.filter_by(project_id=project_id, user_id=user_id).first()
+    if not target_member:
+        return jsonify({"error": "Target user is not a member of this project."}), 404
+        
+    try:
+        old_owner_member = ProjectMember(
+            project_id=project_id, 
+            user_id=current_user.id, 
+            role='admin'
+        )
+        db.session.add(old_owner_member)
+        
+        project.user_id = user_id
+        
+        db.session.delete(target_member)
+        
+        history = MemberHistory(
+            user_id=user_id, 
+            project_id=project_id, 
+            action='joined', 
+            reason='Promoted to Project Lead'
+        )
+        db.session.add(history)
+        
+        db.session.commit()
+        return jsonify({"success": True, "message": "Ownership transferred successfully"}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Database error: {str(e)}"}), 500
 
 @views.route('/api/project/<int:project_id>/member/<int:user_id>/role', methods=['PUT'])
 def update_member_role(project_id, user_id):
