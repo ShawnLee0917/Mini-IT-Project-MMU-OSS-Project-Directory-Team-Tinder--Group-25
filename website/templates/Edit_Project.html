@@ -358,14 +358,9 @@
                             </div>
                             <div>
                                 <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Target Roles Needed</label>
-                                <select name="roles_needed"
-                                    class="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 focus:border-red-500 focus:bg-white outline-none transition font-medium appearance-none">
-                                    <option value="Lead Maintainer" {% if project.roles_needed=='Lead Maintainer' %}selected{% endif %}>Lead Maintainer</option>
-                                    <option value="Frontend Developer" {% if project.roles_needed=='Frontend Developer' %}selected{% endif %}>Frontend Developer</option>
-                                    <option value="Backend Developer" {% if project.roles_needed=='Backend Developer' %}selected{% endif %}>Backend Developer</option>
-                                    <option value="UI/UX Designer" {% if project.roles_needed=='UI/UX Designer' %}selected{% endif %}>UI/UX Designer</option>
-                                    <option value="Documentation Writer" {% if project.roles_needed=='Documentation Writer' %}selected{% endif %}>Documentation Writer</option>
-                                </select>
+                                <input type="text" name="roles_needed" id="roles-input" autocomplete="off" value="{{ project.roles_needed }}"
+                                    placeholder="e.g. Frontend Developer, ML Engineer"
+                                    class="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 focus:border-red-500 focus:bg-white outline-none transition font-medium">
                             </div>
                         </div>
                     </section>

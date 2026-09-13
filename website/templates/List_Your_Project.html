@@ -288,12 +288,22 @@
                             <input type="text" name="project_name" placeholder="e.g. MMU Smart Shuttle Tracker" required
                                 class="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 focus:border-red-500 focus:bg-white outline-none transition font-medium">
                         </div>
-                        <div>
-                            <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Repository URL (GitHub/GitLab)</label>
-                            <div class="relative">
-                                <i class="fab fa-github absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg"></i>
-                                <input type="url" name="repo_url" placeholder="https://github.com/username/repo" required
-                                    class="w-full bg-gray-50 border-2 border-gray-100 rounded-xl pl-12 pr-4 py-3 focus:border-red-500 focus:bg-white outline-none transition font-medium">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Repository URL (GitHub/GitLab)</label>
+                                <div class="relative">
+                                    <i class="fab fa-github absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg"></i>
+                                    <input type="url" name="repo_url" placeholder="https://github.com/username/repo" required
+                                        class="w-full bg-gray-50 border-2 border-gray-100 rounded-xl pl-12 pr-4 py-3 focus:border-red-500 focus:bg-white outline-none transition font-medium">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Project Status</label>
+                                <select name="status" class="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 focus:border-red-500 focus:bg-white outline-none transition font-medium appearance-none">
+                                    <option value="Active" selected>Active</option>
+                                    <option value="Seeking Maintainer">Seeking Maintainer</option>
+                                    <option value="Finished">Finished</option>
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -313,15 +323,14 @@
                             <input type="text" name="languages" placeholder="Python, React, PostgreSQL" required
                                 class="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 focus:border-red-500 focus:bg-white outline-none transition font-medium">
                         </div>
-                        <div>
+                        <div class="relative">
                             <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Target Roles Needed</label>
-                            <select name="roles_needed" class="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 focus:border-red-500 focus:bg-white outline-none transition font-medium appearance-none">
-                                <option>Lead Maintainer</option>
-                                <option>Frontend Developer</option>
-                                <option>Backend Developer</option>
-                                <option>UI/UX Designer</option>
-                                <option>Documentation Writer</option>
-                            </select>
+                            <input type="text" name="roles_needed" id="roles-input" autocomplete="off"
+                                placeholder="e.g. Frontend Developer, ML Engineer"
+                                class="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 focus:border-red-500 focus:bg-white outline-none transition font-medium">
+                            <div id="roles-suggestions"
+                                class="hidden absolute z-20 mt-1 w-full bg-white border-2 border-gray-100 rounded-xl shadow-lg overflow-hidden">
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -652,6 +661,46 @@ function toggleTheme() {
 
 // Attach this function to your dark mode switch button trigger
 document.getElementById('theme-toggle-btn').addEventListener('click', toggleTheme);
+
+// ─── Target Roles: free-typing input with a custom suggestions dropdown (no native arrow) ───
+(function () {
+    const ROLE_OPTIONS = ['Lead Maintainer', 'Frontend Developer', 'Backend Developer', 'UI/UX Designer', 'Documentation Writer'];
+    const input = document.getElementById('roles-input');
+    const box = document.getElementById('roles-suggestions');
+    if (!input || !box) return;
+
+    function renderSuggestions() {
+        const query = input.value.trim().toLowerCase();
+        const matches = ROLE_OPTIONS.filter(r => r.toLowerCase().includes(query));
+        if (matches.length === 0) {
+            box.classList.add('hidden');
+            box.innerHTML = '';
+            return;
+        }
+        box.innerHTML = matches.map(role =>
+            `<button type="button" class="role-option block w-full text-left px-4 py-2 text-sm font-medium hover:bg-red-50 hover:text-red-600 transition">${role}</button>`
+        ).join('');
+        box.classList.remove('hidden');
+    }
+
+    input.addEventListener('focus', renderSuggestions);
+    input.addEventListener('input', renderSuggestions);
+
+    box.addEventListener('mousedown', (e) => {
+        const btn = e.target.closest('.role-option');
+        if (!btn) return;
+        e.preventDefault();
+        input.value = btn.textContent;
+        box.classList.add('hidden');
+        input.focus();
+    });
+
+    document.addEventListener('click', (e) => {
+        if (e.target !== input && !box.contains(e.target)) {
+            box.classList.add('hidden');
+        }
+    });
+})();
 </script>
 </body>
 </html>
