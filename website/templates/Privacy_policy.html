@@ -206,6 +206,31 @@
         #mobile-menu a:nth-child(5)  { transition-delay: 0.21s; }
         #mobile-menu button          { transition-delay: 0.25s; }
         #mobile-menu #nav-email-mobile { transition-delay: 0.29s; }
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.fade-in { animation: fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) both; }
+
+/* Stagger each section/block inside the Privacy Policy card so it cascades in */
+main .space-y-8 > * {
+    opacity: 0;
+    animation: fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+main .space-y-8 > *:nth-child(1)  { animation-delay: 0.10s; }
+main .space-y-8 > *:nth-child(2)  { animation-delay: 0.15s; }
+main .space-y-8 > *:nth-child(3)  { animation-delay: 0.20s; }
+main .space-y-8 > *:nth-child(4)  { animation-delay: 0.25s; }
+main .space-y-8 > *:nth-child(5)  { animation-delay: 0.30s; }
+main .space-y-8 > *:nth-child(6)  { animation-delay: 0.35s; }
+main .space-y-8 > *:nth-child(7)  { animation-delay: 0.40s; }
+main .space-y-8 > *:nth-child(8)  { animation-delay: 0.45s; }
+main .space-y-8 > *:nth-child(9)  { animation-delay: 0.50s; }
+main .space-y-8 > *:nth-child(10) { animation-delay: 0.55s; }
+main .space-y-8 > *:nth-child(11) { animation-delay: 0.60s; }
+main .space-y-8 > *:nth-child(12) { animation-delay: 0.65s; }
+main .space-y-8 > *:nth-child(13) { animation-delay: 0.70s; }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-900">
@@ -258,7 +283,7 @@
         </div>
     </nav>
 
-<header class="bg-white border-b py-14">
+<header class="bg-white border-b py-14 fade-in">
     <div class="container mx-auto px-6 max-w-4xl">
         <h2 class="text-4xl font-black text-gray-900">Privacy Policy</h2>
         <p class="text-gray-500 mt-3 text-lg">Last updated: September 2026</p>

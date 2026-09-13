@@ -172,6 +172,24 @@
             transform: translateY(0);
             opacity: 1;
         }
+
+        /* ── Page entrance animation ───────────────────────────── */
+        @keyframes fadeSlideUp {
+            from { opacity: 0; transform: translateY(18px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .page-header-in {
+            animation: fadeSlideUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+        }
+        .tabs-in {
+            opacity: 0;
+            animation: fadeSlideUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+            animation-delay: 0.1s;
+        }
+        .project-card {
+            opacity: 0;
+            animation: fadeSlideUp 0.45s cubic-bezier(0.4, 0, 0.2, 1) both;
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-900">
@@ -225,7 +243,7 @@
     </div>
 </nav>
 
-<header class="bg-white border-b py-16">
+<header class="bg-white border-b py-16 page-header-in">
     <div class="container mx-auto px-6 text-center">
         <h2 class="text-4xl md:text-5xl font-black text-gray-900 leading-tight flex items-center justify-center gap-4">
             <i class="fas fa-fire text-red-600"></i> Hottest Projects
@@ -238,7 +256,7 @@
 
 <main class="container mx-auto px-6 py-12 max-w-4xl">
     
-    <div class="flex justify-center mb-10">
+    <div class="flex justify-center mb-10 tabs-in">
         <div class="bg-gray-100 p-1.5 rounded-2xl inline-flex shadow-sm border border-gray-200">
             <button id="tab-trending" onclick="switchTab('trending')" class="px-8 py-3 rounded-xl text-sm font-black transition-all bg-white text-red-600 shadow-sm border border-gray-100 flex items-center gap-2">
                 <i class="fas fa-rocket"></i> Trending Now
@@ -252,7 +270,7 @@
     <div id="list-trending" class="space-y-6">
         {% if trending_projects %}
             {% for project in trending_projects %}
-            <div class="bg-white border border-gray-200 rounded-2xl p-6 hover:border-red-300 hover:shadow-md transition shadow-sm group relative overflow-hidden">
+            <div class="project-card bg-white border border-gray-200 rounded-2xl p-6 hover:border-red-300 hover:shadow-md transition shadow-sm group relative overflow-hidden">
                 
                 {% if loop.index <= 3 %}
                 <div class="absolute top-0 right-0 bg-gradient-to-r from-orange-500 to-red-500 text-white text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-bl-xl shadow-sm">
@@ -305,7 +323,7 @@
     <div id="list-alltime" class="space-y-6 hidden">
         {% if all_time_projects %}
             {% for project in all_time_projects %}
-            <div class="bg-white border border-gray-200 rounded-2xl p-6 hover:border-gray-400 hover:shadow-md transition shadow-sm group relative overflow-hidden">
+            <div class="project-card bg-white border border-gray-200 rounded-2xl p-6 hover:border-gray-400 hover:shadow-md transition shadow-sm group relative overflow-hidden">
                 
                 {% if loop.index <= 3 %}
                 <div class="absolute top-0 right-0 bg-gray-800 text-white text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-bl-xl shadow-sm">
@@ -371,6 +389,15 @@
     const API = '/api';
     const IS_FILE = window.location.protocol === 'file:';
 
+    // ── Stagger the project card entrance animation ────────────────────────────
+    function staggerCards(container) {
+        container.querySelectorAll('.project-card').forEach((card, i) => {
+            card.style.animationDelay = `${i * 0.06}s`;
+        });
+    }
+    staggerCards(document.getElementById('list-trending'));
+    staggerCards(document.getElementById('list-alltime'));
+
     // ── Tabs ────────────────────────────────────────────────────────
     function switchTab(tab) {
         const btnTrending = document.getElementById('tab-trending');
@@ -383,11 +410,13 @@
             btnAllTime.className = "px-8 py-3 rounded-xl text-sm font-bold transition-all text-gray-500 hover:text-gray-800 flex items-center gap-2";
             listTrending.classList.remove('hidden');
             listAllTime.classList.add('hidden');
+            staggerCards(listTrending);
         } else {
             btnTrending.className = "px-8 py-3 rounded-xl text-sm font-bold transition-all text-gray-500 hover:text-gray-800 flex items-center gap-2";
             btnAllTime.className = "px-8 py-3 rounded-xl text-sm font-black transition-all bg-white text-gray-800 shadow-sm border border-gray-100 flex items-center gap-2";
             listTrending.classList.add('hidden');
             listAllTime.classList.remove('hidden');
+            staggerCards(listAllTime);
         }
     }
 
