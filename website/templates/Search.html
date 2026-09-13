@@ -328,7 +328,7 @@
 <main class="container mx-auto px-6 py-10">
     <div class="flex flex-col lg:flex-row gap-10">
         
-        <aside class="w-full lg:w-64 space-y-8 col-in col-in-1">
+        <aside class="w-full lg:w-64 flex-shrink-0 space-y-8 col-in col-in-1">
             <div>
                 <h4 class="text-sm font-black text-gray-800 uppercase mb-4">Project Status</h4>
                 <div class="space-y-3">
@@ -413,7 +413,7 @@
             </div>
         </aside>
 
-        <div class="flex-grow col-in col-in-2">
+        <div class="flex-grow min-w-0 col-in col-in-2">
             <div class="flex justify-between items-center mb-6">
                 <span class="text-sm text-gray-500 font-medium">Showing <span id="result-count" class="text-gray-900 font-bold">{{ projects|length }}</span> projects</span>
                 <select id="sort-select" class="bg-transparent text-sm font-bold text-gray-700 focus:outline-none cursor-pointer">
