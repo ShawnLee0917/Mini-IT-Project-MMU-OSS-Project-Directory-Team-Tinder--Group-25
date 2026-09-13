@@ -21,10 +21,20 @@
         #avatar-overlay { transition: opacity 0.2s; }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(8px); }
+            from { opacity: 0; transform: translateY(16px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        .fade-in { animation: fadeIn 0.35s ease both; }
+        .fade-in { animation: fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) both; }
+
+        /* Stagger each block inside the About card so it cascades in */
+        main .space-y-8 > * {
+            opacity: 0;
+            animation: fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+        }
+        main .space-y-8 > *:nth-child(1) { animation-delay: 0.15s; }
+        main .space-y-8 > *:nth-child(2) { animation-delay: 0.22s; }
+        main .space-y-8 > *:nth-child(3) { animation-delay: 0.29s; }
+        main .space-y-8 > *:nth-child(4) { animation-delay: 0.36s; }
 
                 :root {
             --bg-primary: #ffffff;
@@ -258,7 +268,7 @@
         </div>
     </nav>
 
-<header class="bg-white border-b py-14">
+<header class="bg-white border-b py-14 fade-in">
     <div class="container mx-auto px-6 max-w-4xl">
         <h2 class="text-4xl font-black text-gray-900">About CampusBuilds</h2>
         <p class="text-gray-500 mt-3 text-lg">The CampusBuilds — where student projects live on.</p>

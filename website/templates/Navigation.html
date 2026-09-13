@@ -171,6 +171,25 @@
             border-bottom: 1px solid #444444 !important;
         }
 
+        /* ── Page entrance animation ───────────────────────────── */
+        @keyframes fadeSlideUp {
+            from { opacity: 0; transform: translateY(18px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .page-header-in {
+            animation: fadeSlideUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+        }
+        .col-in {
+            opacity: 0;
+            animation: fadeSlideUp 0.55s cubic-bezier(0.4, 0, 0.2, 1) both;
+        }
+        .col-in.col-in-1 { animation-delay: 0.1s; }
+        .col-in.col-in-2 { animation-delay: 0.2s; }
+        .feed-card {
+            opacity: 0;
+            animation: fadeSlideUp 0.45s cubic-bezier(0.4, 0, 0.2, 1) both;
+        }
+
         /* ── Animated Hamburger Button ─────────────────────────── */
         .hamburger {
             display: flex;
@@ -256,6 +275,50 @@
         /* Hide Scrollbar for filter tabs */
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* ── Notification dropdown animation ───────────────────── */
+        #notif-dropdown {
+            transform-origin: top right;
+            transform: translateY(-10px) scale(0.95);
+            opacity: 0;
+            transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1),
+                        opacity   0.18s ease;
+        }
+        #notif-dropdown.dropdown-open {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+        }
+
+        /* ── Modal animations (delete confirm + image viewer) ──── */
+        #delete-confirm-modal,
+        #imageModal {
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+        #delete-confirm-modal.modal-open,
+        #imageModal.modal-open {
+            opacity: 1;
+        }
+        #delete-confirm-modal > div {
+            transform: scale(0.9) translateY(10px);
+            opacity: 0;
+            transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1),
+                        opacity   0.22s ease;
+        }
+        #delete-confirm-modal.modal-open > div {
+            transform: scale(1) translateY(0);
+            opacity: 1;
+        }
+        #imageModal img {
+            transform: scale(0.92);
+            opacity: 0;
+            transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1),
+                        opacity   0.22s ease;
+        }
+        #imageModal.modal-open img {
+            transform: scale(1);
+            opacity: 1;
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-900">
@@ -339,7 +402,7 @@
     </div>
 </nav>
 
-<header class="bg-white border-b py-16">
+<header class="bg-white border-b py-16 page-header-in">
     <div class="container mx-auto px-6 text-center md:text-left">
         <h2 class="text-5xl font-black text-gray-900 leading-tight">Project Communication Hub</h2>
         <p class="text-gray-500 mt-4 text-xl max-w-2xl">
@@ -358,7 +421,7 @@
 
 <main class="container mx-auto px-6 py-10 grid grid-cols-1 lg:grid-cols-3 gap-10">
     
-    <div class="lg:col-span-2 space-y-8">
+    <div class="lg:col-span-2 space-y-8 col-in col-in-1">
         
         <div class="flex items-center">
             <h3 class="text-xs font-bold text-gray-400 uppercase tracking-[0.2em] whitespace-nowrap">
@@ -440,7 +503,7 @@
         </div>
     </div>
 
-    <div class="space-y-8">
+    <div class="space-y-8 col-in col-in-2">
 
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div class="bg-gradient-to-r from-red-600 to-red-700 px-6 py-4 flex items-center justify-between">
@@ -517,12 +580,16 @@
         modalImg.src = imageSrc;
         modal.classList.remove('hidden');
         document.body.style.overflow = 'hidden';
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            modal.classList.add('modal-open');
+        }));
     }
 
     function closeModal() {
         const modal = document.getElementById('imageModal');
-        modal.classList.add('hidden');
+        modal.classList.remove('modal-open');
         document.body.style.overflow = 'auto';
+        setTimeout(() => modal.classList.add('hidden'), 280);
     }
 
     // Theme Toggle Functionality
@@ -610,10 +677,23 @@
     const notifBtn = document.getElementById('notif-btn');
     const notifDropdown = document.getElementById('notif-dropdown');
     
-    // Toggle notifications dropdown
+    // Toggle notifications dropdown (animated)
+    function openNotifDropdown() {
+        notifDropdown.classList.remove('hidden');
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            notifDropdown.classList.add('dropdown-open');
+        }));
+    }
+
+    function closeNotifDropdown() {
+        if (notifDropdown.classList.contains('hidden')) return;
+        notifDropdown.classList.remove('dropdown-open');
+        setTimeout(() => notifDropdown.classList.add('hidden'), 220);
+    }
+
     notifBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        notifDropdown.classList.toggle('hidden');
+        notifDropdown.classList.contains('hidden') ? openNotifDropdown() : closeNotifDropdown();
     });
 
     // Close menus when clicking outside
@@ -622,7 +702,7 @@
             closeMenu();
         }
         if (!notifBtn.contains(e.target) && !notifDropdown.contains(e.target)) {
-            notifDropdown.classList.add('hidden');
+            closeNotifDropdown();
         }
     });
 
@@ -950,7 +1030,7 @@ async function dismissGeneralNotif(notifId) {
                     }
 
                     return `
-                    <div class="bg-white border border-gray-200 rounded-2xl p-5 hover:border-gray-300 transition shadow-sm ${starHighlightClass}">
+                    <div class="feed-card bg-white border border-gray-200 rounded-2xl p-5 hover:border-gray-300 transition shadow-sm ${starHighlightClass}">
                         <div class="flex justify-between items-start mb-3">
                             <div class="flex items-center gap-3">
                                 <div class="w-10 h-10 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 text-sm font-bold shrink-0">
@@ -1003,7 +1083,7 @@ async function dismissGeneralNotif(notifId) {
                 const postStarIcon = p.is_starred ? '<i class="fas fa-star text-amber-500 mr-1" title="Starred Project Content"></i>' : '';
 
                 return `
-                <div class="bg-white border border-gray-200 rounded-2xl p-5 hover:border-gray-300 transition shadow-sm group ${postStarHighlight}" id="post-${p.id}">
+                <div class="feed-card bg-white border border-gray-200 rounded-2xl p-5 hover:border-gray-300 transition shadow-sm group ${postStarHighlight}" id="post-${p.id}">
                     <div class="flex justify-between items-start mb-3">
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-10 rounded-full bg-red-100 border border-red-200 flex items-center justify-center text-red-600 text-sm font-bold shrink-0 uppercase">
@@ -1066,6 +1146,10 @@ async function dismissGeneralNotif(notifId) {
                 </div>
                 `;
             }).join('');
+
+            container.querySelectorAll('.feed-card').forEach((card, i) => {
+                card.style.animationDelay = `${i * 0.06}s`;
+            });
 
         } catch (err) {
             console.error(err);
@@ -1439,13 +1523,17 @@ function customConfirm() {
 
         modal.classList.remove('hidden');
         document.body.style.overflow = 'hidden';
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            modal.classList.add('modal-open');
+        }));
 
         const handleConfirm = () => { cleanup(); resolve(true); };
         const handleCancel = () => { cleanup(); resolve(false); };
 
         function cleanup() {
-            modal.classList.add('hidden');
+            modal.classList.remove('modal-open');
             document.body.style.overflow = 'auto';
+            setTimeout(() => modal.classList.add('hidden'), 280);
             btnConfirm.removeEventListener('click', handleConfirm);
             btnCancel.removeEventListener('click', handleCancel);
         }

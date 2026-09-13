@@ -209,6 +209,37 @@
         #mobile-menu a:nth-child(5)  { transition-delay: 0.21s; }
         #mobile-menu button          { transition-delay: 0.25s; }
         #mobile-menu #nav-email-mobile { transition-delay: 0.29s; }
+
+        /* ── Modal / popup animations ──────────────────────────── */
+        #badge-modal,
+        #edit-profile-modal,
+        #settings-modal,
+        #reset-password-modal {
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+        #badge-modal.modal-open,
+        #edit-profile-modal.modal-open,
+        #settings-modal.modal-open,
+        #reset-password-modal.modal-open {
+            opacity: 1;
+        }
+        #edit-profile-modal > div,
+        #settings-modal > div,
+        #reset-password-modal > div,
+        #badge-modal > .relative {
+            transform: scale(0.92) translateY(12px);
+            opacity: 0;
+            transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1),
+                        opacity   0.22s ease;
+        }
+        #edit-profile-modal.modal-open > div,
+        #settings-modal.modal-open > div,
+        #reset-password-modal.modal-open > div,
+        #badge-modal.modal-open > .relative {
+            transform: scale(1) translateY(0);
+            opacity: 1;
+        }
     </style>
 </head>
 
@@ -634,6 +665,18 @@
     <script>
         const API = '/api';
 
+        // ── Animated modal open/close helpers ───────────────────────────────
+        function openModalEl(el) {
+            el.classList.remove('hidden');
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                el.classList.add('modal-open');
+            }));
+        }
+        function closeModalEl(el) {
+            el.classList.remove('modal-open');
+            setTimeout(() => el.classList.add('hidden'), 280);
+        }
+
         
         // Badge appearance + description data — keys are lowercase for case-insensitive matching
         const BADGE_INFO = {
@@ -715,11 +758,11 @@
             document.getElementById('badge-modal-icon-wrap').className = `w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 ${info.bg}`;
             document.getElementById('badge-modal-title').textContent = name;
             document.getElementById('badge-modal-desc').textContent = info.desc;
-            document.getElementById('badge-modal').classList.remove('hidden');
+            openModalEl(document.getElementById('badge-modal'));
         }
 
         function closeBadgeModal() {
-            document.getElementById('badge-modal').classList.add('hidden');
+            closeModalEl(document.getElementById('badge-modal'));
         }
 
         document.addEventListener('keydown', e => { if (e.key === 'Escape') closeBadgeModal(); });
@@ -935,7 +978,8 @@ function applyTheme(theme) {
                 setBio(bio);
                 renderSkills(skills);
                 renderInterests(interests);
-                document.getElementById('edit-profile-modal').classList.add('hidden');
+                document.getElementById('edit-profile-modal').classList.remove('modal-open');
+                setTimeout(() => document.getElementById('edit-profile-modal').classList.add('hidden'), 280);
                 showToast('Profile saved ✓');
                 await loadAISuggestions(); // Reload suggestions after updating interests
             } catch {
@@ -1022,7 +1066,7 @@ function applyTheme(theme) {
                 // Apply theme immediately
                 applyTheme(data.display.theme);
                 
-                document.getElementById('settings-modal').classList.add('hidden');
+                closeModalEl(document.getElementById('settings-modal'));
                 showToast('Settings saved ✓');
             } catch {
                 showToast('Failed to save settings', false);
@@ -1225,11 +1269,11 @@ function applyTheme(theme) {
             document.getElementById('open-edit-modal-btn').addEventListener('click', () => {
                 populateInterestCheckboxes();
                 updateCheckboxesFromDisplay();
-                modal.classList.remove('hidden');
+                openModalEl(modal);
             });
-            document.getElementById('close-modal-btn').addEventListener('click', () => modal.classList.add('hidden'));
-            document.getElementById('cancel-edit-btn').addEventListener('click', () => modal.classList.add('hidden'));
-            modal.addEventListener('click', e => { if (e.target === modal) modal.classList.add('hidden'); });
+            document.getElementById('close-modal-btn').addEventListener('click', () => closeModalEl(modal));
+            document.getElementById('cancel-edit-btn').addEventListener('click', () => closeModalEl(modal));
+            modal.addEventListener('click', e => { if (e.target === modal) closeModalEl(modal); });
             
             // Settings Modal
             const settingsModal = document.getElementById('settings-modal');
@@ -1253,11 +1297,11 @@ function applyTheme(theme) {
             document.getElementById('open-settings-modal-btn').addEventListener('click', async () => {
                 await loadSettings();
                 activateSettingsTab('settings-notifications'); // Open directly on Notifications tab
-                settingsModal.classList.remove('hidden');
+                openModalEl(settingsModal);
             });
-            document.getElementById('close-settings-btn').addEventListener('click', () => settingsModal.classList.add('hidden'));
-            document.getElementById('cancel-settings-btn').addEventListener('click', () => settingsModal.classList.add('hidden'));
-            settingsModal.addEventListener('click', e => { if (e.target === settingsModal) settingsModal.classList.add('hidden'); });
+            document.getElementById('close-settings-btn').addEventListener('click', () => closeModalEl(settingsModal));
+            document.getElementById('cancel-settings-btn').addEventListener('click', () => closeModalEl(settingsModal));
+            settingsModal.addEventListener('click', e => { if (e.target === settingsModal) closeModalEl(settingsModal); });
             
             document.getElementById('save-settings-btn').addEventListener('click', saveSettings);
 
@@ -1312,11 +1356,11 @@ function applyTheme(theme) {
                 if (knownEmail && knownEmail.includes('@')) {
                     document.getElementById('reset-email-input').value = knownEmail;
                 }
-                resetModal.classList.remove('hidden');
+                openModalEl(resetModal);
             });
-            document.getElementById('close-reset-password-btn').addEventListener('click', () => resetModal.classList.add('hidden'));
-            document.getElementById('close-reset-success-btn').addEventListener('click', () => resetModal.classList.add('hidden'));
-            resetModal.addEventListener('click', e => { if (e.target === resetModal) resetModal.classList.add('hidden'); });
+            document.getElementById('close-reset-password-btn').addEventListener('click', () => closeModalEl(resetModal));
+            document.getElementById('close-reset-success-btn').addEventListener('click', () => closeModalEl(resetModal));
+            resetModal.addEventListener('click', e => { if (e.target === resetModal) closeModalEl(resetModal); });
 
             // Step 1 -> POST /api/forgot-password { email }
             async function sendResetCode() {

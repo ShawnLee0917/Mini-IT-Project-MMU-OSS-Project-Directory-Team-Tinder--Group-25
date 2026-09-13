@@ -200,6 +200,23 @@
         #mobile-menu a:nth-child(5)  { transition-delay: 0.21s; }
         #mobile-menu button          { transition-delay: 0.25s; }
         #mobile-menu #nav-email-mobile { transition-delay: 0.29s; }
+
+        /* ── Page entrance animation ───────────────────────────── */
+        @keyframes fadeSlideUp {
+            from { opacity: 0; transform: translateY(18px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .page-header-in {
+            animation: fadeSlideUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+        }
+        .section-in {
+            animation: fadeSlideUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+            animation-delay: 0.1s;
+        }
+        .project-card {
+            opacity: 0;
+            animation: fadeSlideUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-900">
@@ -253,7 +270,7 @@
     </div>
 </nav>
 
-<header class="bg-white border-b py-12">
+<header class="bg-white border-b py-12 page-header-in">
     <div class="container mx-auto px-6">
         <h2 class="text-4xl font-black text-gray-900 leading-tight">My Engineering Squads</h2>
         <p class="text-gray-500 mt-2 text-lg">Manage your project handovers and active collaborations.</p>
@@ -263,7 +280,7 @@
 <main class="container mx-auto px-6 py-10">
     
     <section class="mb-12">
-        <div class="flex items-center mb-8">
+        <div class="flex items-center mb-8 section-in">
             <h3 class="text-xs font-bold text-red-600 uppercase tracking-[0.2em] whitespace-nowrap">
                 Projects I Own (Handovers)
             </h3>
@@ -273,7 +290,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             
             {% for project in own_projects %}
-            <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition flex flex-col">
+            <div class="project-card bg-white p-6 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition flex flex-col">
                 <div class="flex justify-between items-start mb-4">
                     <div>
                         <h4 class="text-xl font-bold text-gray-800">{{ project.project_name }}</h4>
@@ -297,7 +314,7 @@
             </div>
             {% endfor %}
 
-            <a href="{{ url_for('views.list_project') }}" class="border-2 border-dashed border-gray-300 rounded-2xl flex flex-col items-center justify-center p-6 hover:border-red-400 hover:bg-red-50 transition group min-h-[200px]">
+            <a href="{{ url_for('views.list_project') }}" class="project-card border-2 border-dashed border-gray-300 rounded-2xl flex flex-col items-center justify-center p-6 hover:border-red-400 hover:bg-red-50 transition group min-h-[200px]">
                 <i class="fas fa-plus-circle text-3xl text-gray-300 group-hover:text-red-500 mb-2"></i>
                 <span class="font-bold text-gray-400 group-hover:text-red-600 text-sm uppercase tracking-widest">List New Project</span>
             </a>
@@ -305,7 +322,7 @@
         </div>
     </section>
 
-    <section class="mt-12">
+    <section class="mt-12 section-in">
         <div class="flex items-center mb-6">
             <h3 class="text-xs font-bold text-gray-400 uppercase tracking-[0.2em]">
                 Contributing To
@@ -317,7 +334,7 @@
             
             {% if joined_projects and joined_projects|length > 0 %}
                 {% for project in joined_projects %}
-                <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition flex flex-col justify-between h-full">
+                <div class="project-card bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition flex flex-col justify-between h-full">
                     <div>
                         <h4 class="text-lg font-bold text-gray-900 mb-1">{{ project.project_name }}</h4>
                         <p class="text-xs text-gray-500 mb-4">Led by: @{{ project.user.name }}</p>
@@ -406,6 +423,11 @@
         if (!menuBtn.contains(e.target) && !mobileMenu.contains(e.target)) {
             closeMenu();
         }
+    });
+
+    // ── Stagger the project card entrance animation ────────────────────────────
+    document.querySelectorAll('.project-card').forEach((card, i) => {
+        card.style.animationDelay = `${0.12 + i * 0.07}s`;
     });
 
     async function logout() {

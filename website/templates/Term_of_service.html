@@ -206,6 +206,29 @@
         #mobile-menu a:nth-child(5)  { transition-delay: 0.21s; }
         #mobile-menu button          { transition-delay: 0.25s; }
         #mobile-menu #nav-email-mobile { transition-delay: 0.29s; }
+
+        @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.fade-in { animation: fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) both; }
+
+/* Stagger each section/block inside the Terms of Service card so it cascades in */
+main .space-y-8 > * {
+    opacity: 0;
+    animation: fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+main .space-y-8 > *:nth-child(1)  { animation-delay: 0.10s; }
+main .space-y-8 > *:nth-child(2)  { animation-delay: 0.15s; }
+main .space-y-8 > *:nth-child(3)  { animation-delay: 0.20s; }
+main .space-y-8 > *:nth-child(4)  { animation-delay: 0.25s; }
+main .space-y-8 > *:nth-child(5)  { animation-delay: 0.30s; }
+main .space-y-8 > *:nth-child(6)  { animation-delay: 0.35s; }
+main .space-y-8 > *:nth-child(7)  { animation-delay: 0.40s; }
+main .space-y-8 > *:nth-child(8)  { animation-delay: 0.45s; }
+main .space-y-8 > *:nth-child(9)  { animation-delay: 0.50s; }
+main .space-y-8 > *:nth-child(10) { animation-delay: 0.55s; }
+main .space-y-8 > *:nth-child(11) { animation-delay: 0.60s; }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-900">
@@ -258,7 +281,7 @@
         </div>
     </nav>
 
-<header class="bg-white border-b py-14">
+<header class="bg-white border-b py-14 fade-in">
     <div class="container mx-auto px-6 max-w-4xl">
         <h2 class="text-4xl font-black text-gray-900">Terms of Service</h2>
         <p class="text-gray-500 mt-3 text-lg">Last updated: September 2026</p>
@@ -269,14 +292,14 @@
     <div class="max-w-4xl mx-auto bg-white p-8 md:p-12 rounded-3xl border border-gray-100 shadow-sm space-y-8 text-gray-600 leading-relaxed">
 
         <p>
-            These Terms of Service ("Terms") govern your access to and use of MMU OSSD (the "platform"). By
+            These Terms of Service ("Terms") govern your access to and use of CampusBuilds (the "platform"). By
             registering for an account or otherwise using the platform, you agree to be bound by these Terms.
         </p>
 
         <section>
             <h3 class="text-xl font-black text-gray-900 mb-3">1. Eligibility</h3>
             <p>
-                MMU OSSD is intended for use by Multimedia University students, staff, and affiliates. Registration
+                CampusBuilds is intended for use by Multimedia University students, staff, and affiliates. Registration
                 requires a valid MMU-affiliated email address and completion of the OTP email verification step.
             </p>
         </section>
@@ -294,7 +317,7 @@
             <h3 class="text-xl font-black text-gray-900 mb-3">3. Project Listings and Content</h3>
             <ul class="space-y-2 list-disc list-inside">
                 <li>You retain ownership of the projects, code references, and content you list on the platform.</li>
-                <li>By posting a project, comment, or suggestion, you grant MMU OSSD a license to display that content to other users as part of the platform's normal operation.</li>
+                <li>By posting a project, comment, or suggestion, you grant CampusBuilds a license to display that content to other users as part of the platform's normal operation.</li>
                 <li>You are solely responsible for the accuracy of your project listings and for having the right to share any content you upload, including images.</li>
                 <li>Project owners may hard-delete their own projects; deletion is permanent and cannot be undone.</li>
             </ul>
@@ -336,7 +359,7 @@
         <section>
             <h3 class="text-xl font-black text-gray-900 mb-3">7. Disclaimer</h3>
             <p>
-                MMU OSSD is provided "as is," as an ongoing student-built project, without warranties of any kind.
+                CampusBuilds is provided "as is," as an ongoing student-built project, without warranties of any kind.
                 We do not guarantee uninterrupted availability or that the platform will be free of errors.
             </p>
         </section>

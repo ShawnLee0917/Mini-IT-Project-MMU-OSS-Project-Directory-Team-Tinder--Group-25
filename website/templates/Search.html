@@ -223,6 +223,25 @@
         #mobile-menu a:nth-child(5)  { transition-delay: 0.21s; }
         #mobile-menu button          { transition-delay: 0.25s; }
         #mobile-menu #nav-email-mobile { transition-delay: 0.29s; }
+
+        /* ── Page entrance animation ───────────────────────────── */
+        @keyframes fadeSlideUp {
+            from { opacity: 0; transform: translateY(18px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .page-header-in {
+            animation: fadeSlideUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+        }
+        .col-in {
+            opacity: 0;
+            animation: fadeSlideUp 0.55s cubic-bezier(0.4, 0, 0.2, 1) both;
+        }
+        .col-in.col-in-1 { animation-delay: 0.1s; }
+        .col-in.col-in-2 { animation-delay: 0.2s; }
+        .project-card-in {
+            opacity: 0;
+            animation: fadeSlideUp 0.45s cubic-bezier(0.4, 0, 0.2, 1) both;
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-900">
@@ -276,7 +295,7 @@
 </nav>
 
 
-<header class="bg-white border-b py-12">
+<header class="bg-white border-b py-12 page-header-in">
     <div class="container mx-auto px-6">
         <div class="max-w-4xl">
         <h2 class="text-4xl font-black text-gray-900">Join a Mission</h2>
@@ -309,7 +328,7 @@
 <main class="container mx-auto px-6 py-10">
     <div class="flex flex-col lg:flex-row gap-10">
         
-        <aside class="w-full lg:w-64 space-y-8">
+        <aside class="w-full lg:w-64 space-y-8 col-in col-in-1">
             <div>
                 <h4 class="text-sm font-black text-gray-800 uppercase mb-4">Project Status</h4>
                 <div class="space-y-2">
@@ -394,7 +413,7 @@
             </div>
         </aside>
 
-        <div class="flex-grow">
+        <div class="flex-grow col-in col-in-2">
             <div class="flex justify-between items-center mb-6">
                 <span class="text-sm text-gray-500 font-medium">Showing <span id="result-count" class="text-gray-900 font-bold">{{ projects|length }}</span> projects</span>
                 <select id="sort-select" class="bg-transparent text-sm font-bold text-gray-700 focus:outline-none cursor-pointer">
@@ -416,7 +435,7 @@
 
 <!-- Hidden template for projects -->
 <template id="project-template">
-    <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition flex flex-col h-full">
+    <div class="project-card-in bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition flex flex-col h-full">
         <div class="flex justify-between items-start mb-2">
             <h3 class="text-xl font-bold text-gray-900 project-name"></h3>
             <span class="text-xs font-bold bg-green-100 text-green-700 px-3 py-1 rounded-full uppercase tracking-wider project-status"></span>
@@ -619,6 +638,10 @@ function renderProjects(projects) {
         });
 
         document.getElementById('result-count').textContent = projects.length;
+
+        container.querySelectorAll('.project-card-in').forEach((card, i) => {
+            card.style.animationDelay = `${i * 0.05}s`;
+        });
     }
 
     function filterProjects() {
