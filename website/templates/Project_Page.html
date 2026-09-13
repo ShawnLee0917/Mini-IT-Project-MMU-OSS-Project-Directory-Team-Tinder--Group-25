@@ -200,6 +200,65 @@
         #mobile-menu a:nth-child(5)  { transition-delay: 0.21s; }
         #mobile-menu button          { transition-delay: 0.25s; }
         #mobile-menu #nav-email-mobile { transition-delay: 0.29s; }
+
+        /* ── Modal animations (image / edit-comment / add-update / report) ── */
+        #imageModal,
+        #edit-comment-modal,
+        #add-update-modal,
+        #report-modal {
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+        #imageModal.modal-open,
+        #edit-comment-modal.modal-open,
+        #add-update-modal.modal-open,
+        #report-modal.modal-open {
+            opacity: 1;
+        }
+        #imageModal img,
+        #edit-comment-modal > div,
+        #add-update-modal > div,
+        #report-modal > div {
+            transform: scale(0.92) translateY(12px);
+            opacity: 0;
+            transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1),
+                        opacity   0.22s ease;
+        }
+        #imageModal.modal-open img,
+        #edit-comment-modal.modal-open > div,
+        #add-update-modal.modal-open > div,
+        #report-modal.modal-open > div {
+            transform: scale(1) translateY(0);
+            opacity: 1;
+        }
+
+        /* ── Member context-menu dropdown ──────────────────────── */
+        [id^="member-menu-"] {
+            transform-origin: top right;
+            transform: translateY(-8px) scale(0.95);
+            opacity: 0;
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+                        opacity   0.16s ease;
+        }
+        [id^="member-menu-"].dropdown-open {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+        }
+
+        /* ── Page entrance animation ───────────────────────────── */
+        @keyframes fadeSlideUp {
+            from { opacity: 0; transform: translateY(18px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .page-header-in {
+            animation: fadeSlideUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+        }
+        .col-in {
+            opacity: 0;
+            animation: fadeSlideUp 0.55s cubic-bezier(0.4, 0, 0.2, 1) both;
+        }
+        .col-in.col-in-1 { animation-delay: 0.1s; }
+        .col-in.col-in-2 { animation-delay: 0.2s; }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-900">
@@ -253,7 +312,7 @@
     </div>
 </nav>
 
-<header class="bg-white border-b py-12">
+<header class="bg-white border-b py-12 page-header-in">
     <div class="container mx-auto px-6">
         <div>
             <div class="flex items-center gap-3 mb-2">
@@ -338,7 +397,7 @@
 <main class="container mx-auto px-6 py-12">
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
         
-        <div class="lg:col-span-2 space-y-12">
+        <div class="lg:col-span-2 space-y-12 col-in col-in-1">
             
             <section>
                 <div class="flex items-center mb-6">
@@ -578,7 +637,7 @@
 
         </div>
 
-        <div class="space-y-8">
+        <div class="space-y-8 col-in col-in-2">
             <div class="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm">
                 <h4 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-6">Team Structure</h4>
                 
@@ -872,6 +931,18 @@
 <script>
     const IS_FILE = window.location.protocol === 'file:';
     const API = '/api';
+
+    // ── Animated modal open/close helpers ───────────────────────────────
+    function openModalEl(el) {
+        el.classList.remove('hidden');
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            el.classList.add('modal-open');
+        }));
+    }
+    function closeModalEl(el) {
+        el.classList.remove('modal-open');
+        setTimeout(() => el.classList.add('hidden'), 280);
+    }
     
     // Parse Page Data
     const _data           = JSON.parse(document.getElementById('page-data').textContent);
@@ -887,7 +958,7 @@
         const modal = document.getElementById('imageModal');
         const modalImg = document.getElementById('modalImage');
         modalImg.src = imageSrc;
-        modal.classList.remove('hidden');
+        openModalEl(modal);
         document.body.style.overflow = 'hidden';
     }
 
@@ -898,7 +969,7 @@
 
     function closeModal() {
         const modal = document.getElementById('imageModal');
-        modal.classList.add('hidden');
+        closeModalEl(modal);
         document.body.style.overflow = 'auto';
     }
 
@@ -954,11 +1025,11 @@ async function openReportModal(contentType, contentId) {
         titleEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> ${label}`;
     }
 
-    document.getElementById('report-modal').classList.remove('hidden');
+    openModalEl(document.getElementById('report-modal'));
 }
 
 function closeReportModal() {
-    document.getElementById('report-modal').classList.add('hidden');
+    closeModalEl(document.getElementById('report-modal'));
     
     // Reset 'Other' input when modal closes
     document.getElementById('other-reason-container').classList.add('hidden');
@@ -1176,17 +1247,30 @@ async function submitReport(event) {
     function toggleMemberMenu(userId) {
         document.querySelectorAll('[id^="member-menu-"]').forEach(menu => {
             if (menu.id !== `member-menu-${userId}`) {
-                menu.classList.add('hidden');
+                menu.classList.remove('dropdown-open');
+                setTimeout(() => menu.classList.add('hidden'), 200);
             }
         });
-        
+
         const menu = document.getElementById(`member-menu-${userId}`);
-        if (menu) menu.classList.toggle('hidden');
+        if (!menu) return;
+        if (menu.classList.contains('hidden')) {
+            menu.classList.remove('hidden');
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                menu.classList.add('dropdown-open');
+            }));
+        } else {
+            menu.classList.remove('dropdown-open');
+            setTimeout(() => menu.classList.add('hidden'), 200);
+        }
     }
 
     document.addEventListener('click', (e) => {
         if (!e.target.closest('[id^="member-menu-"]') && !e.target.closest('button[onclick^="toggleMemberMenu"]')) {
-            document.querySelectorAll('[id^="member-menu-"]').forEach(menu => menu.classList.add('hidden'));
+            document.querySelectorAll('[id^="member-menu-"]').forEach(menu => {
+                menu.classList.remove('dropdown-open');
+                setTimeout(() => menu.classList.add('hidden'), 200);
+            });
         }
     });
 
@@ -1808,7 +1892,7 @@ function openEditModal(commentId, currentContent) {
 
     document.getElementById('edit-comment-input').value = currentContent;
     renderEditExistingImages();
-    document.getElementById('edit-comment-modal').classList.remove('hidden');
+    openModalEl(document.getElementById('edit-comment-modal'));
 }
 
 function renderEditExistingImages() {
@@ -1850,7 +1934,7 @@ function closeEditModal() {
     pendingEditFiles = [];
     const editPreview = document.getElementById('edit-new-image-preview');
     if (editPreview) editPreview.innerHTML = '';
-    document.getElementById('edit-comment-modal').classList.add('hidden');
+    closeModalEl(document.getElementById('edit-comment-modal'));
 }
 
 async function saveEditComment() {
@@ -2572,11 +2656,11 @@ async function rejectLeaveRequest(projectId, requestId) {
     // ────────────────────────────────────────────────────────────────────
     
     function openUpdateModal() {
-        document.getElementById('add-update-modal').classList.remove('hidden');
+        openModalEl(document.getElementById('add-update-modal'));
     }
 
 function closeUpdateModal() {
-        document.getElementById('add-update-modal').classList.add('hidden');
+        closeModalEl(document.getElementById('add-update-modal'));
         document.getElementById('update-title').value = '';
         document.getElementById('update-content').value = '';
         
