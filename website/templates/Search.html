@@ -328,82 +328,82 @@
 <main class="container mx-auto px-6 py-10">
     <div class="flex flex-col lg:flex-row gap-10">
         
-        <aside class="w-full lg:w-64 space-y-8 col-in col-in-1">
+        <aside class="w-full lg:w-64 flex-shrink-0 space-y-8 col-in col-in-1">
             <div>
                 <h4 class="text-sm font-black text-gray-800 uppercase mb-4">Project Status</h4>
-                <div class="space-y-2">
+                <div class="space-y-3">
                     <label class="flex items-center space-x-3 text-gray-600 cursor-pointer">
-                        <input type="checkbox" class="status-filter w-4 h-4 rounded text-red-600 focus:ring-red-500" value="Seeking Maintainer">
-                        <span class="text-sm">Seeking Maintainer</span>
+                        <input type="checkbox" class="status-filter w-4 h-4 flex-shrink-0 rounded text-red-600 focus:ring-red-500" value="Seeking Maintainer">
+                        <span class="text-sm whitespace-nowrap">Seeking Maintainer</span>
                     </label>
                     <label class="flex items-center space-x-3 text-gray-600 cursor-pointer">
-                        <input type="checkbox" class="status-filter w-4 h-4 rounded text-red-600 focus:ring-red-500" value="Finished">
-                        <span class="text-sm">Finished</span>
+                        <input type="checkbox" class="status-filter w-4 h-4 flex-shrink-0 rounded text-red-600 focus:ring-red-500" value="Finished">
+                        <span class="text-sm whitespace-nowrap">Finished</span>
                     </label>
                     <label class="flex items-center space-x-3 text-gray-600 cursor-pointer">
-                        <input type="checkbox" class="status-filter w-4 h-4 rounded text-red-600 focus:ring-red-500" value="Active">
-                        <span class="text-sm">Active</span>
+                        <input type="checkbox" class="status-filter w-4 h-4 flex-shrink-0 rounded text-red-600 focus:ring-red-500" value="Active">
+                        <span class="text-sm whitespace-nowrap">Active</span>
                     </label>
                 </div>
             </div>
 
             <div>
                 <h4 class="text-sm font-black text-gray-800 uppercase mb-4">Stack</h4>
-                <div class="flex flex-wrap gap-2">
+<div class="flex flex-wrap gap-2">
                     <input type="checkbox" id="python" class="hidden filter-chip tech-filter" value="Python">
-                    <label for="python" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Python</label>
+                    <label for="python" class="inline-block w-auto whitespace-nowrap px-3 py-1.5 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Python</label>
                     
                     <input type="checkbox" id="js" class="hidden filter-chip tech-filter" value="JavaScript">
-                    <label for="js" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">JavaScript</label>
+                    <label for="js" class="inline-block w-auto whitespace-nowrap px-3 py-1.5 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">JavaScript</label>
                     
                     <input type="checkbox" id="HTML" class="hidden filter-chip tech-filter" value="HTML">
-                    <label for="HTML" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">HTML</label>
+                    <label for="HTML" class="inline-block w-auto whitespace-nowrap px-3 py-1.5 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">HTML</label>
 
                     <input type="checkbox" id="CSS" class="hidden filter-chip tech-filter" value="CSS">
-                    <label for="CSS" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">CSS</label>
+                    <label for="CSS" class="inline-block w-auto whitespace-nowrap px-3 py-1.5 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">CSS</label>
 
                     <input type="checkbox" id="dart" class="hidden filter-chip tech-filter" value="Dart">
-                    <label for="dart" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Dart</label>
+                    <label for="dart" class="inline-block w-auto whitespace-nowrap px-3 py-1.5 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Dart</label>
 
                     <input type="checkbox" id="SQL" class="hidden filter-chip tech-filter" value="SQL">
-                    <label for="SQL" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">SQL</label>
+                    <label for="SQL" class="inline-block w-auto whitespace-nowrap px-3 py-1.5 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">SQL</label>
 
                     <input type="checkbox" id="PHP" class="hidden filter-chip tech-filter" value="PHP">
-                    <label for="PHP" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">PHP</label>
+                    <label for="PHP" class="inline-block w-auto whitespace-nowrap px-3 py-1.5 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">PHP</label>
 
                     <input type="checkbox" id="cplusplus" class="hidden filter-chip tech-filter" value="C++">
-                    <label for="cplusplus" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">C++</label>
+                    <label for="cplusplus" class="inline-block w-auto whitespace-nowrap px-3 py-1.5 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">C++</label>
 
                     <input type="checkbox" id="Pandas" class="hidden filter-chip tech-filter" value="Pandas">
-                    <label for="Pandas" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Pandas</label>
+                    <label for="Pandas" class="inline-block w-auto whitespace-nowrap px-3 py-1.5 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Pandas</label>
                     
                     <input type="checkbox" id="NODEJS" class="hidden filter-chip tech-filter" value="Node.js">
-                    <label for="NODEJS" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">NODEJS</label>
+                    <label for="NODEJS" class="inline-block w-auto whitespace-nowrap px-3 py-1.5 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">NODEJS</label>
                     
                     <input type="checkbox" id="Swift" class="hidden filter-chip tech-filter" value="Swift">
-                    <label for="Swift" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Swift</label>
+                    <label for="Swift" class="inline-block w-auto whitespace-nowrap px-3 py-1.5 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Swift</label>
 
                     <input type="checkbox" id="Kotlin" class="hidden filter-chip tech-filter" value="Kotlin">
-                    <label for="Kotlin" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Kotlin</label>
+                    <label for="Kotlin" class="inline-block w-auto whitespace-nowrap px-3 py-1.5 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Kotlin</label>
 
                     <input type="checkbox" id="Go" class="hidden filter-chip tech-filter" value="Go">
-                    <label for="Go" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Go</label>
+                    <label for="Go" class="inline-block w-auto whitespace-nowrap px-3 py-1.5 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Go</label>
 
                     <input type="checkbox" id="R" class="hidden filter-chip tech-filter" value="R">
-                    <label for="R" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">R</label>
+                    <label for="R" class="inline-block w-auto whitespace-nowrap px-3 py-1.5 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">R</label>
 
                     <input type="checkbox" id="Angular" class="hidden filter-chip tech-filter" value="Angular">
-                    <label for="Angular" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Angular</label>
+                    <label for="Angular" class="inline-block w-auto whitespace-nowrap px-3 py-1.5 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Angular</label>
 
                     <input type="checkbox" id="TypeScript" class="hidden filter-chip tech-filter" value="TypeScript">
-                    <label for="TypeScript" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">TypeScript</label>
+                    <label for="TypeScript" class="inline-block w-auto whitespace-nowrap px-3 py-1.5 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">TypeScript</label>
 
                     <input type="checkbox" id="Rust" class="hidden filter-chip tech-filter" value="Rust">
-                    <label for="Rust" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Rust</label>
+                    <label for="Rust" class="inline-block w-auto whitespace-nowrap px-3 py-1.5 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Rust</label>
 
                     <input type="checkbox" id="Others" class="hidden filter-chip tech-filter" value="Others">
-                    <label for="Others" class="px-3 py-1 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Others</label>
-                </div>
+                    <label for="Others" class="inline-block w-auto whitespace-nowrap px-3 py-1.5 border rounded-lg text-xs font-semibold cursor-pointer border-gray-200 text-gray-500 hover:border-red-300 transition">Others</label>
+                </div>                
             </div>
 
             <div class="pt-6 border-t border-gray-200">
@@ -413,7 +413,7 @@
             </div>
         </aside>
 
-        <div class="flex-grow col-in col-in-2">
+        <div class="flex-grow min-w-0 col-in col-in-2">
             <div class="flex justify-between items-center mb-6">
                 <span class="text-sm text-gray-500 font-medium">Showing <span id="result-count" class="text-gray-900 font-bold">{{ projects|length }}</span> projects</span>
                 <select id="sort-select" class="bg-transparent text-sm font-bold text-gray-700 focus:outline-none cursor-pointer">
