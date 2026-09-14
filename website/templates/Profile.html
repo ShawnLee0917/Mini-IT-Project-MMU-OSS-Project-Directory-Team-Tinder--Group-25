@@ -1129,17 +1129,30 @@ function applyTheme(theme) {
                 list.innerHTML = `<div class="text-gray-400 text-sm italic text-center py-4">No projects yet. List one to get started!</div>`;
                 return;
             }
-            list.innerHTML = projects.map(p => `
+            list.innerHTML = projects.map(p => {
+                let statusClasses = 'bg-blue-100 text-blue-700';
+                if (p.status === 'Active') {
+                    statusClasses = 'bg-green-100 text-green-700';
+                } else if (p.status === 'Seeking Maintainer') {
+                    statusClasses = 'bg-yellow-100 text-yellow-700';
+                } else if (p.status === 'Not Active') {
+                    statusClasses = 'bg-gray-100 text-gray-600';
+                }
+                return `
                 <a href="/project/${p.id}" class="block">
                     <div class="flex items-center justify-between p-4 border border-gray-100 rounded-2xl hover:bg-red-50 hover:border-red-200 transition cursor-pointer">
                         <div>
                             <h4 class="font-bold text-gray-800">${escapeHtml(p.project_name)}</h4>
-                            <p class="text-xs text-gray-400 mt-1">${p.status} • ${p.contributors} Contributors</p>
+                            <p class="text-xs text-gray-400 mt-1">
+                                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${statusClasses}">${p.status}</span>
+                                • ${p.contributors} Contributors
+                            </p>
                         </div>
                         <i class="fas fa-chevron-right text-gray-300"></i>
                     </div>
                 </a>
-            `).join('');
+            `;
+            }).join('');
         }
 
         function escapeHtml(text) {
