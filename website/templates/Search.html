@@ -337,8 +337,8 @@
                         <span class="text-sm whitespace-nowrap">Seeking Maintainer</span>
                     </label>
                     <label class="flex items-center space-x-3 text-gray-600 cursor-pointer">
-                        <input type="checkbox" class="status-filter w-4 h-4 flex-shrink-0 rounded text-red-600 focus:ring-red-500" value="Finished">
-                        <span class="text-sm whitespace-nowrap">Finished</span>
+                        <input type="checkbox" class="status-filter w-4 h-4 flex-shrink-0 rounded text-red-600 focus:ring-red-500" value="Not Active">
+                        <span class="text-sm whitespace-nowrap">Not Active</span>
                     </label>
                     <label class="flex items-center space-x-3 text-gray-600 cursor-pointer">
                         <input type="checkbox" class="status-filter w-4 h-4 flex-shrink-0 rounded text-red-600 focus:ring-red-500" value="Active">
@@ -607,7 +607,7 @@ function renderProjects(projects) {
                 statusClasses += 'bg-green-100 text-green-700';
             } else if (project.status === 'Seeking Maintainer') {
                 statusClasses += 'bg-yellow-100 text-yellow-700';
-            } else if (project.status === 'Finished') {
+            } else if (project.status === 'Not Active') {
                 statusClasses += 'bg-gray-100 text-gray-600';
             } else {
                 statusClasses += 'bg-blue-100 text-blue-700';
