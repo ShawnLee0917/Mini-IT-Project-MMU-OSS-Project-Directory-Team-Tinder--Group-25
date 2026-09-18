@@ -1232,7 +1232,12 @@ def view_user_profile(user_id):
     """View another user's profile"""
     user = User.query.get_or_404(user_id)
     current_user = get_current_user()
-    
+
+    # If you click your own avatar/name anywhere on the site, go to your
+    # own editable profile page instead of the read-only public viewer.
+    if current_user and current_user.id == user.id:
+        return redirect(url_for('views.profile'))
+
     # Check privacy settings
     settings = user.settings
     is_private = settings and settings.profile_visibility == 'private'
@@ -1243,8 +1248,13 @@ def view_user_profile(user_id):
         # Only allow viewing if it's the user's own profile
         if not current_user or current_user.id != user.id:
             show_private_message = True
-    
-    return render_template("User_Profile.html", profile_user=user, current_user=current_user, show_private_message=show_private_message)
+
+    if user.avatar_path:
+        avatar_url = user.avatar_path if user.avatar_path.startswith('http') else f"/static/uploads/{user.avatar_path}"
+    else:
+        avatar_url = ''
+
+    return render_template("User_Profile.html", profile_user=user, current_user=current_user, show_private_message=show_private_message, avatar_url=avatar_url)
 
 @views.route('/project/<int:project_id>')
 def project_page(project_id):
@@ -2838,6 +2848,9 @@ def get_project_comments(project_id):
         'updated_at': c.updated_at.isoformat(),
         'images': [{'id': img.id, 'url': img.image_path if img.image_path.startswith('http') else f'/static/uploads/{img.image_path}'} for img in c.images],        
         'reported_by_me': c.id in reported_comment_ids,
+        'reply_to_id': getattr(c, 'reply_to_id', None),
+        'reply_to_author_name': c.reply_to.author.name if getattr(c, 'reply_to', None) and c.reply_to.author else None,
+        'reply_to_content': (c.reply_to.content[:80] if getattr(c, 'reply_to', None) and not getattr(c.reply_to, 'is_deleted', False) else None) if getattr(c, 'reply_to', None) else None,
     } for c in comments])
 
 
@@ -2856,14 +2869,25 @@ def create_project_comment(project_id):
         content = request.form.get('content', '').strip()
         comment_type = request.form.get('comment_type', 'normal')
         label = request.form.get('label', None)
+        reply_to_id = request.form.get('reply_to_id', None)
     else:
         data = request.get_json(silent=True) or {}
         content = data.get('content', '').strip()
         comment_type = data.get('comment_type', 'normal')
         label = data.get('label', None)
+        reply_to_id = data.get('reply_to_id', None)
     
     if not content:
         return jsonify({'error': 'Comment content is required'}), 400
+
+    # Validate the reply target belongs to this same project's comment feed
+    if reply_to_id and str(reply_to_id).isdigit():
+        reply_to_id = int(reply_to_id)
+        target = ProjectComment.query.filter_by(id=reply_to_id, project_id=project_id).first()
+        if not target:
+            reply_to_id = None
+    else:
+        reply_to_id = None
 
     # ─── Core change: insert blacklist keyword filter here ───
     triggered_word = contains_banned_keywords(content)
@@ -2885,7 +2909,7 @@ def create_project_comment(project_id):
         if is_member:
             user_role = 'team-member'    
             
-    comment = ProjectComment(project_id=project_id, user_id=current_user.id, content=content, comment_type=comment_type, label=label if user_role == 'owner' else None, user_role=user_role)  # type: ignore
+    comment = ProjectComment(project_id=project_id, user_id=current_user.id, content=content, comment_type=comment_type, label=label if user_role == 'owner' else None, user_role=user_role, reply_to_id=reply_to_id)  # type: ignore
     
     db.session.add(comment)
     db.session.flush()  # Get comment.id before committing
@@ -2945,6 +2969,8 @@ def create_project_comment(project_id):
         'user_role': comment.user_role,
         'created_at': comment.created_at.isoformat(),
         'images': [{'id': img.id, 'url': img.image_path if img.image_path.startswith('http') else f'/static/uploads/{img.image_path}'} for img in comment.images],
+        'reply_to_id': comment.reply_to_id,
+        'reply_to_author_name': comment.reply_to.author.name if comment.reply_to and comment.reply_to.author else None,
     }), 201
 
 @views.route('/api/my-notifications', methods=['GET'])
@@ -3974,10 +4000,13 @@ def manage_community_post_comments(post_id):
         comments = CommunityPostComment.query.filter_by(post_id=post_id).order_by(CommunityPostComment.created_at.asc()).all()
         result = [{
             'id': c.id,
+            'user_id': c.user_id,
             'user_name': c.author.name,
             'is_owner': c.user_id == current_user.id,
             'content': c.content,
             'parent_id': c.parent_id,
+            'reply_to_user_id': c.reply_to_user_id,
+            'reply_to_user_name': c.reply_to_user.name if c.reply_to_user else None,
             'created_at': c.created_at.isoformat(),
             'image_urls': [
                 img.image_path if img.image_path.startswith('http') else f"/static/uploads/{img.image_path}" 
@@ -3990,10 +4019,12 @@ def manage_community_post_comments(post_id):
         if request.content_type and 'multipart' in request.content_type:
             content = request.form.get('content', '').strip()
             parent_id = request.form.get('parent_id')
+            reply_to_id = request.form.get('reply_to_id')
         else:
             data = request.get_json(silent=True) or {}
             content = data.get('content', '').strip()
             parent_id = data.get('parent_id')
+            reply_to_id = data.get('reply_to_id')
         
         if not content: return jsonify({'error': 'Comment cannot be empty'}), 400
 
@@ -4005,8 +4036,19 @@ def manage_community_post_comments(post_id):
 
         if parent_id and str(parent_id).isdigit(): parent_id = int(parent_id)
         else: parent_id = None
-            
-        comment = CommunityPostComment(post_id=post_id, user_id=current_user.id, content=content, parent_id=parent_id)
+
+        # reply_to_id names the specific comment (root or another reply) this message targets.
+        # We flatten the thread under the root comment (parent_id) but keep the specific
+        # target's author on record so the UI can render a "Name -> Name" tag.
+        reply_to_user_id = None
+        if reply_to_id and str(reply_to_id).isdigit():
+            target_comment = CommunityPostComment.query.filter_by(id=int(reply_to_id), post_id=post_id).first()
+            if target_comment:
+                reply_to_user_id = target_comment.user_id
+                if parent_id is None:
+                    parent_id = target_comment.parent_id or target_comment.id
+
+        comment = CommunityPostComment(post_id=post_id, user_id=current_user.id, content=content, parent_id=parent_id, reply_to_user_id=reply_to_user_id)
         
         if 'images' in request.files:
 

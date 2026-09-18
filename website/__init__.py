@@ -49,6 +49,7 @@ def create_app():
     with app.app_context():
         db.create_all()
         try:
+            _ensure_legacy_schema_columns()
             _initialize_default_labels()
             _initialize_admin_system()
         except Exception as e:
@@ -73,6 +74,8 @@ def _ensure_legacy_schema_columns():
                 conn.execute(text("ALTER TABLE project_comments ADD COLUMN deleted_by_role VARCHAR(20)"))
             if 'deleted_at' not in columns:
                 conn.execute(text("ALTER TABLE project_comments ADD COLUMN deleted_at DATETIME"))
+            if 'reply_to_id' not in columns:
+                conn.execute(text("ALTER TABLE project_comments ADD COLUMN reply_to_id INTEGER"))
 
                 # ─── user_settings missing columns ───
         if 'user_settings' in inspector.get_table_names():
@@ -80,6 +83,13 @@ def _ensure_legacy_schema_columns():
             with db.engine.begin() as conn:
                 if 'notify_badges' not in us_columns:
                     conn.execute(text("ALTER TABLE user_settings ADD COLUMN notify_badges BOOLEAN DEFAULT 1"))
+
+        # ─── community_post_comments missing columns ───
+        if 'community_post_comments' in inspector.get_table_names():
+            cpc_columns = {col['name'] for col in inspector.get_columns('community_post_comments')}
+            with db.engine.begin() as conn:
+                if 'reply_to_user_id' not in cpc_columns:
+                    conn.execute(text("ALTER TABLE community_post_comments ADD COLUMN reply_to_user_id INTEGER"))
 
     except Exception as e:
         print(f"[SCHEMA] Warning during legacy column migration: {str(e)}")

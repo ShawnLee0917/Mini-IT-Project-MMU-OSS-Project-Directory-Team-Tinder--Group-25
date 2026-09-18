@@ -259,6 +259,23 @@
         }
         .col-in.col-in-1 { animation-delay: 0.1s; }
         .col-in.col-in-2 { animation-delay: 0.2s; }
+
+        /* ── Reply reveal pop-in ────────────────────────────────── */
+        @keyframes replyPopIn {
+            from { opacity: 0; transform: translateY(8px) scale(0.96); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .reply-pop-in {
+            animation: replyPopIn 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+        }
+        @keyframes replyControlPop {
+            0%   { opacity: 0; transform: scale(0.85); }
+            60%  { transform: scale(1.08); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        .reply-control-pop {
+            animation: replyControlPop 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-900">
@@ -490,7 +507,12 @@
                     <!-- Header with count -->
                     <div class="flex items-center justify-between px-4 pt-3 pb-2 border-b border-gray-100">
                         <span class="text-xs font-bold text-gray-700 uppercase tracking-widest">Comments</span>
-                        <span id="comment-count-badge" class="text-xs font-bold bg-gray-100 text-gray-600 rounded-full px-2 py-0.5">0</span>
+                        <div class="flex items-center gap-2">
+                            <button id="my-replies-toggle" onclick="toggleMyReplies()" class="text-[10px] font-bold text-gray-400 hover:text-red-500 transition flex items-center gap-1">
+                                <i class="fas fa-filter"></i> My Replies
+                            </button>
+                            <span id="comment-count-badge" class="text-xs font-bold bg-gray-100 text-gray-600 rounded-full px-2 py-0.5">0</span>
+                        </div>
                     </div>
 
                     <!-- Scrollable list -->
@@ -527,6 +549,13 @@
                             </button>
                             <div id="comment-image-preview" class="flex flex-wrap gap-2 mt-2"></div>
                         </div>
+                    </div>
+
+                    <!-- Reply target chip -->
+                    <div id="reply-target-chip" class="hidden items-center gap-2 mx-3 mt-2 mb-0 text-[11px] bg-red-50 border border-red-100 text-red-700 rounded-lg px-2.5 py-1.5">
+                        <i class="fas fa-reply"></i>
+                        <span>Replying to <b id="reply-target-name"></b></span>
+                        <button onclick="cancelCommentReply()" class="ml-auto text-red-400 hover:text-red-700"><i class="fas fa-times"></i></button>
                     </div>
 
                     <!-- Always-visible input bar -->
@@ -1530,12 +1559,39 @@ async function submitReport(event) {
         }
     }
 
+    const threadRevealCount = {}; // root comment id -> number of replies currently shown (0 = collapsed)
+    const threadLastRendered = {}; // root comment id -> reveal count as of the last render (so we only animate newly-shown replies)
+
+    function findThreadRootId(id, byId, guard) {
+        guard = guard || new Set();
+        const c = byId[id];
+        if (!c || !c.reply_to_id || guard.has(id)) return id;
+        guard.add(id);
+        return findThreadRootId(c.reply_to_id, byId, guard);
+    }
+
+    function revealMoreReplies(rootId, totalCount) {
+        const current = threadRevealCount[rootId] || 0;
+        const increment = current === 0 ? 3 : 10; // first press: 3, every press after that: 10 more
+        threadRevealCount[rootId] = Math.min(current + increment, totalCount);
+        renderComments();
+    }
+
+    function collapseThreadReplies(rootId) {
+        threadRevealCount[rootId] = 0;
+        renderComments();
+    }
+
     function renderComments() {
         const container = document.getElementById('comments-list');
         
         let filtered = currentCommentFilter === 'all' 
             ? allComments 
             : allComments.filter(c => c.comment_type === currentCommentFilter);
+
+        if (myRepliesOnly) {
+            filtered = filtered.filter(c => c.author_id === currentUserId && c.reply_to_id);
+        }
 
         // Update count badge
         const badge = document.getElementById('comment-count-badge');
@@ -1545,13 +1601,92 @@ async function submitReport(event) {
             container.innerHTML = `
                 <div class="text-center text-gray-400 py-6">
                     <i class="fas fa-comments text-2xl mb-2"></i>
-                    <p class="text-xs">No comments yet. Be the first to share!</p>
+                    <p class="text-xs">${myRepliesOnly ? "You haven't replied to anyone yet." : 'No comments yet. Be the first to share!'}</p>
                 </div>
             `;
             return;
         }
-        
-        container.innerHTML = filtered.map(comment => createCommentHTML(comment)).join('');
+
+        // Thread view (root messages with a collapsible "View replies") only applies to the
+        // default, unfiltered feed — filtered views (by type, or "My Replies") stay flat since
+        // threading isn't meaningful once messages are cherry-picked out of their context.
+        if (currentCommentFilter !== 'all' || myRepliesOnly) {
+            container.innerHTML = filtered.map(comment => createCommentHTML(comment)).join('');
+            return;
+        }
+
+        const byId = {};
+        allComments.forEach(c => { byId[c.id] = c; });
+
+        const roots = allComments.filter(c => !c.reply_to_id);
+        const repliesByRoot = {};
+        allComments.forEach(c => {
+            if (!c.reply_to_id) return;
+            const rootId = findThreadRootId(c.id, byId);
+            if (!repliesByRoot[rootId]) repliesByRoot[rootId] = [];
+            repliesByRoot[rootId].push(c);
+        });
+        Object.values(repliesByRoot).forEach(list => list.sort((a, b) => new Date(a.created_at) - new Date(b.created_at)));
+
+        container.innerHTML = roots.map(root => {
+            const replies = repliesByRoot[root.id] || [];
+            if (replies.length === 0) return createCommentHTML(root);
+
+            const revealed = threadRevealCount[root.id] || 0;
+            const visibleReplies = replies.slice(0, revealed);
+            const remaining = replies.length - revealed;
+
+            let controlsHTML;
+            if (revealed === 0) {
+                controlsHTML = `
+                    <button onclick="revealMoreReplies(${root.id}, ${replies.length})" class="reply-control-pop text-xs font-semibold text-red-500 hover:text-red-700 transition px-1 py-1">
+                        <i class="fas fa-chevron-down"></i> View ${replies.length} ${replies.length === 1 ? 'reply' : 'replies'}
+                    </button>`;
+            } else {
+                const loadMoreHTML = remaining > 0
+                    ? `<button onclick="revealMoreReplies(${root.id}, ${replies.length})" class="text-xs font-semibold text-red-500 hover:text-red-700 transition px-1 py-1">
+                            <i class="fas fa-chevron-down"></i> View ${Math.min(10, remaining)} more ${remaining === 1 ? 'reply' : 'replies'}
+                       </button>`
+                    : '';
+                controlsHTML = `
+                    <div class="reply-control-pop flex items-center gap-3">
+                        ${loadMoreHTML}
+                        <button onclick="collapseThreadReplies(${root.id})" class="text-xs font-semibold text-gray-400 hover:text-gray-600 transition px-1 py-1">
+                            <i class="fas fa-chevron-up"></i> Hide replies
+                        </button>
+                    </div>`;
+            }
+
+            const repliesHTML = revealed > 0
+                ? `<div class="ml-6 md:ml-10 mt-2 space-y-2 border-l-2 border-gray-100 pl-4">
+                        ${visibleReplies.map((r, i) => {
+                            const isNew = i >= (threadLastRendered[root.id] || 0);
+                            return isNew
+                                ? `<div class="reply-pop-in" style="animation-delay:${Math.min(i - (threadLastRendered[root.id] || 0), 6) * 60}ms">${createCommentHTML(r)}</div>`
+                                : createCommentHTML(r);
+                        }).join('')}
+                   </div>`
+                : '';
+            threadLastRendered[root.id] = revealed;
+
+            // Before anything is revealed, the "View X replies" prompt sits right under the
+            // root comment. Once replies are showing, the load-more/hide controls move below
+            // the visible replies instead, so they read as "end of what you're seeing".
+            return revealed === 0
+                ? `<div>
+                        ${createCommentHTML(root)}
+                        <div class="ml-6 md:ml-10 -mt-1">
+                            ${controlsHTML}
+                        </div>
+                   </div>`
+                : `<div>
+                        ${createCommentHTML(root)}
+                        ${repliesHTML}
+                        <div class="ml-6 md:ml-10">
+                            ${controlsHTML}
+                        </div>
+                   </div>`;
+        }).join('');
     }
 
 function createCommentHTML(comment) {
@@ -1703,6 +1838,11 @@ function createCommentHTML(comment) {
 
     const ts = new Date(comment.created_at).toLocaleString('en-GB',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'short',year:'numeric'});
 
+    // "Name -> Name" reply tag, shown when this message was sent as a reply to someone.
+    const replyTagHTML = comment.reply_to_author_name
+        ? `<span class="text-gray-400 text-xs flex items-center gap-1"><i class="fas fa-caret-right"></i> <span class="font-semibold text-gray-600">${escapeHtml(comment.reply_to_author_name)}</span></span>`
+        : '';
+
     return `
         <div class="bg-white p-6 rounded-2xl border border-gray-100 group relative hover:shadow-md transition">
             ${actionBar}
@@ -1715,12 +1855,19 @@ function createCommentHTML(comment) {
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2 flex-wrap">
                         <span class="font-semibold text-gray-900 cursor-pointer hover:text-red-600 transition user-profile-link ${roleClass}" data-user-id="${comment.author_id}">${roleIcon} ${comment.author_name}</span>
+                        ${replyTagHTML}
                         <span class="text-gray-400 text-xs">${ts}</span>
                         <span class="flex items-center gap-1 text-xs text-gray-500">${typeIcon}</span>
                         ${labelBadge}
                     </div>
                     <p class="text-gray-600 text-sm leading-relaxed mt-2 whitespace-pre-wrap" id="comment-text-${comment.id}">${escapeHtml(comment.content)}</p>
                     ${imagesHTML}
+                    <div class="mt-2">
+                        <button onclick="startCommentReply(${comment.id}, \`${escapeHtml(comment.author_name).replace(/`/g,'\\`')}\`)"
+                            class="text-xs font-semibold text-gray-400 hover:text-red-600 transition">
+                            <i class="fas fa-reply"></i> Reply
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>`;
@@ -1847,6 +1994,37 @@ function removePendingEditFile(idx) {
     renderPendingEditPreviews();
 }
 
+// ── Reply-to-a-message state (WhatsApp/RED-style "Name -> Name" tag) ──────
+let activeReplyTarget = null; // { id, name } of the comment being replied to
+
+function startCommentReply(commentId, authorName) {
+    activeReplyTarget = { id: commentId, name: authorName };
+    document.getElementById('reply-target-name').textContent = authorName;
+    const chip = document.getElementById('reply-target-chip');
+    chip.classList.remove('hidden');
+    chip.classList.add('flex');
+    const input = document.getElementById('comment-input');
+    input.placeholder = `Reply to ${authorName}...`;
+    input.focus();
+}
+
+function cancelCommentReply() {
+    activeReplyTarget = null;
+    const chip = document.getElementById('reply-target-chip');
+    chip.classList.add('hidden');
+    chip.classList.remove('flex');
+    document.getElementById('comment-input').placeholder = 'Write a comment...';
+}
+
+let myRepliesOnly = false;
+function toggleMyReplies() {
+    myRepliesOnly = !myRepliesOnly;
+    const btn = document.getElementById('my-replies-toggle');
+    btn.classList.toggle('text-red-500', myRepliesOnly);
+    btn.classList.toggle('text-gray-400', !myRepliesOnly);
+    renderComments();
+}
+
 // Submit new comment (multipart to support images)
 async function submitComment(projectId) {
     const content = document.getElementById('comment-input').value.trim();
@@ -1860,6 +2038,7 @@ async function submitComment(projectId) {
         formData.append('content', content);
         formData.append('comment_type', commentType);
         if (label) formData.append('label', label);
+        if (activeReplyTarget) formData.append('reply_to_id', activeReplyTarget.id);
         pendingFiles.forEach(file => formData.append('images', file));
 
         const res = await fetch(`${API}/project/${projectId}/comments`, {
@@ -1873,7 +2052,19 @@ async function submitComment(projectId) {
         document.getElementById('comment-label').value = '';
         pendingFiles = [];
         document.getElementById('comment-image-preview').innerHTML = '';
+        const wasReplyTo = activeReplyTarget ? activeReplyTarget.id : null;
+        cancelCommentReply();
         await loadComments();
+
+        // Auto-expand the thread so the new reply is visible right away.
+        if (wasReplyTo) {
+            const byId = {};
+            allComments.forEach(c => { byId[c.id] = c; });
+            const rootId = findThreadRootId(wasReplyTo, byId);
+            const totalInThread = allComments.filter(c => c.reply_to_id && findThreadRootId(c.id, byId) === rootId).length;
+            threadRevealCount[rootId] = totalInThread;
+            renderComments();
+        }
     } catch (err) {
         console.error('Error submitting comment:', err);
         await showAlertModal('Error', 'Failed to post comment.', 'error');

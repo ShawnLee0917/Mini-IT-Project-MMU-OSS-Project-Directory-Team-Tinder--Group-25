@@ -285,12 +285,18 @@ class ProjectComment(db.Model):
     deleted_by_role = db.Column(db.String(20), nullable=True)  # 'admin', 'owner', 'self'
     deleted_at = db.Column(db.DateTime, nullable=True)
 
+    # Reply-to-a-specific-message support (WhatsApp/RED-style "Name -> Name" reply tag).
+    # This is a flat chat feed, so a reply just points at the message it targets;
+    # it is not used to nest/group comments.
+    reply_to_id = db.Column(db.Integer, db.ForeignKey('project_comments.id', ondelete='SET NULL'), nullable=True)
+
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(MYT).replace(tzinfo=None))
     updated_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(MYT).replace(tzinfo=None), onupdate=lambda: datetime.now(MYT).replace(tzinfo=None))
     
     # Relationships
     author = db.relationship('User', foreign_keys=[user_id], backref='project_comments')
     deleted_by = db.relationship('User', foreign_keys=[deleted_by_id])
+    reply_to = db.relationship('ProjectComment', remote_side=[id], foreign_keys=[reply_to_id])
     project = db.relationship('Project', backref=db.backref('project_comments', cascade='all, delete-orphan'))
     images = db.relationship('ProjectCommentImage', backref='comment', lazy=True, cascade='all, delete-orphan')
     
@@ -368,11 +374,16 @@ class CommunityPostComment(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     
     parent_id = db.Column(db.Integer, db.ForeignKey('community_post_comments.id', ondelete='CASCADE'), nullable=True)
+
+    # Who this specific reply is aimed at (may be the parent's author, or the author of
+    # another reply under the same parent) — used to render the "Name -> Name" reply tag.
+    reply_to_user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
     
     content = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(MYT).replace(tzinfo=None))
     
-    author = db.relationship('User')
+    author = db.relationship('User', foreign_keys=[user_id])
+    reply_to_user = db.relationship('User', foreign_keys=[reply_to_user_id])
     images = db.relationship('CommunityPostCommentImage', backref='comment', lazy=True, cascade='all, delete-orphan')
 
 

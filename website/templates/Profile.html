@@ -29,6 +29,18 @@
         }
         .fade-in { animation: fadeIn 0.35s ease both; }
 
+        /* ── Profile content entrance (plays when the view is revealed) ── */
+        @keyframes fadeSlideUp {
+            from { opacity: 0; transform: translateY(18px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .col-in {
+            opacity: 0;
+            animation: fadeSlideUp 0.55s cubic-bezier(0.4, 0, 0.2, 1) both;
+        }
+        .col-in.col-in-1 { animation-delay: 0.05s; }
+        .col-in.col-in-2 { animation-delay: 0.15s; }
+
                 :root {
             --bg-primary: #ffffff;
             --bg-secondary: #f3f4f6;
@@ -293,10 +305,10 @@
         </div>
     </nav>
 
-    <main class="container mx-auto px-6 py-12 fade-in">
+    <main class="container mx-auto px-6 py-12">
         <!-- Private Profile View -->
         <div id="private-profile-view" class="hidden flex flex-col items-center justify-center min-h-96">
-            <div class="text-center">
+            <div class="text-center fade-in">
                 <i class="fas fa-lock text-gray-300 text-8xl mb-6"></i>
                 <h2 class="text-3xl font-black text-gray-800 mb-2">Private Account</h2>
                 <p class="text-gray-500 text-lg mb-6">
@@ -312,7 +324,7 @@
         <div id="public-profile-view" class="hidden">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
 
-            <div class="space-y-6">
+            <div class="space-y-6 col-in col-in-1">
                 <div class="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 text-center">
                     <div id="avatar-wrapper" class="relative w-24 h-24 mx-auto mb-4 cursor-pointer" title="Click to change photo">
                         <div id="avatar-initials" class="w-24 h-24 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-3xl font-black">
@@ -353,23 +365,10 @@
     </div>
 </div>
 
-<!-- Badge Detail Modal -->
-<div id="badge-modal" class="hidden fixed inset-0 z-[80] flex items-center justify-center px-4" onclick="if(event.target===this)closeBadgeModal()">
-    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
-    <div class="relative bg-gray-900 rounded-3xl p-8 w-full max-w-xs text-center shadow-2xl border border-gray-700 z-10">
-        <button onclick="closeBadgeModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white transition">
-            <i class="fas fa-times text-lg"></i>
-        </button>
-        <div id="badge-modal-icon-wrap" class="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-            <i id="badge-modal-icon" class="text-4xl"></i>
-        </div>
-        <h3 id="badge-modal-title" class="text-xl font-black text-white mb-2"></h3>
-        <p id="badge-modal-desc" class="text-sm text-gray-400 leading-relaxed"></p>
-    </div>
-</div>
+<!-- Badge Detail Modal moved to page level, see below -->
             </div>
 
-            <div class="lg:col-span-2 space-y-8">
+            <div class="lg:col-span-2 space-y-8 col-in col-in-2">
                 <section class="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
                     <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Skills &amp; Tech Stack</h3>
                     <div id="display-skills" class="flex flex-wrap gap-2">
@@ -442,6 +441,21 @@
         </div>
         <div class="h-1 bg-gray-700 w-full">
             <div id="badge-notif-progress" class="h-1 bg-yellow-400 transition-all duration-100" style="width:100%"></div>
+        </div>
+    </div>
+
+    <!-- Badge Detail Modal -->
+    <div id="badge-modal" class="hidden fixed inset-0 z-[80] flex items-center justify-center px-4" onclick="if(event.target===this)closeBadgeModal()">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+        <div class="relative bg-gray-900 rounded-3xl p-8 w-full max-w-xs text-center shadow-2xl border border-gray-700 z-10">
+            <button onclick="closeBadgeModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white transition">
+                <i class="fas fa-times text-lg"></i>
+            </button>
+            <div id="badge-modal-icon-wrap" class="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i id="badge-modal-icon" class="text-4xl"></i>
+            </div>
+            <h3 id="badge-modal-title" class="text-xl font-black text-white mb-2"></h3>
+            <p id="badge-modal-desc" class="text-sm text-gray-400 leading-relaxed"></p>
         </div>
     </div>
 
