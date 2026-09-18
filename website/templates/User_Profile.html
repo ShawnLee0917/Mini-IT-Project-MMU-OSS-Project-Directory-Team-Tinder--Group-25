@@ -35,6 +35,25 @@
             animation: fadeIn 0.35s ease both;
         }
 
+        /* ── Badge modal animation ──────────────────────────────── */
+        #badge-modal {
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+        #badge-modal.modal-open {
+            opacity: 1;
+        }
+        #badge-modal > .relative {
+            transform: scale(0.92) translateY(12px);
+            opacity: 0;
+            transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1),
+                        opacity   0.22s ease;
+        }
+        #badge-modal.modal-open > .relative {
+            transform: scale(1) translateY(0);
+            opacity: 1;
+        }
+
         :root {
             --bg-primary: #ffffff;
             --bg-secondary: #f3f4f6;
@@ -404,21 +423,8 @@
                     </div>
                 </div>
 
-                <!-- Badge Detail Modal -->
-                <div id="badge-modal" class="hidden fixed inset-0 z-[80] flex items-center justify-center px-4" onclick="if(event.target===this)closeBadgeModal()">
-                    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
-                    <div class="relative bg-gray-900 rounded-3xl p-8 w-full max-w-xs text-center shadow-2xl border border-gray-700 z-10">
-                        <button onclick="closeBadgeModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white transition">
-                            <i class="fas fa-times text-lg"></i>
-                        </button>
-                        <div id="modal-icon-wrap" class="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <i id="modal-icon" class="text-4xl"></i>
-                        </div>
-                        <h3 id="modal-title" class="text-xl font-black text-white mb-2"></h3>
-                        <p id="modal-desc" class="text-sm text-gray-400 leading-relaxed"></p>
-                    </div>
+                <!-- Badge Detail Modal moved to page level, see below -->
                 </div>
-            </div>
 
             <div class="lg:col-span-2 space-y-8">
                 <section class="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
@@ -527,6 +533,21 @@
         {% endif %}
     </main>
 
+    <!-- Badge Detail Modal -->
+    <div id="badge-modal" class="hidden fixed inset-0 z-[80] flex items-center justify-center px-4" onclick="if(event.target===this)closeBadgeModal()">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+        <div class="relative bg-gray-900 rounded-3xl p-8 w-full max-w-xs text-center shadow-2xl border border-gray-700 z-10">
+            <button onclick="closeBadgeModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white transition">
+                <i class="fas fa-times text-lg"></i>
+            </button>
+            <div id="modal-icon-wrap" class="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i id="modal-icon" class="text-4xl"></i>
+            </div>
+            <h3 id="modal-title" class="text-xl font-black text-white mb-2"></h3>
+            <p id="modal-desc" class="text-sm text-gray-400 leading-relaxed"></p>
+        </div>
+    </div>
+
     <footer class="bg-gray-100 border-t mt-20 py-10">
     <div class="container mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
         <div class="text-center md:text-left text-gray-400 text-sm">
@@ -631,11 +652,17 @@
             document.getElementById('modal-icon-wrap').className = `w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 ${info.bg}`;
             document.getElementById('modal-title').textContent = name;
             document.getElementById('modal-desc').textContent = info.desc;
-            document.getElementById('badge-modal').classList.remove('hidden');
+            const modal = document.getElementById('badge-modal');
+            modal.classList.remove('hidden');
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                modal.classList.add('modal-open');
+            }));
         }
 
         function closeBadgeModal() {
-            document.getElementById('badge-modal').classList.add('hidden');
+            const modal = document.getElementById('badge-modal');
+            modal.classList.remove('modal-open');
+            setTimeout(() => modal.classList.add('hidden'), 280);
         }
 
         document.addEventListener('keydown', e => { if (e.key === 'Escape') closeBadgeModal(); });
