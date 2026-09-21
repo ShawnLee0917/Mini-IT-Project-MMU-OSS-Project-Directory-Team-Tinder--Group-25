@@ -1254,6 +1254,24 @@ async function dismissGeneralNotif(notifId) {
         }
     }
 
+    // Renders a clickable avatar (real photo if available, otherwise an initial) that
+    // links to that user's profile page.
+    function avatarHTML(userId, userName, avatarUrl, sizeClass, textSizeClass) {
+        const initial = (userName || '?').charAt(0).toUpperCase();
+        if (avatarUrl) {
+            return `<img src="${avatarUrl}" alt="${escapeHtml(userName)}" class="${sizeClass} rounded-full object-cover shrink-0 cursor-pointer hover:opacity-80 transition user-profile-link" data-user-id="${userId}">`;
+        }
+        return `<div class="${sizeClass} rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-bold shrink-0 cursor-pointer hover:opacity-80 transition user-profile-link ${textSizeClass}" data-user-id="${userId}">${initial}</div>`;
+    }
+
+    document.addEventListener('click', (e) => {
+        const profileLink = e.target.closest('.user-profile-link');
+        if (profileLink) {
+            const userId = profileLink.dataset.userId;
+            if (userId) window.location.href = `/user/${userId}`;
+        }
+    });
+
     const _postCommentsCache = {};   // postId -> full comments array from the server
     const _replyTargets = {};        // postId -> { id, name } of the comment being replied to
     const _myRepliesOnly = {};        // postId -> boolean, "My Replies" filter state
@@ -1275,9 +1293,10 @@ async function dismissGeneralNotif(notifId) {
 
     // "Name -> Name" reply tag: only shown when this comment specifically targeted
     // someone (a reply), as opposed to a fresh top-level comment.
-    function replyTagHTML(c) {
+    function replyTagHTML(c, textSizeClass) {
         if (!c.reply_to_user_name) return '';
-        return `<span class="text-gray-400 font-normal"><i class="fas fa-caret-right mx-1"></i></span><span class="font-bold text-gray-800">${escapeHtml(c.reply_to_user_name)}</span>`;
+        const size = textSizeClass || 'text-[10px]';
+        return `<span class="text-gray-400 font-normal ${size}"><i class="fas fa-caret-right mx-1"></i></span><span class="font-bold text-gray-800 ${size} cursor-pointer hover:text-blue-600 transition user-profile-link" data-user-id="${c.reply_to_user_id}">${escapeHtml(c.reply_to_user_name)}</span>`;
     }
 
     function renderPostComments(postId) {
@@ -1296,9 +1315,12 @@ async function dismissGeneralNotif(notifId) {
             // Flat list of just the user's own replies, each still showing who it targeted.
             listDiv.innerHTML = comments.map(r => `
                 <div class="flex gap-2">
+                    ${avatarHTML(r.user_id, r.user_name, r.user_avatar, 'w-6 h-6', 'text-[10px]')}
                     <div class="bg-blue-50 px-3 py-2 rounded-xl rounded-tl-none border border-blue-100 flex-1">
                         <div class="flex justify-between items-center mb-0.5">
-                            <span class="font-bold text-[11px] text-gray-800">${escapeHtml(r.user_name)}${replyTagHTML(r)}</span>
+                            <span class="flex items-center gap-1 flex-wrap">
+                                <span class="font-bold text-[11px] text-gray-800 cursor-pointer hover:text-blue-600 transition user-profile-link" data-user-id="${r.user_id}">${escapeHtml(r.user_name)}</span>${replyTagHTML(r, 'text-[11px]')}
+                            </span>
                             <button onclick="deleteComment(${postId}, ${r.id})" class="text-gray-400 hover:text-red-500 text-[10px]"><i class="fas fa-trash"></i></button>
                         </div>
                         <p class="text-[11px] text-gray-600 break-words">${escapeHtml(r.content)}</p>
@@ -1326,13 +1348,16 @@ async function dismissGeneralNotif(notifId) {
 
             const repliesHTML = visibleReplies.length > 0 ? visibleReplies.map((r, i) => {
                 const isNew = i >= previouslyShown;
-                const wrapClass = isNew ? 'ml-8 mt-2 flex gap-2 reply-pop-in' : 'ml-8 mt-2 flex gap-2';
+                const wrapClass = isNew ? 'ml-12 mt-2 flex gap-2 reply-pop-in' : 'ml-12 mt-2 flex gap-2';
                 const delayStyle = isNew ? ` style="animation-delay:${Math.min(i - previouslyShown, 6) * 60}ms"` : '';
                 return `
                 <div class="${wrapClass}" id="post-comment-${r.id}"${delayStyle}>
+                    ${avatarHTML(r.user_id, r.user_name, r.user_avatar, 'w-6 h-6', 'text-[10px]')}
                     <div class="bg-blue-50 px-3 py-2 rounded-xl rounded-tl-none border border-blue-100 flex-1">
                         <div class="flex justify-between items-center mb-0.5">
-                            <span class="font-bold text-[10px] text-gray-800">${escapeHtml(r.user_name)}${replyTagHTML(r)}</span>
+                            <span class="flex items-center gap-1 flex-wrap">
+                                <span class="font-bold text-[10px] text-gray-800 cursor-pointer hover:text-blue-600 transition user-profile-link" data-user-id="${r.user_id}">${escapeHtml(r.user_name)}</span>${replyTagHTML(r, 'text-[10px]')}
+                            </span>
                             ${r.is_owner ? `<button onclick="deleteComment(${postId}, ${r.id})" class="text-gray-400 hover:text-red-500 text-[10px]"><i class="fas fa-trash"></i></button>` : ''}
                         </div>
                         <p class="text-[11px] text-gray-600 break-words">${escapeHtml(r.content)}</p>
@@ -1349,7 +1374,7 @@ async function dismissGeneralNotif(notifId) {
             if (allReplies.length > 0) {
                 if (revealed === 0) {
                     toggleHTML = `
-                        <button onclick="revealMoreReplies(${postId}, ${p.id}, ${allReplies.length})" class="reply-control-pop ml-8 mt-1.5 text-[10px] font-bold text-blue-500 hover:text-blue-700 transition flex items-center gap-1">
+                        <button onclick="revealMoreReplies(${postId}, ${p.id}, ${allReplies.length})" class="reply-control-pop ml-12 mt-1.5 text-[10px] font-bold text-blue-500 hover:text-blue-700 transition flex items-center gap-1">
                             <i class="fas fa-chevron-down"></i> View ${allReplies.length} ${allReplies.length === 1 ? 'reply' : 'replies'}
                         </button>`;
                 } else {
@@ -1358,7 +1383,7 @@ async function dismissGeneralNotif(notifId) {
                             <i class="fas fa-chevron-down"></i> View ${Math.min(10, remaining)} more ${remaining === 1 ? 'reply' : 'replies'}
                         </button>` : '';
                     toggleHTML = `
-                        <div class="reply-control-pop ml-8 mt-1.5 flex items-center gap-3">
+                        <div class="reply-control-pop ml-12 mt-1.5 flex items-center gap-3">
                             ${loadMoreHTML}
                             <button onclick="collapseThreadReplies(${postId}, ${p.id})" class="text-[10px] font-bold text-gray-400 hover:text-gray-600 transition flex items-center gap-1">
                                 <i class="fas fa-chevron-up"></i> Hide replies
@@ -1370,13 +1395,11 @@ async function dismissGeneralNotif(notifId) {
             return `
             <div class="mb-3" id="post-comment-${p.id}">
                 <div class="flex gap-2">
-                    <div class="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-bold shrink-0 text-[10px]">
-                        ${p.user_name.charAt(0).toUpperCase()}
-                    </div>
+                    ${avatarHTML(p.user_id, p.user_name, p.user_avatar, 'w-6 h-6', 'text-[10px]')}
                     <div class="flex-1 min-w-0">
                         <div class="bg-gray-50 px-3 py-2 rounded-xl rounded-tl-none border border-gray-100">
                             <div class="flex justify-between items-center mb-0.5">
-                                <span class="font-bold text-[11px] text-gray-800">${escapeHtml(p.user_name)}</span>
+                                <span class="font-bold text-[11px] text-gray-800 cursor-pointer hover:text-blue-600 transition user-profile-link" data-user-id="${p.user_id}">${escapeHtml(p.user_name)}</span>
                                 ${p.is_owner ? `<button onclick="deleteComment(${postId}, ${p.id})" class="text-gray-400 hover:text-red-500 text-[10px]"><i class="fas fa-trash"></i></button>` : ''}
                             </div>
                             <p class="text-xs text-gray-700 break-words">${escapeHtml(p.content)}</p>
