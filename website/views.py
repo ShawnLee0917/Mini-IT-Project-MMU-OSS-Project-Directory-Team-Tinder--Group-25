@@ -2849,6 +2849,7 @@ def get_project_comments(project_id):
         'images': [{'id': img.id, 'url': img.image_path if img.image_path.startswith('http') else f'/static/uploads/{img.image_path}'} for img in c.images],        
         'reported_by_me': c.id in reported_comment_ids,
         'reply_to_id': getattr(c, 'reply_to_id', None),
+        'reply_to_author_id': c.reply_to.user_id if getattr(c, 'reply_to', None) else None,
         'reply_to_author_name': c.reply_to.author.name if getattr(c, 'reply_to', None) and c.reply_to.author else None,
         'reply_to_content': (c.reply_to.content[:80] if getattr(c, 'reply_to', None) and not getattr(c.reply_to, 'is_deleted', False) else None) if getattr(c, 'reply_to', None) else None,
     } for c in comments])
@@ -2970,6 +2971,7 @@ def create_project_comment(project_id):
         'created_at': comment.created_at.isoformat(),
         'images': [{'id': img.id, 'url': img.image_path if img.image_path.startswith('http') else f'/static/uploads/{img.image_path}'} for img in comment.images],
         'reply_to_id': comment.reply_to_id,
+        'reply_to_author_id': comment.reply_to.user_id if comment.reply_to else None,
         'reply_to_author_name': comment.reply_to.author.name if comment.reply_to and comment.reply_to.author else None,
     }), 201
 
@@ -4002,6 +4004,7 @@ def manage_community_post_comments(post_id):
             'id': c.id,
             'user_id': c.user_id,
             'user_name': c.author.name,
+            'user_avatar': (c.author.avatar_path if c.author.avatar_path.startswith('http') else f'/static/uploads/{c.author.avatar_path}') if c.author.avatar_path else '',
             'is_owner': c.user_id == current_user.id,
             'content': c.content,
             'parent_id': c.parent_id,
