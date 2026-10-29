@@ -8,6 +8,8 @@ import logging
 import requests
 import json
 import cloudinary.uploader
+import threading
+import html as html_lib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from werkzeug.utils import secure_filename
@@ -330,6 +332,7 @@ def admin_award_badge(user_id):
         return jsonify({'error': f'{user.name} already has the {badge_name} badge.'}), 409
         
     new_badge = Badge(user_id=user_id, badge=badge_name)
+    db.session.add(BadgeNotification(user_id=user_id, badge_name=badge_name))
     
     # Log the action
     log = AdminLog(
@@ -342,6 +345,7 @@ def admin_award_badge(user_id):
     db.session.add(log)
     db.session.add(new_badge)
     db.session.commit()
+    queue_badge_for_email(user_id, badge_name)
     
     return jsonify({'success': True, 'message': 'Badge awarded successfully!', 'badge_id': new_badge.id})
 
@@ -438,6 +442,7 @@ def _award_badge(user_id, badge_name):
         db.session.add(Badge(user_id=user_id, badge=badge_name))
         # Enqueue a badge notification (respects user's notify_badges setting at display time)
         db.session.add(BadgeNotification(user_id=user_id, badge_name=badge_name))
+        queue_badge_for_email(user_id, badge_name)
 
 def _revoke_badge(user_id, badge_name):
     """Remove a badge if the user has it. Caller must commit."""
@@ -1020,7 +1025,224 @@ def send_otp_email(receiver_email, otp_code):
     except Exception as e:
         print(f"Mailgun Email API Error: {e}")
         return False
-        
+
+_badge_email_lock = threading.Lock()
+_badge_email_buffer = {}  # { user_id: set(['Python Expert', 'First Project']) }
+_badge_email_timers = {}  # { user_id: threading.Timer }
+BADGE_BATCH_WINDOW_SECONDS = 60.0  # 前后 1 分钟合并窗口
+
+
+def _send_mailgun_async(app, to_email, subject, text_content, html_content):
+    def _task():
+        with app.app_context():
+            if not MAILGUN_DOMAIN or not MAILGUN_API_KEY:
+                print("Mailgun Error: Missing API Key or Domain.")
+                return
+            try:
+                resp = requests.post(
+                    f"https://api.mailgun.net/v3/{MAILGUN_DOMAIN}/messages",
+                    auth=("api", MAILGUN_API_KEY),
+                    data={
+                        "from": f"CampusBuilds <noreply@{MAILGUN_DOMAIN}>",
+                        "to": [to_email],
+                        "subject": subject,
+                        "text": text_content,
+                        "html": html_content,
+                    },
+                    timeout=10
+                )
+                resp.raise_for_status()
+                print(f"[Mailgun] Notification email sent to {to_email}: {subject}")
+            except Exception as e:
+                print(f"[Mailgun Error] Failed to send email to {to_email}: {e}")
+
+    threading.Thread(target=_task, daemon=True).start()
+
+
+def can_send_email(user, category_attr=None):
+    if not user or not user.email:
+        return False
+    settings = user.settings
+    if not settings:
+        return True  # 默认开启
+    if not getattr(settings, 'email_notifications', True):
+        return False
+    if category_attr and not getattr(settings, category_attr, True):
+        return False
+    return True
+
+
+def queue_badge_for_email(user_id, badge_name):
+    app = current_app._get_current_object()
+
+    with _badge_email_lock:
+        if user_id not in _badge_email_buffer:
+            _badge_email_buffer[user_id] = set()
+        _badge_email_buffer[user_id].add(badge_name)
+
+        if user_id not in _badge_email_timers:
+            timer = threading.Timer(
+                BADGE_BATCH_WINDOW_SECONDS,
+                _flush_badge_email,
+                args=[app, user_id]
+            )
+            timer.daemon = True
+            _badge_email_timers[user_id] = timer
+            timer.start()
+
+
+def _flush_badge_email(app, user_id):
+    with _badge_email_lock:
+        badges_to_send = list(_badge_email_buffer.pop(user_id, set()))
+        _badge_email_timers.pop(user_id, None)
+
+    if not badges_to_send:
+        return
+
+    with app.app_context():
+        user = User.query.get(user_id)
+        if not can_send_email(user, 'notify_badges'):
+            return
+
+        current_user_badges = {
+            b.badge for b in Badge.query.filter_by(user_id=user_id).all()
+        }
+        valid_badges = [b for b in badges_to_send if b in current_user_badges]
+        if not valid_badges:
+            return
+
+        count = len(valid_badges)
+        subject = (
+            f"🏅 You earned a new badge on CampusBuilds!"
+            if count == 1
+            else f"🏅 You earned {count} new badges on CampusBuilds!"
+        )
+
+        badge_list_text = "\n".join([f"• {b}" for b in valid_badges])
+        text_content = (
+            f"Hi {user.name},\n\n"
+            f"Congratulations! You have just unlocked the following badge(s) on CampusBuilds:\n\n"
+            f"{badge_list_text}\n\n"
+            f"View your profile: https://campusbuilds.app/profile"
+        )
+
+        badges_html_items = "".join([
+            f'<li style="margin-bottom: 8px; font-weight: 600; color: #b45309;">🏅 {html_lib.escape(b)}</li>'
+            for b in valid_badges
+        ])
+        html_content = f"""
+        <div style="font-family: 'Inter', sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 16px;">
+            <h2 style="color: #111827; margin-top: 0;">🎉 Congratulations, {html_lib.escape(user.name)}!</h2>
+            <p style="color: #4b5563; font-size: 14px;">You have unlocked <strong>{count}</strong> new badge{'s' if count > 1 else ''} on CampusBuilds:</p>
+            <ul style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 16px 24px; list-style: none;">
+                {badges_html_items}
+            </ul>
+            <a href="https://campusbuilds.app/profile" style="display: inline-block; margin-top: 16px; background: #dc2626; color: #ffffff; text-decoration: none; font-weight: bold; font-size: 13px; padding: 10px 20px; border-radius: 10px;">View My Badges</a>
+        </div>
+        """
+
+        _send_mailgun_async(app, user.email, subject, text_content, html_content)
+
+
+def send_comment_notification_email(recipient_user, commenter_name, target_title, comment_content, link_path, is_reply=False):
+    app = current_app._get_current_object()
+    action_text = "replied to your comment on" if is_reply else "commented on"
+    subject = f"💬 {commenter_name} {action_text} {target_title}"
+
+    text_content = (
+        f"Hi {recipient_user.name},\n\n"
+        f"{commenter_name} {action_text} \"{target_title}\":\n\n"
+        f"\"{comment_content}\"\n\n"
+        f"View discussion: https://campusbuilds.app{link_path}"
+    )
+
+    escaped_comment = html_lib.escape(comment_content)
+    html_content = f"""
+    <div style="font-family: 'Inter', sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 16px;">
+        <h3 style="color: #111827; margin-top: 0;">💬 New Comment Notification</h3>
+        <p style="color: #4b5563; font-size: 14px;">
+            <strong>{html_lib.escape(commenter_name)}</strong> {action_text} <strong>{html_lib.escape(target_title)}</strong>:
+        </p>
+        <blockquote style="margin: 16px 0; padding: 14px 18px; background: #f9fafb; border-left: 4px solid #dc2626; border-radius: 8px; color: #1f2937; font-size: 14px; white-space: pre-wrap;">{escaped_comment}</blockquote>
+        <a href="https://campusbuilds.app{link_path}" style="display: inline-block; margin-top: 8px; background: #dc2626; color: #ffffff; text-decoration: none; font-weight: bold; font-size: 13px; padding: 10px 20px; border-radius: 10px;">View & Reply</a>
+    </div>
+    """
+    _send_mailgun_async(app, recipient_user.email, subject, text_content, html_content)
+
+
+def send_invite_notification_email(recipient_user, inviter_name, project):
+    """当项目负责人邀请用户加入项目时发送邮件"""
+    app = current_app._get_current_object()
+    subject = f"📩 {inviter_name} invited you to join 【{project.project_name}】"
+
+    text_content = (
+        f"Hi {recipient_user.name},\n\n"
+        f"{inviter_name} has invited you to join the project \"{project.project_name}\" on CampusBuilds.\n\n"
+        f"View project or respond to the invitation:\n"
+        f"https://campusbuilds.app/notifications"
+    )
+
+    html_content = f"""
+    <div style="font-family: 'Inter', sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 16px;">
+        <h3 style="color: #111827; margin-top: 0;">📩 New Project Invitation</h3>
+        <p style="color: #4b5563; font-size: 14px; line-height: 1.6;">
+            <strong>{html_lib.escape(inviter_name)}</strong> invited you to collaborate on the project 
+            <strong style="color: #dc2626;">{html_lib.escape(project.project_name)}</strong>.
+        </p>
+        <div style="margin-top: 20px;">
+            <a href="https://campusbuilds.app/notifications" style="display: inline-block; background: #dc2626; color: #ffffff; text-decoration: none; font-weight: bold; font-size: 13px; padding: 10px 20px; border-radius: 10px; margin-right: 10px;">Respond in Notification Center</a>
+            <a href="https://campusbuilds.app/project/{project.id}" style="display: inline-block; background: #f3f4f6; color: #374151; text-decoration: none; font-weight: bold; font-size: 13px; padding: 10px 20px; border-radius: 10px;">View Project</a>
+        </div>
+    </div>
+    """
+    _send_mailgun_async(app, recipient_user.email, subject, text_content, html_content)
+
+
+def send_join_request_email(project_owner, applicant_user, project):
+    """当有用户申请加入项目时，向项目 Owner 发送优化后的邮件，避免被判为 Junk"""
+    app = current_app._get_current_object()
+    subject = f"[CampusBuilds] New Join Request for {project.project_name}"
+
+    text_content = (
+        f"Hello {project_owner.name},\n\n"
+        f"{applicant_user.name} ({applicant_user.email}) has requested to join your project '{project.project_name}'.\n\n"
+        f"You can review this request by visiting your notification center:\n"
+        f"https://campusbuilds.app/notifications\n\n"
+        f"Best regards,\nThe CampusBuilds Team"
+    )
+
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>New Join Request</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; background-color: #f4f4f5; margin: 0; padding: 20px;">
+        <table max-width="600px" style="width: 100%; background-color: #ffffff; margin: 0 auto; padding: 24px; border-radius: 8px; border: 1px solid #e4e4e7;">
+            <tr>
+                <td>
+                    <h2 style="color: #18181b; margin-top: 0;">CampusBuilds Notification</h2>
+                    <p style="color: #3f3f46; font-size: 15px; line-height: 1.5;">
+                        Hello <strong>{html_lib.escape(project_owner.name)}</strong>,
+                    </p>
+                    <p style="color: #3f3f46; font-size: 15px; line-height: 1.5;">
+                        <strong>{html_lib.escape(applicant_user.name)}</strong> (<a href="mailto:{html_lib.escape(applicant_user.email)}" style="color: #2563eb;">{html_lib.escape(applicant_user.email)}</a>) has applied to join your project <strong>{html_lib.escape(project.project_name)}</strong>.
+                    </p>
+                    <div style="margin: 24px 0;">
+                        <a href="https://campusbuilds.app/notifications" style="background-color: #dc2626; color: #ffffff; padding: 12px 20px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Review Request</a>
+                    </div>
+                    <p style="color: #71717a; font-size: 13px; margin-top: 32px; border-top: 1px solid #e4e4e7; paddingTop: 16px;">
+                        If you did not expect this notification, you can safely ignore this email.
+                    </p>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """
+    _send_mailgun_async(app, project_owner.email, subject, text_content, html_content)
+    
 @views.route('/')
 @views.route('/home')
 def home():
@@ -1472,13 +1694,8 @@ def list_project():
         # =============================================================
         project_count = Project.query.filter_by(user_id=current_user.id).count()
         if project_count == 1:
-            existing_badge = Badge.query.filter_by(user_id=current_user.id, badge='First Project').first()
-            if not existing_badge:
-                first_badge = Badge(user_id=current_user.id, badge='First Project')
-                db.session.add(first_badge)
-                db.session.commit()
-                flash("Congratulations! You earned the 'First Project' badge! 🏆", "success")
-
+            _award_badge(current_user.id, 'First Project')
+            flash("Congratulations! You earned the 'First Project' badge! 🏆", "success")
         # 🏷️ AUTO-ASSIGN LANGUAGE BADGES
         sync_lang_badges(current_user.id)
         db.session.commit()
@@ -1873,8 +2090,11 @@ def get_settings():
             'show_karma': settings.show_karma,
         },
         'notifications': {
+            'email_notifications': getattr(settings, 'email_notifications', True),
             'qna_answers': settings.notify_qna_new_answers,
             'project_comments': settings.notify_project_comments,
+            'project_comments_own': getattr(settings, 'notify_project_comments_own', True),
+            'join_request': getattr(settings, 'notify_join_request', True),
             'profile_views': settings.notify_profile_views,
             'project_invites': settings.notify_project_invites,
             'suggestions': settings.notify_new_suggestions,
@@ -1945,6 +2165,8 @@ def update_settings():
         settings.notify_newsletter = notifications['newsletter']
     if 'badges' in notifications:
         settings.notify_badges = notifications['badges']
+    if 'email_notifications' in notifications:
+        settings.email_notifications = bool(notifications['email_notifications'])
     
     # Update display settings
     display = data.get('display', {})
@@ -2265,6 +2487,8 @@ def add_member(project_id):
         elif existing_request.status == 'rejected':
             existing_request.status = 'invited'
             db.session.commit()
+            if can_send_email(user_to_add, 'notify_project_invites'):
+                send_invite_notification_email(user_to_add, current_user.name, project)
             return jsonify({"success": f"Invitation sent to {user_to_add.name}!", "user_name": user_to_add.name})
 
     new_invite = JoinRequest(user_id=user_to_add.id, project_id=project_id, status='invited')  # type: ignore
@@ -2272,38 +2496,63 @@ def add_member(project_id):
     
     db.session.commit()
 
+    if can_send_email(user_to_add, 'notify_project_invites'):
+        send_invite_notification_email(user_to_add, current_user.name, project)
+
     return jsonify({"success": f"Invitation sent to {user_to_add.name}! Waiting for their approval.", "user_name": user_to_add.name})
 
 
 @views.route('/api/my-invitations', methods=['GET'])
 def get_my_invitations():
-    """Get all pending invitations for the current logged-in user.
-    Respects the notify_project_invites user setting — returns empty list if disabled.
-    """
     err = require_login()
     if err: return err
     
     current_user = get_current_user()
-    
-    # Check whether the user has disabled project invite notifications
     settings = current_user.settings
     if settings and not settings.notify_project_invites:
-        # Return empty list with a flag so the frontend knows it's disabled
         return jsonify([])
     
+    results = []
+    
+    # 1. 别人邀请你加入的 (Invitations)
     invitations = JoinRequest.query.filter_by(
         user_id=current_user.id, 
         status='invited'
     ).order_by(JoinRequest.created_at.desc()).all()
     
-    return jsonify([{
-        'id': inv.id,
-        'project_id': inv.project_id,
-        'project_name': inv.project.project_name,
-        'owner_name': inv.project.user.name, 
-        'created_at': inv.created_at.isoformat()
-    } for inv in invitations])
-
+    for inv in invitations:
+        results.append({
+            'type': 'invite',
+            'id': inv.id,
+            'project_id': inv.project_id,
+            'project_name': inv.project.project_name,
+            'owner_name': inv.project.user.name, 
+            'created_at': inv.created_at.isoformat()
+        })
+        
+    # 2. 别人申请加入你项目的 (Applications)
+    owned_projects = Project.query.filter_by(user_id=current_user.id).all()
+    owned_project_ids = [p.id for p in owned_projects]
+    
+    if owned_project_ids:
+        applications = JoinRequest.query.filter(
+            JoinRequest.project_id.in_(owned_project_ids),
+            JoinRequest.status == 'pending'
+        ).order_by(JoinRequest.created_at.desc()).all()
+        
+        for app in applications:
+            results.append({
+                'type': 'application',
+                'id': app.id,
+                'project_id': app.project_id,
+                'project_name': app.project.project_name,
+                'applicant_name': app.user.name,
+                'applicant_id': app.user_id,
+                'created_at': app.created_at.isoformat()
+            })
+            
+    results.sort(key=lambda x: x['created_at'], reverse=True)
+    return jsonify(results)
 
 @views.route('/api/invitations/<int:request_id>/<action>', methods=['POST'])
 def respond_to_invitation(request_id, action):
@@ -2491,13 +2740,17 @@ def request_join_project(project_id):
         db.session.add(join_request)
         
     project_owner = User.query.get(project.user_id)
-    if project_owner and project_owner.settings and getattr(project_owner.settings, 'notify_join_request', True):
-        join_notif = Notification(
-            user_id=project_owner.id,
-            content=f"🤝 {current_user.name} requested to join 【{project.project_name}】",
-            link_url=f"/project/{project.id}"
-        )
-        db.session.add(join_notif)
+    if project_owner:
+        if not project_owner.settings or getattr(project_owner.settings, 'notify_join_request', True):
+            join_notif = Notification(
+                user_id=project_owner.id,
+                content=f"🤝 {current_user.name} requested to join 【{project.project_name}】",
+                link_url=f"/project/{project.id}"
+            )
+            db.session.add(join_notif)
+
+        if can_send_email(project_owner, 'notify_join_request'):
+            send_join_request_email(project_owner, current_user, project)
     # ==========================================
     
     db.session.commit()
@@ -2928,30 +3181,77 @@ def create_project_comment(project_id):
                 img.image_path = image_url
                 db.session.add(img)
                 
+    preview_text = (content[:80] + '...') if len(content) > 80 else content
+
     project_owner = User.query.get(project.user_id)
-    if project_owner:
-        if project_owner.id != current_user.id:
-            if project_owner.settings and getattr(project_owner.settings, 'notify_project_comments_own', True):
-                owner_notif = Notification(
-                    user_id=project_owner.id,
-                    content=f"🔔 {current_user.name} commented on your project 【{project.project_name}】。",
-                    link_url=f"/project/{project.id}"
-                )
-                db.session.add(owner_notif)
+    if project_owner and project_owner.id != current_user.id:
+        if not project_owner.settings or getattr(project_owner.settings, 'notify_project_comments_own', True):
+            owner_notif = Notification(
+                user_id=project_owner.id,
+                content=f"🔔 {current_user.name} commented on your project 【{project.project_name}】: \"{preview_text}\"",
+                link_url=f"/project/{project.id}"
+            )
+            db.session.add(owner_notif)
 
-        participants = db.session.query(User).join(ProjectComment, ProjectComment.user_id == User.id)\
-            .filter(ProjectComment.project_id == project.id)\
-            .filter(User.id != project_owner.id)\
-            .filter(User.id != current_user.id).distinct().all()
-
-        for p in participants:
-            if p.settings and getattr(p.settings, 'notify_project_comments', True):
-                p_notif = Notification(
-                    user_id=p.id,
-                    content=f"💬 You have participated in the discussion of project 【{project.project_name}】 and it has new follow-up comments.",
-                    link_url=f"/project/{project.id}"
+            if can_send_email(project_owner, 'notify_project_comments_own'):
+                send_comment_notification_email(
+                    recipient_user=project_owner,
+                    commenter_name=current_user.name,
+                    target_title=project.project_name,
+                    comment_content=content,
+                    link_path=f"/project/{project.id}"
                 )
-                db.session.add(p_notif)
+
+    participants = db.session.query(User).join(ProjectComment, ProjectComment.user_id == User.id)\
+        .filter(ProjectComment.project_id == project.id)\
+        .filter(User.id != project.user_id)\
+        .filter(User.id != current_user.id).distinct().all()
+
+    for p in participants:
+        if not p.settings or getattr(p.settings, 'notify_project_comments', True):
+            p_notif = Notification(
+                user_id=p.id,
+                content=f"💬 {current_user.name} commented on 【{project.project_name}】: \"{preview_text}\"",
+                link_url=f"/project/{project.id}"
+            )
+            db.session.add(p_notif)
+
+            if can_send_email(p, 'notify_project_comments'):
+                send_comment_notification_email(
+                    recipient_user=p,
+                    commenter_name=current_user.name,
+                    target_title=project.project_name,
+                    comment_content=content,
+                    link_path=f"/project/{project.id}"
+                )
+                
+    # —— 核心：在此处加入通知触发逻辑 ——
+    project_owner = User.query.get(project.user_id)
+    if project_owner and project_owner.id != current_user.id:
+        # 如果项目所有者开启了项目评论通知
+        if project_owner.settings and getattr(project_owner.settings, 'notify_project_comments_own', True):
+            owner_notif = Notification(
+                user_id=project_owner.id,
+                content=f"🔔 {current_user.name} commented on your project 【{project.project_name}】",
+                link_url=f"/project/{project.id}"
+            )
+            db.session.add(owner_notif)
+
+    # 同时通知其他曾经在该项目参与过讨论的用户
+    participants = db.session.query(User).join(ProjectComment, ProjectComment.user_id == User.id)\
+        .filter(ProjectComment.project_id == project.id)\
+        .filter(User.id != project_owner.id)\
+        .filter(User.id != current_user.id).distinct().all()
+
+    for p in participants:
+        if p.settings and getattr(p.settings, 'notify_project_comments', True):
+            p_notif = Notification(
+                user_id=p.id,
+                content=f"💬 New follow-up comments on project 【{project.project_name}】 you participated in",
+                link_url=f"/project/{project.id}"
+            )
+            db.session.add(p_notif)
+    # ─────────────────────────────────────
 
     db.session.commit()
 
@@ -4063,6 +4363,50 @@ def manage_community_post_comments(post_id):
                     
                     img = CommunityPostCommentImage(image_path=image_url)
                     comment.images.append(img)
+
+        # —— 核心：在此处加入社区动态评论通知逻辑 ——
+        preview_text = (content[:80] + '...') if len(content) > 80 else content
+        post = CommunityPost.query.get(post_id)
+        if post and post.user_id != current_user.id:
+            post_owner = User.query.get(post.user_id)
+            if post_owner:
+                post_notif = Notification(
+                    user_id=post_owner.id,
+                    content=f"💬 {current_user.name} commented on your community post: \"{preview_text}\"",
+                    link_url="/home"
+                )
+                db.session.add(post_notif)
+
+                if can_send_email(post_owner, 'notify_project_comments'):
+                    send_comment_notification_email(
+                        recipient_user=post_owner,
+                        commenter_name=current_user.name,
+                        target_title="your community post",
+                        comment_content=content,
+                        link_path="/home"
+                    )
+
+        if reply_to_user_id and reply_to_user_id != current_user.id:
+            if not post or reply_to_user_id != post.user_id:
+                target_user = User.query.get(reply_to_user_id)
+                if target_user:
+                    reply_notif = Notification(
+                        user_id=target_user.id,
+                        content=f"💬 {current_user.name} replied to your comment: \"{preview_text}\"",
+                        link_url="/home"
+                    )
+                    db.session.add(reply_notif)
+
+                    if can_send_email(target_user, 'notify_project_comments'):
+                        send_comment_notification_email(
+                            recipient_user=target_user,
+                            commenter_name=current_user.name,
+                            target_title="a community post",
+                            comment_content=content,
+                            link_path="/home",
+                            is_reply=True
+                        )
+        # ─────────────────────────────────────────────
                     
         db.session.add(comment)
         db.session.commit()
@@ -4527,3 +4871,134 @@ def toggle_project_star(project_id):
         'star_count': star_count,
         'message': 'Project starred!' if is_starred else 'Project unstarred.'
     })
+
+# =============================================================
+# STANDALONE NOTIFICATIONS PAGE & UNIFIED API
+# =============================================================
+
+@views.route('/notifications')
+def notifications_page():
+    """渲染独立的通知中心页面"""
+    if 'user_email' not in session:
+        return redirect(url_for('views.login'))
+    return render_template("Notifications.html")
+
+@views.route('/api/notifications/all', methods=['GET'])
+def get_all_notifications_unified():
+    """获取当前用户的所有通知（包含已读与未读），并按分类整合"""
+    err = require_login()
+    if err: return err
+
+    user = get_current_user()
+    settings = user.settings
+    unified_list = []
+
+    # 1. 获取通用通知
+    general_notifs = Notification.query.filter_by(user_id=user.id).order_by(Notification.created_at.desc()).limit(100).all()
+    for n in general_notifs:
+        if 'requested to join' in n.content or '🤝' in n.content:
+            category = 'requests'
+        elif 'comment' in n.content or 'replied' in n.content or '🔔' in n.content or '💬' in n.content:
+            category = 'comments'
+        else:
+            category = 'system'
+
+        unified_list.append({
+            'uid': f"gen_{n.id}",
+            'id': n.id,
+            'source': 'general',
+            'category': category,
+            'content': n.content,
+            'link_url': n.link_url,
+            'is_read': n.is_read,
+            'created_at': n.created_at.isoformat(),
+            'time_display': n.created_at.strftime('%Y-%m-%d %H:%M')
+        })
+
+    # 2. 获取徽章通知
+    if not settings or settings.notify_badges:
+        badge_notifs = BadgeNotification.query.filter_by(user_id=user.id).order_by(BadgeNotification.created_at.desc()).limit(50).all()
+        for b in badge_notifs:
+            unified_list.append({
+                'uid': f"badge_{b.id}",
+                'id': b.id,
+                'source': 'badge',
+                'category': 'badges',
+                'badge_name': b.badge_name,
+                'content': f"🏅 You earned the '{b.badge_name}' badge!",
+                'link_url': '/profile',
+                'is_read': b.is_read,
+                'created_at': b.created_at.isoformat(),
+                'time_display': b.created_at.strftime('%Y-%m-%d %H:%M')
+            })
+
+    # 3. 获取项目邀请 (别人邀请你)
+    if not settings or settings.notify_project_invites:
+        invitations = JoinRequest.query.filter(
+            JoinRequest.user_id == user.id,
+            JoinRequest.status.in_(['invited', 'accepted', 'rejected'])
+        ).order_by(JoinRequest.created_at.desc()).limit(50).all()
+        
+        for inv in invitations:
+            if not inv.project: continue
+            is_handled = (inv.status != 'invited')
+            unified_list.append({
+                'uid': f"inv_{inv.id}",
+                'id': inv.id,
+                'source': 'invite',
+                'category': 'invites',
+                'invite_status': inv.status,
+                'project_id': inv.project_id,
+                'project_name': inv.project.project_name,
+                'owner_name': inv.project.user.name if inv.project.user else 'Project Owner',
+                'content': f"{inv.project.user.name if inv.project.user else 'Someone'} invited you to join 【{inv.project.project_name}】",
+                'link_url': f"/project/{inv.project_id}",
+                'is_read': is_handled,
+                'created_at': inv.created_at.isoformat(),
+                'time_display': inv.created_at.strftime('%Y-%m-%d %H:%M')
+            })
+
+    # 4. 获取别人申请加入你项目的 (Applications)
+    owned_projects = Project.query.filter_by(user_id=user.id).all()
+    owned_project_ids = [p.id for p in owned_projects]
+    
+    if owned_project_ids:
+        applications = JoinRequest.query.filter(
+            JoinRequest.project_id.in_(owned_project_ids)
+        ).order_by(JoinRequest.created_at.desc()).limit(50).all()
+        
+        for app in applications:
+            is_handled = (app.status != 'pending')
+            unified_list.append({
+                'uid': f"app_{app.id}",
+                'id': app.id,
+                'source': 'application',
+                'category': 'requests',
+                'invite_status': app.status,
+                'project_id': app.project_id,
+                'project_name': app.project.project_name,
+                'applicant_name': app.user.name,
+                'content': f"{app.user.name} applied to join your project 【{app.project.project_name}】",
+                'link_url': f"/user/{app.user_id}",
+                'is_read': is_handled,
+                'created_at': app.created_at.isoformat(),
+                'time_display': app.created_at.strftime('%Y-%m-%d %H:%M')
+            })
+
+    unified_list.sort(key=lambda x: x['created_at'], reverse=True)
+    return jsonify(unified_list)
+
+@views.route('/api/notifications/clear-read', methods=['DELETE'])
+def clear_read_notifications():
+    """清理已读普通通知和徽章通知"""
+    err = require_login()
+    if err: return err
+    user = get_current_user()
+    try:
+        Notification.query.filter_by(user_id=user.id, is_read=True).delete()
+        BadgeNotification.query.filter_by(user_id=user.id, is_read=True).delete()
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Cleared read notifications'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500

@@ -71,6 +71,7 @@ class UserSettings(db.Model):
     notify_new_suggestions = db.Column(db.Boolean, default=True)
     notify_newsletter = db.Column(db.Boolean, default=False)
     notify_badges = db.Column(db.Boolean, default=True)  # Show badge earned popup notifications
+    email_notifications = db.Column(db.Boolean, default=True) 
     
     # Display preferences
     theme = db.Column(db.String(20), nullable=False, default='light')  # 'light', 'dark'

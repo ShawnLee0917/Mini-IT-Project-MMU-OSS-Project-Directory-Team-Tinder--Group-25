@@ -295,6 +295,10 @@
                 <a href="{{ url_for('views.profile') }}" class="hover:text-red-200 transition">My Profile</a>
                 <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
                 <a href="{{ url_for('views.list_project') }}" class="hover:text-red-200 transition">List Your Project</a>
+                <a href="{{ url_for('views.notifications_page') }}" class="text-yellow-300 hover:text-white transition flex justify-between items-center" id="mobile-notif-row">
+                    <span><i class="fas fa-bell mr-2"></i> Notification</span>
+                    <span id="mobile-notif-badge" class="bg-yellow-400 text-red-900 px-2 rounded-full text-xs hidden">0</span>
+                </a>
                 <button id="logout-btn-mobile" class="text-left text-red-200 hover:text-white transition text-sm">
                     <i class="fas fa-sign-out-alt mr-1"></i> Logout
                 </button>
@@ -574,6 +578,16 @@
                                 <div><p class="text-sm font-bold text-gray-800">Badges Earned</p></div>
                                 <input type="checkbox" id="setting-notif-badges" class="sr-only peer">
                                 <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500 relative"></div>
+                            </label>
+                            <label class="flex items-center justify-between cursor-pointer group pb-3 border-b border-gray-100">
+                                <div>
+                                    <p class="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+                                        <i class="fas fa-envelope text-red-500"></i> Email Notifications
+                                    </p>
+                                    <p class="text-xs text-gray-400 mt-0.5">Send enabled notifications to your MMU email (badges are batched every 1 min)</p>
+                                </div>
+                                <input type="checkbox" id="setting-notif-email" class="sr-only peer">
+                                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500 relative shrink-0 ml-3"></div>
                             </label>
                         </div>
 
@@ -1021,6 +1035,8 @@ function applyTheme(theme) {
                 // document.getElementById('setting-email-vis').checked = s.privacy?.email_visibility ?? true;
                 // document.getElementById('setting-show-rank').checked = s.privacy?.show_rank ?? true;
                 // document.getElementById('setting-show-karma').checked = s.privacy?.show_karma ?? true;
+                const notifEmail = document.getElementById('setting-notif-email');
+                if (notifEmail) notifEmail.checked = s.notifications?.email_notifications ?? true;
                 
                 const notifComments = document.getElementById('setting-notif-comments');
                 if (notifComments) notifComments.checked = s.notifications?.project_comments ?? true;
@@ -1063,6 +1079,7 @@ function applyTheme(theme) {
                         project_invites: document.getElementById('setting-notif-invites').checked,
                         join_request: document.getElementById('setting-notif-join-request').checked, 
                         badges: document.getElementById('setting-notif-badges').checked,
+                        email_notifications: document.getElementById('setting-notif-email').checked,
                     },
                     display: {
                         theme: document.getElementById('setting-theme').value,
@@ -1566,7 +1583,7 @@ document.getElementById('setting-theme').addEventListener('change', function () 
 }
 
 // Attach this function to your dark mode switch button trigger
-document.getElementById('theme-toggle-btn').addEventListener('click', toggleTheme);
+document.getElementById('theme-toggle-btn')?.addEventListener('click', toggleTheme);
 
 // ── Badge Notification System ────────────────────────────────────────────────
 const BADGE_NOTIF_DURATION = 6000; // ms each popup stays visible

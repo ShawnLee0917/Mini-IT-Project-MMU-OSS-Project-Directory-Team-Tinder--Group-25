@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile | CampusBuilds</title>
+    <script>
+        const currentTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', currentTheme);
+    </script>
+    <meta name="description" content="Your CampusBuilds Source Software Directory profile">
+<!-- This is the Tailwind CSS that i used for the website. -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!--https://cdnjs.com/ -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" rel="stylesheet">
+    <style>
+
+        /* This is get from Google Fonts. */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+
+        body { font-family: 'Inter', sans-serif; }
+        #avatar-wrapper:hover #avatar-overlay { opacity: 1; }
+        #avatar-overlay { transition: opacity 0.2s; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in { animation: fadeIn 0.35s ease both; }
+
+        /* ── Profile content entrance (plays when the view is revealed) ── */
+        @keyframes fadeSlideUp {
+            from { opacity: 0; transform: translateY(18px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .col-in {
+            opacity: 0;
+            animation: fadeSlideUp 0.55s cubic-bezier(0.4, 0, 0.2, 1) both;
+        }
+        .col-in.col-in-1 { animation-delay: 0.05s; }
+        .col-in.col-in-2 { animation-delay: 0.15s; }
+
+                :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f3f4f6;
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --border-color: #e5e7eb;
+        }
+
+        html[data-theme="dark"] {
+            --bg-primary: #0f0f0f;
+            --bg-secondary: #1a1a1a;
+            --text-primary: #e5e7eb;
+            --text-secondary: #a1a1a1;
+            --border-color: #333333;
+        }
+        
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+        
+        html[data-theme="dark"] .border-gray-200 {
+    border-color: var(--border-color) !important;
+}
+        /* Dark theme overrides */
+        html[data-theme="dark"] body {
+            background-color: var(--bg-secondary);
+        }
+        
+        html[data-theme="dark"] header {
+            background-color: var(--bg-primary) !important;
+            border-color: var(--border-color) !important;
+        }
+
+        html[data-theme="dark"] footer {
+            border-color: var(--border-color) !important;
+        }
+        
+        html[data-theme="dark"] header h2,
+        html[data-theme="dark"] header p {
+            color: var(--text-primary) !important;
+        }
+        
+        html[data-theme="dark"] .bg-white {
+            background-color: var(--bg-primary) !important;
+            border-color: var(--border-color) !important;
+        }
+        
+        html[data-theme="dark"] .bg-gray-50 {
+            background-color: var(--bg-secondary) !important;
+        }
+        
+        html[data-theme="dark"] .text-gray-900,
+        html[data-theme="dark"] .text-gray-800 {
+            color: var(--text-primary) !important;
+        }
+        
+        html[data-theme="dark"] .text-gray-500,
+        html[data-theme="dark"] .text-gray-600,
+        html[data-theme="dark"] .text-gray-700 {
+            color: var(--text-secondary) !important;
+        }
+        
+        html[data-theme="dark"] .border-gray-200,
+        html[data-theme="dark"] .border-gray-100 {
+            border-color: var(--border-color) !important;
+        }
+        
+        html[data-theme="dark"] .text-gray-400 {
+            color: var(--text-secondary) !important;
+        }
+        
+        html[data-theme="dark"] input,
+        html[data-theme="dark"] textarea,
+        html[data-theme="dark"] select {
+            background-color: var(--bg-secondary) !important;
+            color: var(--text-primary) !important;
+            border-color: var(--border-color) !important;
+        }
+        
+        html[data-theme="dark"] input:focus,
+        html[data-theme="dark"] textarea:focus,
+        html[data-theme="dark"] select:focus {
+            background-color: var(--bg-primary) !important;
+        }
+
+        html[data-theme="dark"] .bg-gray-100 {
+            background-color: #262626 !important;
+        }
+
+        html[data-theme="dark"] .hover\:bg-gray-200:hover {
+            background-color: #333333 !important;
+        }
+
+        html[data-theme="dark"] #logout-btn,
+        html[data-theme="dark"] #logout-btn-mobile {
+            background-color: #ffffff !important;
+            color: #dc2626 !important;
+        }
+
+        html[data-theme="dark"] #logout-btn:hover,
+        html[data-theme="dark"] #logout-btn-mobile:hover {
+            background-color: #f3f4f6 !important;
+        }
+
+        /* ── Animated Hamburger Button ─────────────────────────── */
+        .hamburger {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            border-radius: 8px;
+            padding: 6px;
+            gap: 5px;
+            transition: background 0.2s ease;
+            position: relative;
+        }
+        .hamburger:hover {
+            background: rgba(255,255,255,0.15);
+        }
+        .hamburger:focus-visible {
+            outline: 2px solid rgba(255,255,255,0.6);
+            outline-offset: 2px;
+        }
+        .hamburger .bar {
+            display: block;
+            width: 22px;
+            height: 2.5px;
+            border-radius: 99px;
+            background: #fff;
+            transition: transform 0.35s cubic-bezier(0.23, 1, 0.32, 1),
+                        opacity   0.25s ease,
+                        width     0.3s ease;
+            transform-origin: center;
+        }
+        /* Open state — morph into X */
+        .hamburger.is-open .bar:nth-child(1) {
+            transform: translateY(7.5px) rotate(45deg);
+        }
+        .hamburger.is-open .bar:nth-child(2) {
+            opacity: 0;
+            width: 0;
+        }
+        .hamburger.is-open .bar:nth-child(3) {
+            transform: translateY(-7.5px) rotate(-45deg);
+        }
+
+        /* ── Mobile menu slide-down animation ──────────────────── */
+        #mobile-menu {
+            max-height: 0;
+            overflow: hidden;
+            opacity: 0;
+            transition: max-height 0.38s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.28s ease;
+        }
+        #mobile-menu.menu-open {
+            max-height: 500px;
+            opacity: 1;
+        }
+        #mobile-menu a, #mobile-menu button, #mobile-menu div {
+            transform: translateY(-6px);
+            opacity: 0;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+        }
+        #mobile-menu.menu-open a, #mobile-menu.menu-open button, #mobile-menu.menu-open div {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        #mobile-menu a:nth-child(1)  { transition-delay: 0.05s; }
+        #mobile-menu a:nth-child(2)  { transition-delay: 0.09s; }
+        #mobile-menu a:nth-child(3)  { transition-delay: 0.13s; }
+        #mobile-menu a:nth-child(4)  { transition-delay: 0.17s; }
+        #mobile-menu a:nth-child(5)  { transition-delay: 0.21s; }
+        #mobile-menu button          { transition-delay: 0.25s; }
+        #mobile-menu #nav-email-mobile { transition-delay: 0.29s; }
+
+        /* ── Modal / popup animations ──────────────────────────── */
+        #badge-modal,
+        #edit-profile-modal,
+        #settings-modal,
+        #reset-password-modal {
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+        #badge-modal.modal-open,
+        #edit-profile-modal.modal-open,
+        #settings-modal.modal-open,
+        #reset-password-modal.modal-open {
+            opacity: 1;
+        }
+        #edit-profile-modal > div,
+        #settings-modal > div,
+        #reset-password-modal > div,
+        #badge-modal > .relative {
+            transform: scale(0.92) translateY(12px);
+            opacity: 0;
+            transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1),
+                        opacity   0.22s ease;
+        }
+        #edit-profile-modal.modal-open > div,
+        #settings-modal.modal-open > div,
+        #reset-password-modal.modal-open > div,
+        #badge-modal.modal-open > .relative {
+            transform: scale(1) translateY(0);
+            opacity: 1;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 text-gray-900">
+
+    <nav class="bg-red-700 text-white shadow-md sticky top-0 z-50">
+        <div class="container mx-auto px-6 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <button id="menu-btn" class="hamburger" aria-label="Toggle menu" aria-expanded="false">
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                </button>
+                <a href="{{ url_for('views.home') }}" class="hover:opacity-80 transition flex items-center gap-4">
+                    <i class="fas fa-arrow-left text-xl"></i>
+                    <h1 class="text-2xl font-extrabold tracking-tighter">
+                        Campus <span class="font-light text-red-200">Builds</span>
+                    </h1>
+                </a>
+            </div>
+            <div class="hidden md:flex space-x-8 items-center font-medium">
+                <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
+                <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
+                <a href="{{ url_for('views.hottest_projects') }}" class="text-white transition">Hottest Projects</a>
+                <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
+                <a href="{{ url_for('views.profile') }}" class="bg-red-800 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-500/50 cursor-pointer hover:bg-red-900 transition">
+                    <span id="nav-email" class="text-xs">…</span>
+                    <i class="fas fa-user-circle text-lg"></i>
+                </a>
+                <button id="logout-btn" class="bg-white text-red-700 hover:bg-red-50 text-xs font-bold px-3 py-2 rounded-xl transition">
+                    <i class="fas fa-sign-out-alt mr-1"></i>Logout
+                </button>
+            </div>
+        </div>
+
+        <div id="mobile-menu" class="bg-red-800 border-t border-red-600 shadow-inner">
+            <div class="px-6 py-4 flex flex-col space-y-4 font-semibold">
+                <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
+                <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
+               <a href="{{ url_for('views.hottest_projects') }}" class="hover:text-red-200 transition">Hottest Projects</a>
+                <a href="{{ url_for('views.profile') }}" class="hover:text-red-200 transition">My Profile</a>
+                <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
+                <a href="{{ url_for('views.list_project') }}" class="hover:text-red-200 transition">List Your Project</a>
+                <button id="logout-btn-mobile" class="text-left text-red-200 hover:text-white transition text-sm">
+                    <i class="fas fa-sign-out-alt mr-1"></i> Logout
+                </button>
+                <a href="{{ url_for('views.profile') }}" class="bg-red-800 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-500/50 cursor-pointer hover:bg-red-900 transition">
+                    <span id="nav-email" class="text-sm">{{ session.get('user_email', 'Guest') }}</span>
+                    <i class="fas fa-user-circle text-lg text-red-200"></i>
+                </a>            </div>
+        </div>
+    </nav>
+
+<!-- 主体内容 -->
+<main class="container mx-auto px-4 sm:px-6 py-10 max-w-4xl flex-grow">
+    
+    <!-- 标题与操作区 -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 page-header-in">
+        <div>
+            <h1 class="text-3xl font-black text-gray-900 flex items-center gap-3">
+                <i class="fas fa-bell text-red-600"></i> Notification Center
+            </h1>
+            <p class="text-sm text-gray-500 mt-1">Manage all your project invites, comments, requests, and badges in one place.</p>
+        </div>
+
+        <div class="flex items-center gap-3 self-start sm:self-auto">
+            <button onclick="markAllReadPage()" class="bg-white border border-gray-200 hover:border-blue-500 text-gray-700 hover:text-blue-600 text-xs font-bold px-4 py-2.5 rounded-xl transition shadow-sm flex items-center gap-2">
+                <i class="fas fa-check-double text-blue-500"></i> Mark All Read
+            </button>
+            <button onclick="clearReadNotifs()" class="bg-white border border-gray-200 hover:border-red-500 text-gray-700 hover:text-red-600 text-xs font-bold px-4 py-2.5 rounded-xl transition shadow-sm flex items-center gap-2">
+                <i class="fas fa-trash-alt text-red-500"></i> Clear Read
+            </button>
+            <a href="{{ url_for('views.profile') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 p-2.5 rounded-xl transition" title="Notification Settings">
+                <i class="fas fa-cog"></i>
+            </a>
+        </div>
+    </div>
+
+    <!-- 分类导航栏 -->
+    <div class="bg-white p-3 rounded-2xl border border-gray-200 shadow-sm mb-6 flex flex-wrap items-center justify-between gap-3 col-in col-in-1">
+        <div class="flex gap-2 overflow-x-auto hide-scrollbar pb-1 sm:pb-0">
+            <button onclick="setCategory('all', this)" class="cat-tab bg-red-600 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap">
+                <i class="fas fa-layer-group"></i> All
+                <span id="count-all" class="bg-white/20 text-white px-1.5 py-0.5 rounded-full text-[10px]">0</span>
+            </button>
+            <button onclick="setCategory('comments', this)" class="cat-tab bg-gray-50 text-gray-600 hover:bg-gray-100 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap">
+                <i class="fas fa-comments text-blue-500"></i> Comments
+                <span id="count-comments" class="bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded-full text-[10px]">0</span>
+            </button>
+            <button onclick="setCategory('invites', this)" class="cat-tab bg-gray-50 text-gray-600 hover:bg-gray-100 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap">
+                <i class="fas fa-envelope-open-text text-purple-500"></i> Project Invites
+                <span id="count-invites" class="bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded-full text-[10px]">0</span>
+            </button>
+            <button onclick="setCategory('requests', this)" class="cat-tab bg-gray-50 text-gray-600 hover:bg-gray-100 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap">
+                <i class="fas fa-handshake text-green-500"></i> Join Requests
+                <span id="count-requests" class="bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded-full text-[10px]">0</span>
+            </button>
+            <button onclick="setCategory('badges', this)" class="cat-tab bg-gray-50 text-gray-600 hover:bg-gray-100 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap">
+                <i class="fas fa-medal text-yellow-500"></i> Badges
+                <span id="count-badges" class="bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded-full text-[10px]">0</span>
+            </button>
+        </div>
+
+        <!-- 仅看未读开关 -->
+        <label class="flex items-center gap-2 cursor-pointer select-none text-xs font-bold text-gray-600 ml-auto px-2">
+            <input type="checkbox" id="unread-only-toggle" onchange="renderNotifications()" class="rounded text-red-600 focus:ring-red-500 w-4 h-4 cursor-pointer">
+            <span>Unread only</span>
+        </label>
+    </div>
+
+    <!-- 通知列表容器 -->
+    <div id="notifications-container" class="space-y-3 col-in col-in-2">
+        <div class="bg-white p-12 rounded-2xl border border-gray-100 shadow-sm text-center text-gray-400">
+            <i class="fas fa-circle-notch fa-spin text-2xl text-red-500 mb-3"></i>
+            <p class="text-sm font-medium">Loading notifications...</p>
+        </div>
+    </div>
+
+</main>
+
+<script>
+    const API = '/api';
+    let allNotifications = [];
+    let currentCategory = 'all';
+
+    // 初始化主题
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    if (savedTheme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+    }
+
+    // ─── 汉堡菜单逻辑 ───────────────────────────────────────────────────────
+    const menuBtn    = document.getElementById('menu-btn');
+    const mobileMenu = document.getElementById('mobile-menu');
+
+    function openMenu() {
+        mobileMenu.classList.add('menu-open');
+        menuBtn.classList.add('is-open');
+        menuBtn.setAttribute('aria-expanded', 'true');
+    }
+
+    function closeMenu() {
+        mobileMenu.classList.remove('menu-open');
+        menuBtn.classList.remove('is-open');
+        menuBtn.setAttribute('aria-expanded', 'false');
+    }
+
+    menuBtn.addEventListener('click', () => {
+        mobileMenu.classList.contains('menu-open') ? closeMenu() : openMenu();
+    });
+
+    mobileMenu.querySelectorAll('a, button').forEach(el => {
+        el.addEventListener('click', closeMenu);
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!menuBtn.contains(e.target) && !mobileMenu.contains(e.target)) {
+            closeMenu();
+        }
+    });
+
+    // 移动端及电脑端注销
+    async function logout() {
+        try {
+            await fetch(`${API}/logout`, { method: 'POST' });
+        } catch (err) {
+            console.error('Logout error:', err);
+        }
+        window.location.href = '/login';
+    }
+    
+    if (document.getElementById('logout-btn')) {
+        document.getElementById('logout-btn').addEventListener('click', logout);
+    }
+    if (document.getElementById('logout-btn-mobile')) {
+        document.getElementById('logout-btn-mobile').addEventListener('click', logout);
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text || '';
+        return div.innerHTML;
+    }
+
+    function showToast(msg, success = true) {
+        const toast = document.createElement('div');
+        toast.className = `fixed bottom-6 right-6 px-6 py-3 rounded-2xl text-white text-sm font-semibold shadow-lg z-50 ${success ? 'bg-green-600' : 'bg-red-600'}`;
+        toast.textContent = msg;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+
+    // 加载用户信息与全部通知
+    async function initPage() {
+        try {
+            const meRes = await fetch(`${API}/me`);
+            if (!meRes.ok) { window.location.href = '/login'; return; }
+            const meData = await meRes.json();
+            
+            // 桌面端和移动端导航栏邮箱同步
+            if (document.getElementById('nav-email')) {
+                document.getElementById('nav-email').textContent = meData.email;
+            }
+            if (document.getElementById('nav-email-mobile')) {
+                document.getElementById('nav-email-mobile').textContent = meData.email;
+            }
+            
+            await fetchAllNotifications();
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    async function fetchAllNotifications() {
+        try {
+            const res = await fetch(`${API}/notifications/all`);
+            if (!res.ok) throw new Error('Failed to load');
+            allNotifications = await res.json();
+            updateCategoryCounts();
+            renderNotifications();
+        } catch (err) {
+            document.getElementById('notifications-container').innerHTML = `
+                <div class="bg-white p-8 rounded-2xl border border-gray-200 text-center text-red-500 text-sm">
+                    Failed to load notifications. Please refresh the page.
+                </div>`;
+        }
+    }
+
+    function updateCategoryCounts() {
+        const counts = { all: 0, comments: 0, invites: 0, requests: 0, badges: 0 };
+        allNotifications.forEach(n => {
+            if (!n.is_read) {
+                counts.all++;
+                if (counts[n.category] !== undefined) counts[n.category]++;
+            }
+        });
+
+        Object.keys(counts).forEach(key => {
+            const el = document.getElementById(`count-${key}`);
+            if (el) el.textContent = counts[key];
+        });
+    }
+
+    function setCategory(cat, btnEl) {
+        currentCategory = cat;
+        document.querySelectorAll('.cat-tab').forEach(btn => {
+            btn.className = 'cat-tab bg-gray-50 text-gray-600 hover:bg-gray-100 px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap';
+        });
+        btnEl.className = 'cat-tab bg-red-600 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap';
+        renderNotifications();
+    }
+
+    function getCategoryIcon(cat) {
+        switch (cat) {
+            case 'comments': return { icon: 'fas fa-comments', bg: 'bg-blue-50', color: 'text-blue-600', label: 'Comment' };
+            case 'invites':  return { icon: 'fas fa-user-plus', bg: 'bg-purple-50', color: 'text-purple-600', label: 'Project Invite' };
+            case 'requests': return { icon: 'fas fa-handshake', bg: 'bg-green-50', color: 'text-green-600', label: 'Join Request' };
+            case 'badges':   return { icon: 'fas fa-medal', bg: 'bg-yellow-50', color: 'text-yellow-600', label: 'Badge Earned' };
+            default:         return { icon: 'fas fa-bell', bg: 'bg-gray-100', color: 'text-gray-600', label: 'System' };
+        }
+    }
+
+    function renderNotifications() {
+        const container = document.getElementById('notifications-container');
+        const unreadOnly = document.getElementById('unread-only-toggle').checked;
+
+        const filtered = allNotifications.filter(n => {
+            if (currentCategory !== 'all' && n.category !== currentCategory) return false;
+            if (unreadOnly && n.is_read) return false;
+            return true;
+        });
+
+        if (filtered.length === 0) {
+            container.innerHTML = `
+                <div class="bg-white p-12 rounded-2xl border border-gray-200 text-center">
+                    <div class="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3 text-gray-400">
+                        <i class="fas fa-bell-slash text-xl"></i>
+                    </div>
+                    <h3 class="font-bold text-gray-700 text-base">No notifications found</h3>
+                    <p class="text-xs text-gray-400 mt-1">You're all caught up in this category!</p>
+                </div>`;
+            return;
+        }
+
+        container.innerHTML = filtered.map((n, idx) => {
+            const meta = getCategoryIcon(n.category);
+            const unreadStyle = !n.is_read ? 'border-l-4 border-l-red-600 bg-white' : 'bg-white/70 opacity-75';
+            const unreadDot = !n.is_read ? '<span class="w-2 h-2 rounded-full bg-red-600 inline-block mr-1.5" title="Unread"></span>' : '';
+
+            let actionButtons = '';
+            
+            // 1. 如果是别人申请加入你的项目 (Application) -> 变更为 View Profile 按钮
+            if (n.source === 'application') {
+                if (n.invite_status === 'pending') {
+                    actionButtons = `
+                        <div class="flex items-center gap-2 mt-3">
+                            <button onclick="handleApplication(${n.project_id}, ${n.id}, 'accept')" class="bg-green-600 hover:bg-green-700 text-white text-xs font-bold px-4 py-1.5 rounded-lg transition shadow-sm">
+                                <i class="fas fa-check mr-1"></i>Approve
+                            </button>
+                            <button onclick="handleApplication(${n.project_id}, ${n.id}, 'reject')" class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold px-4 py-1.5 rounded-lg transition">
+                                Decline
+                            </button>
+                            <a href="${n.link_url}" class="bg-blue-50 border border-blue-200 hover:bg-blue-100 text-blue-700 text-xs font-bold px-4 py-1.5 rounded-lg transition shadow-sm flex items-center gap-1">
+                                <i class="fas fa-user"></i> View Profile
+                            </a>
+                        </div>`;
+                } else {
+                    const statusBadge = n.invite_status === 'accepted' 
+                        ? '<span class="text-xs font-bold text-green-600 bg-green-50 px-2.5 py-1 rounded-lg"><i class="fas fa-check-circle mr-1"></i>Approved</span>'
+                        : '<span class="text-xs font-bold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-lg"><i class="fas fa-times-circle mr-1"></i>Declined</span>';
+                    actionButtons = `<div class="mt-2 flex items-center gap-3">${statusBadge} <a href="${n.link_url}" class="bg-blue-50 border border-blue-200 hover:bg-blue-100 text-blue-700 text-xs font-bold px-4 py-1.5 rounded-lg transition shadow-sm flex items-center gap-1"><i class="fas fa-user"></i> View Profile</a></div>`;
+                }
+            }
+            // 2. 如果是别人邀请你加入 (Invite) -> 依然使用 View Project 按钮
+            else if (n.source === 'invite') {
+                if (n.invite_status === 'invited') {
+                    actionButtons = `
+                        <div class="flex items-center gap-2 mt-3">
+                            <button onclick="handleInvite(${n.id}, 'accept')" class="bg-green-600 hover:bg-green-700 text-white text-xs font-bold px-4 py-1.5 rounded-lg transition shadow-sm">
+                                <i class="fas fa-check mr-1"></i>Accept
+                            </button>
+                            <button onclick="handleInvite(${n.id}, 'reject')" class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold px-4 py-1.5 rounded-lg transition">
+                                Decline
+                            </button>
+                            <a href="${n.link_url}" class="bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold px-4 py-1.5 rounded-lg transition shadow-sm flex items-center gap-1">
+                                <i class="fas fa-project-diagram"></i> View Project
+                            </a>
+                        </div>`;
+                } else {
+                    const statusBadge = n.invite_status === 'accepted' 
+                        ? '<span class="text-xs font-bold text-green-600 bg-green-50 px-2.5 py-1 rounded-lg"><i class="fas fa-check-circle mr-1"></i>Accepted</span>'
+                        : '<span class="text-xs font-bold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-lg"><i class="fas fa-times-circle mr-1"></i>Declined</span>';
+                    actionButtons = `<div class="mt-2 flex items-center gap-3">${statusBadge} <a href="${n.link_url}" class="bg-blue-50 border border-blue-200 hover:bg-blue-100 text-blue-700 text-xs font-bold px-4 py-1.5 rounded-lg transition shadow-sm flex items-center gap-1"><i class="fas fa-project-diagram"></i> View Project</a></div>`;
+                }
+            }            
+            // 3. 普通通知/徽章通知
+            else {
+                actionButtons = `
+                    <div class="flex items-center gap-3 mt-2">
+                        ${n.link_url ? `<a href="${n.link_url}" class="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1"><i class="fas fa-external-link-alt text-[10px]"></i> View Details</a>` : ''}
+                        ${!n.is_read ? `<button onclick="markSingleRead('${n.source}', ${n.id})" class="text-xs font-semibold text-gray-400 hover:text-red-600 transition flex items-center gap-1 ml-auto"><i class="fas fa-check"></i> Mark as read</button>` : '<span class="text-[11px] text-gray-400 ml-auto"><i class="fas fa-check-double mr-1"></i>Read</span>'}
+                    </div>`;
+            }
+
+            return `
+            <div class="notif-card border border-gray-200 rounded-2xl p-5 shadow-sm hover:border-gray-300 transition flex items-start gap-4 ${unreadStyle}" style="animation-delay: ${Math.min(idx * 0.03, 0.3)}s">
+                <div class="w-11 h-11 rounded-xl ${meta.bg} ${meta.color} flex items-center justify-center shrink-0 mt-0.5">
+                    <i class="${meta.icon} text-lg"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between gap-2 mb-1">
+                        <span class="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded ${meta.bg} ${meta.color}">
+                            ${meta.label}
+                        </span>
+                        <span class="text-xs text-gray-400 shrink-0">${n.time_display}</span>
+                    </div>
+                    <p class="text-sm text-gray-800 font-medium leading-relaxed mt-1">
+                        ${unreadDot}${escapeHtml(n.content)}
+                    </p>
+                    ${actionButtons}
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    async function markSingleRead(source, id) {
+        try {
+            const url = source === 'badge' 
+                ? `${API}/badge-notifications/${id}/dismiss` 
+                : `${API}/notifications/${id}/dismiss`;
+            const res = await fetch(url, { method: 'POST' });
+            if (res.ok) {
+                const target = allNotifications.find(n => n.source === source && n.id === id);
+                if (target) target.is_read = true;
+                updateCategoryCounts();
+                renderNotifications();
+            }
+        } catch (err) {
+            showToast('Failed to update status', false);
+        }
+    }
+
+    async function handleInvite(requestId, action) {
+        try {
+            const res = await fetch(`${API}/invitations/${requestId}/${action}`, { method: 'POST' });
+            const data = await res.json();
+            if (res.ok) {
+                showToast(data.success, true);
+                await fetchAllNotifications();
+            } else {
+                showToast(data.error || 'Action failed', false);
+            }
+        } catch (err) {
+            showToast('Network error', false);
+        }
+    }
+
+    // 专属处理他人申请你的项目 (Approve / Decline)
+    async function handleApplication(projectId, requestId, action) {
+        try {
+            const res = await fetch(`${API}/project/${projectId}/join-requests/${requestId}/${action}`, { method: 'POST' });
+            const data = await res.json();
+            if (res.ok) {
+                showToast(data.success, true);
+                await fetchAllNotifications(); // 刷新独立页面的列表
+            } else {
+                showToast(data.error || 'Action failed', false);
+            }
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    async function markAllReadPage() {
+        try {
+            const res = await fetch(`${API}/notifications/mark-all-read`, { method: 'POST' });
+            if (res.ok) {
+                showToast('All notifications marked as read');
+                await fetchAllNotifications();
+            }
+        } catch (err) {
+            showToast('Failed to mark all read', false);
+        }
+    }
+
+    async function clearReadNotifs() {
+        try {
+            const res = await fetch(`${API}/notifications/clear-read`, { method: 'DELETE' });
+            if (res.ok) {
+                showToast('Cleared all read notifications');
+                await fetchAllNotifications();
+            }
+        } catch (err) {
+            showToast('Failed to clear notifications', false);
+        }
+    }
+
+    initPage();
+</script>
+</body>
+</html>

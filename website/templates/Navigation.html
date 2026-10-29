@@ -387,6 +387,9 @@
                     <div id="notif-list" class="max-h-64 overflow-y-auto divide-y divide-gray-50 text-gray-800">
                         <div class="p-4 text-center text-xs text-gray-400 italic">No new notifications.</div>
                     </div>
+                    <a href="{{ url_for('views.notifications_page') }}" class="block bg-gray-50 hover:bg-red-50 text-center py-2.5 text-xs font-bold text-red-600 border-t border-gray-100 transition">
+                        View All Notifications <i class="fas fa-arrow-right ml-1 text-[10px]"></i>
+                    </a>
                 </div>
             </div>
 
@@ -414,10 +417,10 @@
             <a href="{{ url_for('views.list_project') }}" class="hover:text-red-200 transition">List Your Project</a>
             <a href="{{ url_for('views.profile') }}" class="hover:text-red-200 transition">My Profile</a>
             
-            <button onclick="document.getElementById('notif-btn').click()" class="text-left text-yellow-300 hover:text-white transition flex justify-between items-center" id="mobile-notif-row">
+            <a href="{{ url_for('views.notifications_page') }}" class="text-yellow-300 hover:text-white transition flex justify-between items-center" id="mobile-notif-row">
                 <span><i class="fas fa-bell mr-2"></i> Notification</span>
                 <span id="mobile-notif-badge" class="bg-yellow-400 text-red-900 px-2 rounded-full text-xs hidden">0</span>
-            </button>
+            </a>
 
 
             <button id="logout-btn-mobile" class="text-left text-red-200 hover:text-white transition text-sm border-t border-red-700 pt-4 mt-2">
@@ -742,14 +745,11 @@
     }
 
     // Badge Notification Queue (API-backed)
-    // Fetches unread badge notifications from /api/badge-notifications.
-    // The server returns [] automatically if the user has turned off badge notifications.
-
     async function fetchBadgeNotifications() {
         try {
             const res = await fetch(`${API}/badge-notifications`);
             if (!res.ok) return [];
-            return await res.json(); // [{id, badge_name}, ...]
+            return await res.json(); 
         } catch { return []; }
     }
 
@@ -799,17 +799,16 @@
         return BADGE_ICONS[name.toLowerCase().trim()] || { icon: 'fas fa-medal', color: 'text-yellow-500', bg: 'bg-yellow-50' };
     }
 
-
-async function dismissGeneralNotif(notifId) {
-    try {
-        await fetch(`${API}/notifications/${notifId}/dismiss`, { method: 'POST' });
-    } catch (err) {
-        console.error('Failed to dismiss notification:', err);
+    async function dismissGeneralNotif(notifId) {
+        try {
+            await fetch(`${API}/notifications/${notifId}/dismiss`, { method: 'POST' });
+        } catch (err) {
+            console.error('Failed to dismiss notification:', err);
+        }
+        await loadInvitations();
     }
-    await loadInvitations();
-}
 
-// ── Load Notifications (Invitations + Badge Queue + System Notifs) ──
+    // ── Load Notifications (Invitations + Applications + Badge Queue + System Notifs) ──
     async function loadInvitations() {
         if (IS_FILE) return;
         try {
@@ -833,12 +832,14 @@ async function dismissGeneralNotif(notifId) {
             if (totalCount > 0) {
                 badgeEl.textContent = totalCount;
                 badgeEl.classList.remove('hidden');
-                mobileBadge.textContent = totalCount;
-                mobileBadge.classList.remove('hidden');
+                if(mobileBadge) {
+                    mobileBadge.textContent = totalCount;
+                    mobileBadge.classList.remove('hidden');
+                }
                 countText.textContent = `${totalCount} New`;
             } else {
                 badgeEl.classList.add('hidden');
-                mobileBadge.classList.add('hidden');
+                if(mobileBadge) mobileBadge.classList.add('hidden');
                 countText.textContent = '0';
             }
 
@@ -859,20 +860,48 @@ async function dismissGeneralNotif(notifId) {
                 </div>`;
             }).join('');
 
-            const invItems = invs.map(inv => `
-                <div class="p-4 hover:bg-gray-50 transition border-b border-gray-50" id="inv-card-${inv.id}">
-                    <p class="text-xs text-gray-800 mb-3 leading-relaxed">
-                        <span class="font-bold text-gray-900">${escapeHtml(inv.owner_name)}</span> invited you to join <span class="font-bold text-red-600">${escapeHtml(inv.project_name)}</span>
-                    </p>
-                    <div class="flex gap-2">
-                        <button onclick="respondToInvitation(${inv.id}, 'accept')" class="flex-1 flex items-center justify-center gap-1 bg-green-500 hover:bg-green-600 text-white text-xs font-bold py-1.5 rounded-lg transition shadow-sm">
-                            <i class="fas fa-check text-[10px]"></i> Accept
-                        </button>
-                        <a href="/project/${inv.project_id}" class="flex-1 flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-1.5 rounded-lg transition shadow-sm">View</a>
-                        <button onclick="respondToInvitation(${inv.id}, 'reject')" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold py-1.5 rounded-lg transition">Decline</button>
-                    </div>
-                </div>
-            `).join('');
+            // ⚠️ 关键修改：同时支持 Invite 和 Application 两种类型
+            const invItems = invs.map(inv => {
+                if (inv.type === 'application') {
+                    // 别人申请加入你的项目 (Application) -> 显示 View Profile 按钮
+                    return `
+                    <div class="p-4 hover:bg-gray-50 transition border-b border-gray-50" id="inv-card-${inv.id}">
+                        <p class="text-xs text-gray-800 mb-3 leading-relaxed">
+                            <span class="font-bold text-gray-900">${escapeHtml(inv.applicant_name)}</span> applied to join your project <span class="font-bold text-red-600">${escapeHtml(inv.project_name)}</span>
+                        </p>
+                        <div class="flex gap-2">
+                            <button onclick="handleApplication(${inv.project_id}, ${inv.id}, 'accept')" class="flex-1 flex items-center justify-center gap-1 bg-green-500 hover:bg-green-600 text-white text-xs font-bold py-1.5 rounded-lg transition shadow-sm">
+                                <i class="fas fa-check text-[10px]"></i> Approve
+                            </button>
+                            <button onclick="handleApplication(${inv.project_id}, ${inv.id}, 'reject')" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold py-1.5 rounded-lg transition">
+                                Decline
+                            </button>
+                            <a href="/user/${inv.applicant_id}" class="flex-1 flex items-center justify-center gap-1 bg-blue-50 border border-blue-200 hover:bg-blue-100 text-blue-700 text-xs font-bold py-1.5 rounded-lg transition shadow-sm">
+                                <i class="fas fa-user"></i> Profile
+                            </a>
+                        </div>
+                    </div>`;
+                } else {
+                    // 别人邀请你加入他的项目 (Invite) -> 依然保留 View Project
+                    return `
+                    <div class="p-4 hover:bg-gray-50 transition border-b border-gray-50" id="inv-card-${inv.id}">
+                        <p class="text-xs text-gray-800 mb-3 leading-relaxed">
+                            <span class="font-bold text-gray-900">${escapeHtml(inv.owner_name)}</span> invited you to join <span class="font-bold text-red-600">${escapeHtml(inv.project_name)}</span>
+                        </p>
+                        <div class="flex gap-2">
+                            <button onclick="respondToInvitation(${inv.id}, 'accept')" class="flex-1 flex items-center justify-center gap-1 bg-green-500 hover:bg-green-600 text-white text-xs font-bold py-1.5 rounded-lg transition shadow-sm">
+                                <i class="fas fa-check text-[10px]"></i> Accept
+                            </button>
+                            <button onclick="respondToInvitation(${inv.id}, 'reject')" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold py-1.5 rounded-lg transition">
+                                Decline
+                            </button>
+                            <a href="/project/${inv.project_id}" class="flex-1 flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-1.5 rounded-lg transition shadow-sm">
+                                View
+                            </a>
+                        </div>
+                    </div>`;
+                }
+            }).join('');
 
             const generalNotifItems = generalNotifs.map(n => `
                 <div class="p-4 hover:bg-gray-50 transition border-b border-gray-50" id="notif-${n.id}">
@@ -902,12 +931,31 @@ async function dismissGeneralNotif(notifId) {
             const data = await res.json();
             if (res.ok) {
                 showNotif(data.success, true);
-                loadInvitations(); // Reload the list and badges instantly
+                loadInvitations(); 
             } else {
                 showNotif(data.error || 'Action failed', false);
             }
         } catch (err) {
             showNotif('Network error', false);
+        }
+    }
+    
+    async function handleApplication(projectId, requestId, action) {
+        try {
+            const res = await fetch(`${API}/project/${projectId}/join-requests/${requestId}/${action}`, { method: 'POST' });
+            const data = await res.json();
+            if (res.ok) {
+                if (typeof showNotif === 'function') showNotif(data.success, true);
+                else if (typeof showToast === 'function') showToast(data.success, true);
+                
+                if (typeof loadInvitations === 'function') await loadInvitations();
+                if (typeof fetchAllNotifications === 'function') await fetchAllNotifications();
+            } else {
+                if (typeof showNotif === 'function') showNotif(data.error || 'Action failed', false);
+                else if (typeof showToast === 'function') showToast(data.error || 'Action failed', false);
+            }
+        } catch (err) {
+            console.error(err);
         }
     }
 
@@ -948,7 +996,7 @@ async function dismissGeneralNotif(notifId) {
         checkPreviewsEmpty();
     }
 
-    document.getElementById('post-image-upload').addEventListener('change', function(e) {
+    document.getElementById('post-image-upload')?.addEventListener('change', function(e) {
         if (this.files && this.files.length > 0) {
             Array.from(this.files).forEach(file => selectedImages.push(file));
             this.value = ''; 
@@ -1004,8 +1052,6 @@ async function dismissGeneralNotif(notifId) {
         }
     }
 
-    // ── Feed Rendering & Filtering (核心重构：多级提权渲染算法) ──────────────────
-
     function changeFilter(filter, btnElement) {
         currentFilter = filter;
         document.querySelectorAll('.filter-btn').forEach(btn => {
@@ -1019,7 +1065,8 @@ async function dismissGeneralNotif(notifId) {
 
     async function loadFeed() {
         const container = document.getElementById('feed-container');
-        
+        if (!container) return; // Prevent error on pages without feed
+
         if (IS_FILE) {
             container.innerHTML = '<div class="text-center text-gray-400 py-10 bg-white border border-gray-100 rounded-2xl text-sm italic">(Feed disabled in offline mode)</div>';
             return;
@@ -1185,6 +1232,7 @@ async function dismissGeneralNotif(notifId) {
             }).join('');
 
             container.querySelectorAll('.feed-card').forEach((card, i) => {
+                // 修复了 i * 0.06 缺失的星号问题
                 card.style.animationDelay = `${i * 0.06}s`;
             });
 
@@ -1478,7 +1526,10 @@ async function dismissGeneralNotif(notifId) {
                 cancelReply(postId);
                 await loadPostComments(postId); 
 
-                // If this was a reply, auto-reveal its thread so the reply is visible right away.
+                if (typeof loadInvitations === 'function') {
+                    loadInvitations();
+                }
+
                 if (target) {
                     const targetComment = (_postCommentsCache[postId] || []).find(c => c.id === target.id);
                     const rootId = targetComment ? (targetComment.parent_id || targetComment.id) : null;
@@ -1593,6 +1644,7 @@ async function dismissGeneralNotif(notifId) {
     async function loadAISuggestions() {
         if (IS_FILE) return;
         const list = document.getElementById('suggestions-list');
+        if (!list) return; // Prevent errors on pages without this element
         try {
             const res = await fetch(`${API}/ai-suggestions`);
             if (!res.ok) throw new Error();
@@ -1681,8 +1733,12 @@ async function dismissGeneralNotif(notifId) {
         window.location.href = '/login';
     }
 
-    document.getElementById('logout-btn').addEventListener('click', logout);
-    document.getElementById('logout-btn-mobile').addEventListener('click', logout);
+    if (document.getElementById('logout-btn')) {
+        document.getElementById('logout-btn').addEventListener('click', logout);
+    }
+    if (document.getElementById('logout-btn-mobile')) {
+        document.getElementById('logout-btn-mobile').addEventListener('click', logout);
+    }
 
     initNav().then(() => {
         loadFeed();
@@ -1741,7 +1797,6 @@ function customConfirm(title = 'Delete Post?', message = 'Are you sure you want 
         btnCancel.addEventListener('click', handleCancel);
     });
 }
-
 </script>
 </body>
 </html>
