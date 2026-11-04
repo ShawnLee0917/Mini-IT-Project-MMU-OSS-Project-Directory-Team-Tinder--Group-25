@@ -4347,7 +4347,10 @@ def manage_community_post_comments(post_id):
         if reply_to_id and str(reply_to_id).isdigit():
             target_comment = CommunityPostComment.query.filter_by(id=int(reply_to_id), post_id=post_id).first()
             if target_comment:
-                reply_to_user_id = target_comment.user_id
+                # Only tag the target's author (the "->" arrow) when the target is itself a
+                # reply. Replying directly to a top-level comment gets no arrow.
+                if target_comment.parent_id is not None:
+                    reply_to_user_id = target_comment.user_id
                 if parent_id is None:
                     parent_id = target_comment.parent_id or target_comment.id
 

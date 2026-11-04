@@ -194,6 +194,22 @@
                     </div>
                 </div>
 
+                <!-- Terms & Privacy agreement -->
+                <div>
+                    <label for="agree-terms" class="flex items-start gap-3 cursor-pointer">
+                        <input type="checkbox" id="agree-terms" required
+                            class="w-4 h-4 mt-0.5 text-red-600 rounded border-gray-300 focus:ring-red-500">
+                        <span class="text-sm text-gray-600 leading-snug">
+                            I have read and agree to the
+                            <a href="{{ url_for('views.terms_of_service') }}" target="_blank" rel="noopener"
+                               class="text-red-600 font-semibold hover:underline">Terms of Service</a>
+                            and
+                            <a href="{{ url_for('views.privacy_policy') }}" target="_blank" rel="noopener"
+                               class="text-red-600 font-semibold hover:underline">Privacy Policy</a>.
+                        </span>
+                    </label>
+                </div>
+
                 <button type="submit" id="register-btn"
                     class="w-full bg-red-600 hover:bg-red-700 active:scale-95 text-white font-bold py-3 rounded-xl transition-all text-sm flex items-center justify-center gap-2">
                     <span id="btn-label">Create Account</span>
@@ -278,6 +294,10 @@
         const confirm  = document.getElementById('reg-confirm').value;
         if (password !== confirm) { showError('Passwords do not match'); return; }
         if (password.length < 6)  { showError('Password must be at least 6 characters'); return; }
+        if (!document.getElementById('agree-terms').checked) {
+            showError('You must agree to the Terms of Service and Privacy Policy to create an account');
+            return;
+        }
 
         btn.disabled = true;
         label.textContent = 'Creating account…';
@@ -313,7 +333,8 @@
                     email:    document.getElementById('reg-email').value.trim().toLowerCase(),
                     password,
                     dev_interests: devInterests,
-                    lang_interests: langInterests
+                    lang_interests: langInterests,
+                    terms_accepted: document.getElementById('agree-terms').checked
                 })
             });
             const data = await res.json();
