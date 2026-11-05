@@ -939,7 +939,6 @@ def api_admin_dismiss_report():
 
     try:
         # 3. Find the report record
-        # 请确保 ContentReport 名字与你的 models.py 中完全一致
         report = ContentReport.query.filter_by(id=int(report_id)).first()
         
         if not report:
@@ -1029,7 +1028,7 @@ def send_otp_email(receiver_email, otp_code):
 _badge_email_lock = threading.Lock()
 _badge_email_buffer = {}  # { user_id: set(['Python Expert', 'First Project']) }
 _badge_email_timers = {}  # { user_id: threading.Timer }
-BADGE_BATCH_WINDOW_SECONDS = 60.0  # 前后 1 分钟合并窗口
+BADGE_BATCH_WINDOW_SECONDS = 60.0
 
 
 def _send_mailgun_async(app, to_email, subject, text_content, html_content):
@@ -1064,7 +1063,7 @@ def can_send_email(user, category_attr=None):
         return False
     settings = user.settings
     if not settings:
-        return True  # 默认开启
+        return True
     if not getattr(settings, 'email_notifications', True):
         return False
     if category_attr and not getattr(settings, category_attr, True):
@@ -2514,7 +2513,6 @@ def get_my_invitations():
     
     results = []
     
-    # 1. 别人邀请你加入的 (Invitations)
     invitations = JoinRequest.query.filter_by(
         user_id=current_user.id, 
         status='invited'
@@ -2530,7 +2528,6 @@ def get_my_invitations():
             'created_at': inv.created_at.isoformat()
         })
         
-    # 2. 别人申请加入你项目的 (Applications)
     owned_projects = Project.query.filter_by(user_id=current_user.id).all()
     owned_project_ids = [p.id for p in owned_projects]
     
@@ -3225,10 +3222,8 @@ def create_project_comment(project_id):
                     link_path=f"/project/{project.id}"
                 )
                 
-    # —— 核心：在此处加入通知触发逻辑 ——
     project_owner = User.query.get(project.user_id)
     if project_owner and project_owner.id != current_user.id:
-        # 如果项目所有者开启了项目评论通知
         if project_owner.settings and getattr(project_owner.settings, 'notify_project_comments_own', True):
             owner_notif = Notification(
                 user_id=project_owner.id,
@@ -3237,7 +3232,6 @@ def create_project_comment(project_id):
             )
             db.session.add(owner_notif)
 
-    # 同时通知其他曾经在该项目参与过讨论的用户
     participants = db.session.query(User).join(ProjectComment, ProjectComment.user_id == User.id)\
         .filter(ProjectComment.project_id == project.id)\
         .filter(User.id != project_owner.id)\
@@ -4367,7 +4361,6 @@ def manage_community_post_comments(post_id):
                     img = CommunityPostCommentImage(image_path=image_url)
                     comment.images.append(img)
 
-        # —— 核心：在此处加入社区动态评论通知逻辑 ——
         preview_text = (content[:80] + '...') if len(content) > 80 else content
         post = CommunityPost.query.get(post_id)
         if post and post.user_id != current_user.id:
@@ -4896,7 +4889,6 @@ def get_all_notifications_unified():
     settings = user.settings
     unified_list = []
 
-    # 1. 获取通用通知
     general_notifs = Notification.query.filter_by(user_id=user.id).order_by(Notification.created_at.desc()).limit(100).all()
     for n in general_notifs:
         if 'requested to join' in n.content or '🤝' in n.content:
@@ -4918,7 +4910,6 @@ def get_all_notifications_unified():
             'time_display': n.created_at.strftime('%Y-%m-%d %H:%M')
         })
 
-    # 2. 获取徽章通知
     if not settings or settings.notify_badges:
         badge_notifs = BadgeNotification.query.filter_by(user_id=user.id).order_by(BadgeNotification.created_at.desc()).limit(50).all()
         for b in badge_notifs:
@@ -4935,7 +4926,6 @@ def get_all_notifications_unified():
                 'time_display': b.created_at.strftime('%Y-%m-%d %H:%M')
             })
 
-    # 3. 获取项目邀请 (别人邀请你)
     if not settings or settings.notify_project_invites:
         invitations = JoinRequest.query.filter(
             JoinRequest.user_id == user.id,
@@ -4961,7 +4951,6 @@ def get_all_notifications_unified():
                 'time_display': inv.created_at.strftime('%Y-%m-%d %H:%M')
             })
 
-    # 4. 获取别人申请加入你项目的 (Applications)
     owned_projects = Project.query.filter_by(user_id=user.id).all()
     owned_project_ids = [p.id for p in owned_projects]
     
@@ -4993,7 +4982,6 @@ def get_all_notifications_unified():
 
 @views.route('/api/notifications/clear-read', methods=['DELETE'])
 def clear_read_notifications():
-    """清理已读普通通知和徽章通知"""
     err = require_login()
     if err: return err
     user = get_current_user()

@@ -861,10 +861,8 @@
                 </div>`;
             }).join('');
 
-            // ⚠️ 关键修改：同时支持 Invite 和 Application 两种类型
             const invItems = invs.map(inv => {
                 if (inv.type === 'application') {
-                    // 别人申请加入你的项目 (Application) -> 显示 View Profile 按钮
                     return `
                     <div class="p-4 hover:bg-gray-50 transition border-b border-gray-50" id="inv-card-${inv.id}">
                         <p class="text-xs text-gray-800 mb-3 leading-relaxed">
@@ -883,7 +881,6 @@
                         </div>
                     </div>`;
                 } else {
-                    // 别人邀请你加入他的项目 (Invite) -> 依然保留 View Project
                     return `
                     <div class="p-4 hover:bg-gray-50 transition border-b border-gray-50" id="inv-card-${inv.id}">
                         <p class="text-xs text-gray-800 mb-3 leading-relaxed">
@@ -1233,7 +1230,7 @@
             }).join('');
 
             container.querySelectorAll('.feed-card').forEach((card, i) => {
-                // 修复了 i * 0.06 缺失的星号问题
+            
                 card.style.animationDelay = `${i * 0.06}s`;
             });
 

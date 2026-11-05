@@ -304,10 +304,9 @@
         </div>
     </nav>
 
-<!-- 主体内容 -->
+
 <main class="container mx-auto px-4 sm:px-6 py-10 max-w-4xl flex-grow">
     
-    <!-- 标题与操作区 -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 page-header-in">
         <div>
             <h1 class="text-3xl font-black text-gray-900 flex items-center gap-3">
@@ -329,7 +328,6 @@
         </div>
     </div>
 
-    <!-- 分类导航栏 -->
     <div class="bg-white p-3 rounded-2xl border border-gray-200 shadow-sm mb-6 flex flex-wrap items-center justify-between gap-3 col-in col-in-1">
         <div class="flex gap-2 overflow-x-auto hide-scrollbar pb-1 sm:pb-0">
             <button onclick="setCategory('all', this)" class="cat-tab bg-red-600 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap">
@@ -354,14 +352,12 @@
             </button>
         </div>
 
-        <!-- 仅看未读开关 -->
         <label class="flex items-center gap-2 cursor-pointer select-none text-xs font-bold text-gray-600 ml-auto px-2">
             <input type="checkbox" id="unread-only-toggle" onchange="renderNotifications()" class="rounded text-red-600 focus:ring-red-500 w-4 h-4 cursor-pointer">
             <span>Unread only</span>
         </label>
     </div>
 
-    <!-- 通知列表容器 -->
     <div id="notifications-container" class="space-y-3 col-in col-in-2">
         <div class="bg-white p-12 rounded-2xl border border-gray-100 shadow-sm text-center text-gray-400">
             <i class="fas fa-circle-notch fa-spin text-2xl text-red-500 mb-3"></i>
@@ -376,13 +372,11 @@
     let allNotifications = [];
     let currentCategory = 'all';
 
-    // 初始化主题
     const savedTheme = localStorage.getItem('theme') || 'light';
     if (savedTheme === 'dark') {
         document.documentElement.setAttribute('data-theme', 'dark');
     }
 
-    // ─── 汉堡菜单逻辑 ───────────────────────────────────────────────────────
     const menuBtn    = document.getElementById('menu-btn');
     const mobileMenu = document.getElementById('mobile-menu');
 
@@ -412,7 +406,6 @@
         }
     });
 
-    // 移动端及电脑端注销
     async function logout() {
         try {
             await fetch(`${API}/logout`, { method: 'POST' });
@@ -444,14 +437,12 @@
         setTimeout(() => toast.remove(), 3000);
     }
 
-    // 加载用户信息与全部通知
     async function initPage() {
         try {
             const meRes = await fetch(`${API}/me`);
             if (!meRes.ok) { window.location.href = '/login'; return; }
             const meData = await meRes.json();
             
-            // 桌面端和移动端导航栏邮箱同步
             if (document.getElementById('nav-email')) {
                 document.getElementById('nav-email').textContent = meData.email;
             }
@@ -543,7 +534,6 @@
 
             let actionButtons = '';
             
-            // 1. 如果是别人申请加入你的项目 (Application) -> 变更为 View Profile 按钮
             if (n.source === 'application') {
                 if (n.invite_status === 'pending') {
                     actionButtons = `
@@ -565,7 +555,6 @@
                     actionButtons = `<div class="mt-2 flex items-center gap-3">${statusBadge} <a href="${n.link_url}" class="bg-blue-50 border border-blue-200 hover:bg-blue-100 text-blue-700 text-xs font-bold px-4 py-1.5 rounded-lg transition shadow-sm flex items-center gap-1"><i class="fas fa-user"></i> View Profile</a></div>`;
                 }
             }
-            // 2. 如果是别人邀请你加入 (Invite) -> 依然使用 View Project 按钮
             else if (n.source === 'invite') {
                 if (n.invite_status === 'invited') {
                     actionButtons = `
@@ -587,7 +576,6 @@
                     actionButtons = `<div class="mt-2 flex items-center gap-3">${statusBadge} <a href="${n.link_url}" class="bg-blue-50 border border-blue-200 hover:bg-blue-100 text-blue-700 text-xs font-bold px-4 py-1.5 rounded-lg transition shadow-sm flex items-center gap-1"><i class="fas fa-project-diagram"></i> View Project</a></div>`;
                 }
             }            
-            // 3. 普通通知/徽章通知
             else {
                 actionButtons = `
                     <div class="flex items-center gap-3 mt-2">
@@ -649,14 +637,13 @@
         }
     }
 
-    // 专属处理他人申请你的项目 (Approve / Decline)
     async function handleApplication(projectId, requestId, action) {
         try {
             const res = await fetch(`${API}/project/${projectId}/join-requests/${requestId}/${action}`, { method: 'POST' });
             const data = await res.json();
             if (res.ok) {
                 showToast(data.success, true);
-                await fetchAllNotifications(); // 刷新独立页面的列表
+                await fetchAllNotifications();
             } else {
                 showToast(data.error || 'Action failed', false);
             }
