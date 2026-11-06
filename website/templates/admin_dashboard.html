@@ -43,6 +43,32 @@
             transform: scale(1) translateY(0);
             opacity: 1;
         }
+
+        /* ── Edit Badges Modal & Toast animation ───────────────── */
+        #editBadgesModal {
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+        #editBadgesModal.modal-open {
+            opacity: 1;
+        }
+        #editBadgesContent {
+            transform: scale(0.92) translateY(12px);
+            opacity: 0;
+            transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1),
+                        opacity   0.22s ease;
+        }
+        #editBadgesModal.modal-open #editBadgesContent {
+            transform: scale(1) translateY(0);
+            opacity: 1;
+        }
+        @keyframes toastSlideIn {
+            from { opacity: 0; transform: translateY(16px) scale(0.95); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .admin-toast-in {
+            animation: toastSlideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen font-sans">
@@ -236,7 +262,7 @@
 
         <!-- Recent Admin Logs -->
         {% if recent_logs %}
-        <div class="bg-gray-800 rounded-xl p-6 shadow-xl border border-gray-700 section-in section-in-4">
+        <div class="bg-gray-800 rounded-xl p-6 shadow-xl border border-gray-700 mb-8 section-in section-in-4">
             <h2 class="text-xl font-bold text-white mb-4">
                 <i class="fa-solid fa-clock-rotate-left text-gray-400 mr-2"></i> Recent Admin Actions
             </h2>
@@ -249,13 +275,13 @@
                             <span class="text-red-400 font-semibold">{{ log.admin.name if log.admin else 'System' }}</span>
                             · {{ log.action }}
                             {% if log.target_type %}
-    ({{ log.target_type }} #{{ log.target_id }})
-    {% if log.target_type == 'project' %}
-    <a href="/project/{{ log.target_id }}" target="_blank" class="text-blue-400 hover:underline text-xs ml-1">
-        <i class="fa-solid fa-arrow-up-right-from-square"></i> View
-    </a>
-    {% endif %}
-{% endif %}
+                                ({{ log.target_type }} #{{ log.target_id }})
+                                {% if log.target_type == 'project' %}
+                                <a href="/project/{{ log.target_id }}" target="_blank" class="text-blue-400 hover:underline text-xs ml-1">
+                                    <i class="fa-solid fa-arrow-up-right-from-square"></i> View
+                                </a>
+                                {% endif %}
+                            {% endif %}
                         </span>
                     </div>
                     
@@ -269,96 +295,227 @@
             </div>
         </div>
         {% endif %}
-    </div>
 
-    <div class="bg-gray-800 rounded-xl p-6 shadow-xl border border-gray-700 mb-8 mt-8 section-in section-in-5">
-            <h2 class="text-xl font-bold text-white mb-4">
-                <i class="fa-solid fa-award text-yellow-500 mr-2"></i> User Badge Management
-            </h2>
+        <!-- User Badge Management (Rounded List + Edit Modal Style) -->
+        <div class="bg-gray-800 rounded-3xl p-6 sm:p-8 shadow-xl border border-gray-700/80 mb-8 section-in section-in-5">
             
-            <div class="mb-6">
-                <!-- Row 1: User ID + Award button -->
-                <div class="flex flex-col md:flex-row gap-3 items-end mb-4">
-                    <div class="flex-1 max-w-xs">
-                        <label class="block text-xs font-bold text-gray-400 mb-1">User ID</label>
-                        <input type="number" id="badge-user-id" placeholder="e.g. 1" class="w-full px-4 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-yellow-500 focus:outline-none text-sm">
+            <!-- Header & Search Bar -->
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-gray-700/70">
+                <div>
+                    <h2 class="text-xl font-extrabold text-white flex items-center gap-2.5">
+                        <span class="w-9 h-9 rounded-2xl bg-yellow-500/15 border border-yellow-500/30 flex items-center justify-center text-yellow-400">
+                            <i class="fa-solid fa-award"></i>
+                        </span>
+                        User Badge Management
+                        <span id="user-count-badge" class="text-xs font-bold bg-gray-700/80 text-gray-300 px-2.5 py-1 rounded-full border border-gray-600">0 users</span>
+                    </h2>
+                    <p class="text-xs text-gray-400 mt-1.5">Search by name (case-insensitive), email, or ID, and click <b>Edit Badges</b> to assign or remove badges.</p>
+                </div>
+
+                <div class="flex items-center gap-3 w-full md:w-auto">
+                    <div class="relative flex-1 md:w-80">
+                        <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                        <input type="text" id="badge-user-search"
+                            placeholder="Search name, email, or #ID..."
+                            autocomplete="off"
+                            oninput="handleUserListSearch(this.value)"
+                            class="w-full pl-10 pr-9 py-2.5 bg-gray-900/80 text-white rounded-2xl border border-gray-700 focus:border-yellow-500 focus:bg-gray-900 focus:outline-none text-sm transition placeholder-gray-500">
+                        <button id="clear-user-search-btn" onclick="clearUserListSearch()" class="hidden absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 transition">
+                            <i class="fa-solid fa-circle-xmark"></i>
+                        </button>
                     </div>
-                    <button onclick="adminAwardBadge()" class="px-5 py-2 bg-yellow-600 hover:bg-yellow-700 text-white text-sm font-bold rounded-lg transition h-[38px]">
-                        <i class="fa-solid fa-plus mr-1"></i> Award Selected Badge
+                    <button onclick="loadUserBadges(true)" class="px-4 py-2.5 bg-gray-700/70 hover:bg-gray-700 text-gray-200 rounded-2xl text-xs font-bold border border-gray-600/80 transition flex items-center gap-1.5 shrink-0" title="Refresh List">
+                        <i class="fa-solid fa-arrows-rotate text-blue-400"></i>
+                        <span class="hidden sm:inline">Refresh</span>
                     </button>
                 </div>
+            </div>
 
-                <!-- Row 2: Badge picker -->
-                <div>
-                    <label class="block text-xs font-bold text-gray-400 mb-2">Select Badge to Award</label>
-                    <div class="flex flex-wrap gap-3" id="badge-picker">
-                        <!-- Rendered by JS -->
-                    </div>
-                    <p id="badge-selected-label" class="text-xs text-yellow-400 mt-2 hidden">
-                        <i class="fa-solid fa-check mr-1"></i> Selected: <span id="badge-selected-name"></span>
-                    </p>
+            <!-- User List Container -->
+            <div id="admin-badge-list" class="mt-5 space-y-3 max-h-[520px] overflow-y-auto pr-1">
+                <div class="text-center py-12 text-gray-500 text-sm italic">
+                    <i class="fa-solid fa-circle-notch fa-spin text-yellow-500 text-xl mb-2 block"></i>
+                    Loading user list...
                 </div>
             </div>
-            
-            <div class="flex justify-between items-center mb-2">
-                <h3 class="text-sm font-bold text-gray-400 uppercase">User Database</h3>
-                <button onclick="loadUserBadges()" class="text-xs text-blue-400 hover:text-blue-300 transition">
-                    <i class="fa-solid fa-arrows-rotate mr-1"></i>Refresh
-                </button>
-            </div>
-            
-            <div class="overflow-x-auto max-h-80 overflow-y-auto border border-gray-700 rounded-lg">
-                <table class="w-full text-left text-sm text-gray-300">
-                    <thead class="bg-gray-900 text-gray-400 text-xs uppercase sticky top-0 border-b border-gray-700 z-10">
-                        <tr>
-                            <th class="py-3 px-4 w-16">ID</th>
-                            <th class="py-3 px-4 w-1/4">Name</th>
-                            <th class="py-3 px-4">Active Badges (Click X to remove)</th>
-                        </tr>
-                    </thead>
-                    <tbody id="admin-badge-list" class="divide-y divide-gray-750 bg-gray-800">
-                        <tr><td colspan="3" class="text-center py-4 italic text-gray-500">Loading user data...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-<footer class="bg-gray-100 border-t mt-20 py-10">
-    <div class="container mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
-        <div class="text-center md:text-left text-gray-400 text-sm">
-            &copy; 2026 CampusBuilds. All rights reserved.
-        </div>
-        <div class="flex items-center gap-6 text-sm font-semibold text-gray-500">
-            <a href="{{ url_for('views.about') }}" class="hover:text-red-600 transition">About</a>
-            <a href="{{ url_for('views.privacy_policy') }}" class="hover:text-red-600 transition">Privacy Policy</a>
-            <a href="{{ url_for('views.terms_of_service') }}" class="hover:text-red-600 transition">Terms of Service</a>
         </div>
     </div>
-</footer>
+
+    <!-- Edit User Badges Modal -->
+    <div id="editBadgesModal" class="hidden fixed inset-0 z-[95] flex items-center justify-center p-4 bg-gray-950/75 backdrop-blur-sm" onclick="closeEditBadgesModal()">
+        <div id="editBadgesContent" class="bg-gray-800 border border-gray-700 rounded-3xl shadow-2xl max-w-2xl w-full overflow-hidden flex flex-col max-h-[88vh]" onclick="event.stopPropagation()">
+            
+            <!-- Modal Header -->
+            <div class="px-6 py-5 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 border-b border-gray-700/80 flex items-center justify-between">
+                <div class="flex items-center gap-3.5 min-w-0">
+                    <div id="modal-user-avatar" class="w-12 h-12 rounded-2xl bg-yellow-500/15 border border-yellow-500/30 text-yellow-400 flex items-center justify-center font-black text-lg shrink-0 uppercase">
+                        U
+                    </div>
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2">
+                            <h3 id="modal-user-name" class="text-lg font-extrabold text-white truncate">User Name</h3>
+                            <span id="modal-user-id" class="px-2 py-0.5 bg-gray-900 text-gray-400 border border-gray-700 rounded-full font-mono text-[11px] font-bold">#1</span>
+                        </div>
+                        <p id="modal-user-email" class="text-xs text-gray-400 truncate mt-0.5">student@mmu.edu.my</p>
+                    </div>
+                </div>
+                <button onclick="closeEditBadgesModal()" class="w-9 h-9 rounded-2xl bg-gray-700/60 hover:bg-gray-700 text-gray-400 hover:text-white flex items-center justify-center transition shrink-0">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+
+            <!-- Inline Error / Status Banner inside Modal -->
+            <div id="modal-alert-box" class="hidden mx-6 mt-4 px-4 py-3 rounded-2xl border text-xs font-semibold flex items-center justify-between gap-2 transition-all">
+                <div class="flex items-center gap-2">
+                    <i id="modal-alert-icon" class="fa-solid fa-circle-exclamation text-sm"></i>
+                    <span id="modal-alert-text"></span>
+                </div>
+                <button onclick="hideModalAlert()" class="opacity-70 hover:opacity-100"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-6 overflow-y-auto space-y-6 flex-1">
+                
+                <!-- Section 1: User's Current Badges (Click to Kick/Remove) -->
+                <div class="bg-gray-900/60 border border-gray-700/80 rounded-2xl p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-extrabold uppercase tracking-wider text-gray-300 flex items-center gap-1.5">
+                            <i class="fa-solid fa-shield-heart text-yellow-400"></i> Current Badges
+                            <span id="modal-current-count" class="ml-1 px-2 py-0.5 bg-gray-800 text-gray-400 rounded-full text-[10px]">0</span>
+                        </span>
+                        <span class="text-[11px] text-gray-400">Click <span class="text-red-400 font-semibold">Remove</span> on a badge to kick it out</span>
+                    </div>
+                    <div id="modal-current-badges" class="flex flex-wrap gap-2">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Section 2: Available Badges to Add -->
+                <div>
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                        <span class="text-xs font-extrabold uppercase tracking-wider text-gray-300 flex items-center gap-1.5">
+                            <i class="fa-solid fa-circle-plus text-emerald-400"></i> Assign New Badges
+                        </span>
+                        <div class="relative w-full sm:w-56">
+                            <i class="fa-solid fa-filter absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-[11px]"></i>
+                            <input type="text" id="modal-badge-filter"
+                                placeholder="Filter badges..."
+                                oninput="renderModalBadges()"
+                                class="w-full pl-8 pr-3 py-1.5 bg-gray-900 text-white rounded-xl border border-gray-700 focus:border-yellow-500 focus:outline-none text-xs placeholder-gray-500">
+                        </div>
+                    </div>
+                    <div id="modal-available-badges" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-64 overflow-y-auto pr-1">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="px-6 py-4 bg-gray-900/80 border-t border-gray-700/80 flex justify-end">
+                <button onclick="closeEditBadgesModal()" class="px-6 py-2.5 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-2xl transition">
+                    Done
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-gray-100 border-t mt-20 py-10">
+        <div class="container mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="text-center md:text-left text-gray-400 text-sm">
+                &copy; 2026 CampusBuilds. All rights reserved.
+            </div>
+            <div class="flex items-center gap-6 text-sm font-semibold text-gray-500">
+                <a href="{{ url_for('views.about') }}" class="hover:text-red-600 transition">About</a>
+                <a href="{{ url_for('views.privacy_policy') }}" class="hover:text-red-600 transition">Privacy Policy</a>
+                <a href="{{ url_for('views.terms_of_service') }}" class="hover:text-red-600 transition">Terms of Service</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Confirm Modal -->
+    <div id="adminConfirmModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
+        <div id="adminConfirmContent" class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 transform transition-all">
+            <div class="flex flex-col items-center text-center">
+                <div id="adminConfirmIcon" class="w-16 h-16 bg-red-50 border-4 border-red-100 text-red-500 rounded-full flex items-center justify-center mb-5 text-2xl">
+                    <i class="fas fa-trash"></i>
+                </div>
+                <h3 id="adminConfirmTitle" class="text-xl font-black text-gray-900 mb-2">Are you sure?</h3>
+                <p id="adminConfirmMessage" class="text-sm text-gray-500 font-medium mb-8">This action cannot be undone.</p>
+                <div class="flex gap-4 w-full">
+                    <button id="adminConfirmCancel" class="flex-1 bg-gray-100 text-gray-600 px-4 py-3 rounded-xl font-bold hover:bg-gray-200 transition text-sm">Cancel</button>
+                    <button id="adminConfirmSubmit" class="flex-1 bg-red-600 text-white px-4 py-3 rounded-xl font-bold hover:bg-red-700 shadow-lg shadow-red-200 transition text-sm">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script>
-    function showAdminConfirm(title, message, confirmText = 'Confirm') {
-    return new Promise((resolve) => {
-        document.getElementById('adminConfirmTitle').textContent = title;
-        document.getElementById('adminConfirmMessage').textContent = message;
-        document.getElementById('adminConfirmSubmit').textContent = confirmText;
-        document.getElementById('adminConfirmModal').classList.remove('hidden');
-        requestAnimationFrame(() => requestAnimationFrame(() => {
-            document.getElementById('adminConfirmModal').classList.add('modal-open');
-        }));
+        // ── Rounded Toast Notification Helper (Replaces raw alert) ──
+        function showAdminToast(message, type = 'success') {
+            const existing = document.getElementById('admin-toast-container');
+            const container = existing || (() => {
+                const div = document.createElement('div');
+                div.id = 'admin-toast-container';
+                div.className = 'fixed bottom-6 right-6 z-[120] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none px-4 sm:px-0';
+                document.body.appendChild(div);
+                return div;
+            })();
 
-        const cleanup = (result) => {
-            document.getElementById('adminConfirmModal').classList.remove('modal-open');
-            setTimeout(() => document.getElementById('adminConfirmModal').classList.add('hidden'), 280);
-            document.getElementById('adminConfirmCancel').onclick = null;
-            document.getElementById('adminConfirmSubmit').onclick = null;
-            resolve(result);
-        };
+            const isError = type === 'error';
+            const toast = document.createElement('div');
+            toast.className = `pointer-events-auto admin-toast-in flex items-center gap-3 px-4 py-3.5 rounded-2xl shadow-2xl border backdrop-blur-md text-xs font-bold ${
+                isError 
+                    ? 'bg-red-950/95 border-red-700/80 text-red-200 shadow-red-950/50' 
+                    : 'bg-emerald-950/95 border-emerald-700/80 text-emerald-200 shadow-emerald-950/50'
+            }`;
+            toast.innerHTML = `
+                <div class="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 ${isError ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400'}">
+                    <i class="fa-solid ${isError ? 'fa-circle-exclamation' : 'fa-circle-check'} text-sm"></i>
+                </div>
+                <span class="flex-1 leading-relaxed">${escapeHtml(message)}</span>
+                <button onclick="this.parentElement.remove()" class="text-gray-400 hover:text-white transition p-1">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            `;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(8px)';
+                toast.style.transition = 'all 0.25s ease';
+                setTimeout(() => toast.remove(), 250);
+            }, 3800);
+        }
 
-        document.getElementById('adminConfirmCancel').onclick = () => cleanup(false);
-        document.getElementById('adminConfirmSubmit').onclick = () => cleanup(true);
-    });
-}
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str ?? '';
+            return div.innerHTML;
+        }
+
+        function showAdminConfirm(title, message, confirmText = 'Confirm') {
+            return new Promise((resolve) => {
+                document.getElementById('adminConfirmTitle').textContent = title;
+                document.getElementById('adminConfirmMessage').textContent = message;
+                document.getElementById('adminConfirmSubmit').textContent = confirmText;
+                document.getElementById('adminConfirmModal').classList.remove('hidden');
+                requestAnimationFrame(() => requestAnimationFrame(() => {
+                    document.getElementById('adminConfirmModal').classList.add('modal-open');
+                }));
+
+                const cleanup = (result) => {
+                    document.getElementById('adminConfirmModal').classList.remove('modal-open');
+                    setTimeout(() => document.getElementById('adminConfirmModal').classList.add('hidden'), 280);
+                    document.getElementById('adminConfirmCancel').onclick = null;
+                    document.getElementById('adminConfirmSubmit').onclick = null;
+                    resolve(result);
+                };
+
+                document.getElementById('adminConfirmCancel').onclick = () => cleanup(false);
+                document.getElementById('adminConfirmSubmit').onclick = () => cleanup(true);
+            });
+        }
+
         const CONTENT_TYPE_LABELS = {
             project: 'project',
             comment: 'comment',
@@ -369,7 +526,7 @@
 
         async function handleReport(actionType, reportId, contentId, contentType) {
             if (!reportId) {
-                alert('Error: Missing report ID.');
+                showAdminToast('Missing report ID.', 'error');
                 return;
             }
 
@@ -406,20 +563,19 @@
                         if (contentType === 'project') removeRow(`project-row-${contentId}`);
                         if (contentType === 'post') removeRow(`post-row-${contentId}`);
                     }
+                    showAdminToast(actionType === 'take_down' ? 'Content removed and report resolved.' : 'Report dismissed.');
                 } else {
-                    alert(`Server Alert: ${data.error || 'Unknown error'}`);
+                    showAdminToast(data.error || 'Failed to process report.', 'error');
                 }
             } catch (error) {
                 console.error('Report action failed:', error);
-                alert('Connection error. Failed to complete moderation action.');
+                showAdminToast('Connection error. Failed to complete moderation action.', 'error');
             }
         }
 
         async function deleteContent(type, id) {
             const ok = await showAdminConfirm('Delete Content', `Are you sure you want to delete this ${type}? This action cannot be undone.`, 'Yes, Delete');
-            if (!ok) {
-                return;
-            }
+            if (!ok) return;
 
             try {
                 const response = await fetch('/api/admin/delete-content', {
@@ -432,12 +588,13 @@
 
                 if (response.ok) {
                     removeRow(`${type}-row-${id}`);
+                    showAdminToast(`${type.charAt(0).toUpperCase() + type.slice(1)} deleted successfully.`);
                 } else {
-                    alert(`Error: ${data.error || 'Failed to delete.'}`);
+                    showAdminToast(data.error || 'Failed to delete content.', 'error');
                 }
             } catch (error) {
                 console.error('Delete content failed:', error);
-                alert('Connection error. Failed to communicate with admin API.');
+                showAdminToast('Connection error. Failed to communicate with admin API.', 'error');
             }
         }
 
@@ -450,181 +607,349 @@
             setTimeout(() => row.remove(), 300);
         }
 
-        // ==========================================
-        // ADMIN BADGE MANAGEMENT LOGIC
-        // ==========================================
+        // =========================================================
+        // ADMIN BADGE MANAGEMENT (LIST + ROUNDED EDIT MODAL)
+        // =========================================================
 
         const BADGE_INFO = {
-            'First Project':     { icon: 'fas fa-scroll',             iconCls: 'text-purple-400',  bg: 'bg-purple-900',  border: 'border-purple-700'  },
-            'Early Adopter':     { icon: 'fas fa-fire-alt',            iconCls: 'text-orange-400',  bg: 'bg-orange-900',  border: 'border-orange-700'  },
-            'Top Contributor':   { icon: 'fas fa-trophy',              iconCls: 'text-yellow-400',  bg: 'bg-yellow-900',  border: 'border-yellow-700'  },
-            'Python Expert':     { icon: 'fa-brands fa-python',        iconCls: 'text-blue-400',    bg: 'bg-blue-900',    border: 'border-blue-700'    },
-            'JavaScript Expert': { icon: 'fa-brands fa-js',            iconCls: 'text-yellow-400',  bg: 'bg-yellow-800',  border: 'border-yellow-700'  },
-            'React Expert':      { icon: 'fa-brands fa-react',         iconCls: 'text-cyan-400',    bg: 'bg-cyan-900',    border: 'border-cyan-700'    },
-            'HTML Expert':       { icon: 'fa-brands fa-html5',         iconCls: 'text-red-400',     bg: 'bg-red-900',     border: 'border-red-700'     },
-            'CSS Expert':        { icon: 'fa-brands fa-css3-alt',      iconCls: 'text-sky-400',     bg: 'bg-sky-900',     border: 'border-sky-700'     },
-            'PHP Expert':        { icon: 'fa-brands fa-php',           iconCls: 'text-indigo-400',  bg: 'bg-indigo-900',  border: 'border-indigo-700'  },
-            'C++ Expert':        { icon: 'fas fa-code',                iconCls: 'text-blue-300',    bg: 'bg-blue-900',    border: 'border-blue-700'    },
-            'Go Expert':         { icon: 'fa-brands fa-golang',        iconCls: 'text-cyan-300',    bg: 'bg-cyan-900',    border: 'border-cyan-700'    },
-            'Dart Expert':       { icon: 'fas fa-bullseye',            iconCls: 'text-blue-400',    bg: 'bg-blue-900',    border: 'border-blue-700'    },
-            'Rust Expert':       { icon: 'fas fa-gear',                iconCls: 'text-orange-300',  bg: 'bg-gray-800',    border: 'border-gray-600'    },
-            'TypeScript Expert': { icon: 'fas fa-t',                   iconCls: 'text-blue-400',    bg: 'bg-blue-900',    border: 'border-blue-700'    },
-            'MMU Alumni':        { icon: 'fas fa-graduation-cap',      iconCls: 'text-blue-300',    bg: 'bg-blue-900',    border: 'border-blue-700'    },
-            'MMU Staff':         { icon: 'fas fa-chalkboard-user',     iconCls: 'text-orange-300',  bg: 'bg-orange-900',  border: 'border-orange-700'  },
-            'Moderator':         { icon: 'fas fa-shield-halved',       iconCls: 'text-green-400',   bg: 'bg-green-900',   border: 'border-green-700'   },
-            'Admin':             { icon: 'fas fa-shield',              iconCls: 'text-red-400',     bg: 'bg-red-900',     border: 'border-red-700'     },
-            'MMU OSSD Member':   { icon: 'fas fa-star',                iconCls: 'text-yellow-400',  bg: 'bg-yellow-900',  border: 'border-yellow-700'  },
-            'Tester':            { icon: 'fas fa-flask',               iconCls: 'text-gray-300',    bg: 'bg-gray-700',    border: 'border-gray-600'    },
-            'Beta Tester':       { icon: 'fas fa-vial',                iconCls: 'text-purple-300',  bg: 'bg-purple-900',  border: 'border-purple-700'  },
-            'Lecturer':          { icon: 'fas fa-person-chalkboard',   iconCls: 'text-orange-400',  bg: 'bg-orange-900',  border: 'border-orange-700'  },
-            'Special Thanks':    { icon: 'fas fa-heart',               iconCls: 'text-pink-400',    bg: 'bg-pink-900',    border: 'border-pink-700'    },
-            'Community Helper':  { icon: 'fas fa-hands-helping',       iconCls: 'text-green-400',   bg: 'bg-green-900',   border: 'border-green-700'   },
-            'First Comment':     { icon: 'fas fa-comment',             iconCls: 'text-blue-400',    bg: 'bg-blue-900',    border: 'border-blue-700'    },
-            'Ten Comments':      { icon: 'fas fa-comment-dots',        iconCls: 'text-green-400',   bg: 'bg-green-900',   border: 'border-green-700'   },
-            'Fifty Comments':    { icon: 'fas fa-comments',            iconCls: 'text-yellow-400',  bg: 'bg-yellow-900',  border: 'border-yellow-700'  },
-            'Hundred Comments':  { icon: 'fas fa-message',             iconCls: 'text-red-400',     bg: 'bg-red-900',     border: 'border-red-700'     },
-            'Hottest Project':   { icon: 'fas fa-fire',                iconCls: 'text-red-400',     bg: 'bg-red-900',     border: 'border-red-700'     },
-            'Post First Feed':   { icon: 'fas fa-paper-plane',         iconCls: 'text-blue-400',    bg: 'bg-blue-900',    border: 'border-blue-700'    },
-            'Trending Project':  { icon: 'fas fa-arrow-trend-up',      iconCls: 'text-purple-400',  bg: 'bg-purple-900',  border: 'border-purple-700'  },
-            'Owner':             { icon: 'fas fa-crown',               iconCls: 'text-yellow-400',  bg: 'bg-yellow-900',  border: 'border-yellow-700'  },
-            'First User Join MMU OSSD': { icon: 'fa-solid fa-user', iconCls: 'text-blue-400', bg: 'bg-blue-900', border: 'border-blue-700' },
+            'First Project':            { icon: 'fas fa-scroll',            iconCls: 'text-purple-400', bg: 'bg-purple-950/70', border: 'border-purple-700/60' },
+            'Early Adopter':            { icon: 'fas fa-fire-alt',          iconCls: 'text-orange-400', bg: 'bg-orange-950/70', border: 'border-orange-700/60' },
+            'Top Contributor':          { icon: 'fas fa-trophy',            iconCls: 'text-yellow-400', bg: 'bg-yellow-950/70', border: 'border-yellow-700/60' },
+            'Python Expert':            { icon: 'fa-brands fa-python',      iconCls: 'text-blue-400',   bg: 'bg-blue-950/70',   border: 'border-blue-700/60'   },
+            'JavaScript Expert':        { icon: 'fa-brands fa-js',          iconCls: 'text-yellow-400', bg: 'bg-yellow-900/60', border: 'border-yellow-700/60' },
+            'React Expert':             { icon: 'fa-brands fa-react',       iconCls: 'text-cyan-400',   bg: 'bg-cyan-950/70',   border: 'border-cyan-700/60'   },
+            'HTML Expert':              { icon: 'fa-brands fa-html5',       iconCls: 'text-red-400',    bg: 'bg-red-950/70',    border: 'border-red-700/60'    },
+            'CSS Expert':               { icon: 'fa-brands fa-css3-alt',    iconCls: 'text-sky-400',    bg: 'bg-sky-950/70',    border: 'border-sky-700/60'    },
+            'PHP Expert':               { icon: 'fa-brands fa-php',         iconCls: 'text-indigo-400', bg: 'bg-indigo-950/70', border: 'border-indigo-700/60' },
+            'C++ Expert':               { icon: 'fas fa-code',              iconCls: 'text-blue-300',   bg: 'bg-blue-950/70',   border: 'border-blue-700/60'   },
+            'Go Expert':                { icon: 'fa-brands fa-golang',      iconCls: 'text-cyan-300',   bg: 'bg-cyan-950/70',   border: 'border-cyan-700/60'   },
+            'Dart Expert':              { icon: 'fas fa-bullseye',          iconCls: 'text-blue-400',   bg: 'bg-blue-950/70',   border: 'border-blue-700/60'   },
+            'Rust Expert':              { icon: 'fas fa-gear',              iconCls: 'text-orange-300', bg: 'bg-gray-800',      border: 'border-gray-600'      },
+            'TypeScript Expert':        { icon: 'fas fa-t',                 iconCls: 'text-blue-400',   bg: 'bg-blue-950/70',   border: 'border-blue-700/60'   },
+            'MMU Alumni':               { icon: 'fas fa-graduation-cap',    iconCls: 'text-blue-300',   bg: 'bg-blue-950/70',   border: 'border-blue-700/60'   },
+            'MMU Staff':                { icon: 'fas fa-chalkboard-user',   iconCls: 'text-orange-300', bg: 'bg-orange-950/70', border: 'border-orange-700/60' },
+            'Moderator':                { icon: 'fas fa-shield-halved',     iconCls: 'text-green-400',  bg: 'bg-green-950/70',  border: 'border-green-700/60'  },
+            'Admin':                    { icon: 'fas fa-shield',            iconCls: 'text-red-400',    bg: 'bg-red-950/70',    border: 'border-red-700/60'    },
+            'MMU OSSD Member':          { icon: 'fas fa-star',              iconCls: 'text-yellow-400', bg: 'bg-yellow-950/70', border: 'border-yellow-700/60' },
+            'Tester':                   { icon: 'fas fa-flask',             iconCls: 'text-gray-300',   bg: 'bg-gray-700/80',   border: 'border-gray-600'      },
+            'Beta Tester':              { icon: 'fas fa-vial',              iconCls: 'text-purple-300', bg: 'bg-purple-950/70', border: 'border-purple-700/60' },
+            'Lecturer':                 { icon: 'fas fa-person-chalkboard', iconCls: 'text-orange-400', bg: 'bg-orange-950/70', border: 'border-orange-700/60' },
+            'Special Thanks':           { icon: 'fas fa-heart',             iconCls: 'text-pink-400',   bg: 'bg-pink-950/70',   border: 'border-pink-700/60'   },
+            'Community Helper':         { icon: 'fas fa-hands-helping',     iconCls: 'text-green-400',  bg: 'bg-green-950/70',  border: 'border-green-700/60'  },
+            'First Comment':            { icon: 'fas fa-comment',           iconCls: 'text-blue-400',   bg: 'bg-blue-950/70',   border: 'border-blue-700/60'   },
+            'Ten Comments':             { icon: 'fas fa-comment-dots',      iconCls: 'text-green-400',  bg: 'bg-green-950/70',  border: 'border-green-700/60'  },
+            'Fifty Comments':           { icon: 'fas fa-comments',          iconCls: 'text-yellow-400', bg: 'bg-yellow-950/70', border: 'border-yellow-700/60' },
+            'Hundred Comments':         { icon: 'fas fa-message',           iconCls: 'text-red-400',    bg: 'bg-red-950/70',    border: 'border-red-700/60'    },
+            'Hottest Project':          { icon: 'fas fa-fire',              iconCls: 'text-red-400',    bg: 'bg-red-950/70',    border: 'border-red-700/60'    },
+            'Post First Feed':          { icon: 'fas fa-paper-plane',       iconCls: 'text-blue-400',   bg: 'bg-blue-950/70',   border: 'border-blue-700/60'   },
+            'Trending Project':         { icon: 'fas fa-arrow-trend-up',    iconCls: 'text-purple-400', bg: 'bg-purple-950/70', border: 'border-purple-700/60' },
+            'Owner':                    { icon: 'fas fa-crown',             iconCls: 'text-yellow-400', bg: 'bg-yellow-950/70', border: 'border-yellow-700/60' },
+            'First User Join MMU OSSD': { icon: 'fa-solid fa-user',         iconCls: 'text-blue-400',   bg: 'bg-blue-950/70',   border: 'border-blue-700/60'   },
         };
 
-        let selectedBadge = null;
-
-        // Render the clickable badge picker cards
-        function renderBadgePicker() {
-            const picker = document.getElementById('badge-picker');
-            picker.innerHTML = Object.entries(BADGE_INFO).map(([name, b]) => `
-                <button type="button" id="picker-${name.replace(/\s+/g,'-')}"
-                    onclick="selectBadge('${name}')"
-                    class="badge-pick-btn flex flex-col items-center gap-1.5 px-4 py-3 rounded-xl border ${b.border} ${b.bg} hover:brightness-125 transition focus:outline-none min-w-[80px]">
-                    <i class="${b.icon} ${b.iconCls} text-2xl"></i>
-                    <span class="text-[10px] font-bold text-gray-300 text-center leading-tight">${name}</span>
-                </button>
-            `).join('');
-        }
-
-        function selectBadge(name) {
-            selectedBadge = name;
-            // Highlight selected, dim others
-            document.querySelectorAll('.badge-pick-btn').forEach(btn => {
-                btn.classList.remove('ring-2', 'ring-yellow-400', 'brightness-125');
-            });
-            const key = name.replace(/\s+/g, '-');
-            const btn = document.getElementById(`picker-${key}`);
-            if (btn) btn.classList.add('ring-2', 'ring-yellow-400');
-
-            document.getElementById('badge-selected-name').textContent = name;
-            document.getElementById('badge-selected-label').classList.remove('hidden');
-        }
+        let allUsersCache = [];
+        let activeModalUserId = null;
+        let isBadgeActionPending = false;
 
         function getBadgeInfo(name) {
-            // Case-insensitive fallback
-            const lower = name.toLowerCase().trim();
+            const lower = (name || '').toLowerCase().trim();
             const found = Object.entries(BADGE_INFO).find(([k]) => k.toLowerCase() === lower);
             return found ? found[1] : { icon: 'fas fa-medal', iconCls: 'text-yellow-400', bg: 'bg-gray-700', border: 'border-gray-600' };
         }
 
-        async function loadUserBadges() {
-            try {
-                const res = await fetch('/api/admin/users/badges');
-                const users = await res.json();
-                const tbody = document.getElementById('admin-badge-list');
-                tbody.innerHTML = '';
-                
-                users.forEach(u => {
-                    const badgesHtml = u.badges.map(b => {
+        function showModalAlert(message, isError = true) {
+            const box = document.getElementById('modal-alert-box');
+            const icon = document.getElementById('modal-alert-icon');
+            const text = document.getElementById('modal-alert-text');
+            if (!box) return;
+
+            box.className = `mx-6 mt-4 px-4 py-3 rounded-2xl border text-xs font-semibold flex items-center justify-between gap-2 transition-all ${
+                isError
+                    ? 'bg-red-950/60 border-red-800/70 text-red-300'
+                    : 'bg-emerald-950/60 border-emerald-800/70 text-emerald-300'
+            }`;
+            icon.className = `fa-solid ${isError ? 'fa-circle-exclamation text-red-400' : 'fa-circle-check text-emerald-400'} text-sm`;
+            text.textContent = message;
+            box.classList.remove('hidden');
+        }
+
+        function hideModalAlert() {
+            const box = document.getElementById('modal-alert-box');
+            if (box) box.classList.add('hidden');
+        }
+
+        // Case-insensitive filtering by Name, Email, or ID
+        function getFilteredUsers(query) {
+            const q = (query || '').trim().toLowerCase();
+            if (!q) return allUsersCache;
+            const cleanId = q.startsWith('#') ? q.slice(1) : q;
+
+            return allUsersCache.filter(u => {
+                const nameMatch = (u.name || '').toLowerCase().includes(q);
+                const emailMatch = (u.email || '').toLowerCase().includes(q);
+                const idMatch = String(u.id).includes(cleanId);
+                return nameMatch || emailMatch || idMatch;
+            });
+        }
+
+        function handleUserListSearch(query) {
+            const clearBtn = document.getElementById('clear-user-search-btn');
+            if (clearBtn) clearBtn.classList.toggle('hidden', !query.trim());
+            renderUserBadgeList(getFilteredUsers(query));
+        }
+
+        function clearUserListSearch() {
+            const input = document.getElementById('badge-user-search');
+            if (input) input.value = '';
+            const clearBtn = document.getElementById('clear-user-search-btn');
+            if (clearBtn) clearBtn.classList.add('hidden');
+            renderUserBadgeList(allUsersCache);
+        }
+
+        function renderUserBadgeList(users) {
+            const listEl = document.getElementById('admin-badge-list');
+            const countBadge = document.getElementById('user-count-badge');
+            if (countBadge) {
+                countBadge.textContent = users.length === allUsersCache.length
+                    ? `${allUsersCache.length} user${allUsersCache.length !== 1 ? 's' : ''}`
+                    : `${users.length} of ${allUsersCache.length} users`;
+            }
+
+            if (users.length === 0) {
+                listEl.innerHTML = `
+                    <div class="text-center py-12 bg-gray-900/40 rounded-2xl border border-dashed border-gray-700/80">
+                        <div class="w-12 h-12 rounded-2xl bg-gray-800 text-gray-500 flex items-center justify-center mx-auto mb-2.5">
+                            <i class="fa-solid fa-user-slash text-lg"></i>
+                        </div>
+                        <p class="text-sm font-bold text-gray-300">No matching users found</p>
+                        <p class="text-xs text-gray-500 mt-1">Try searching with a different name, email address, or user ID.</p>
+                    </div>`;
+                return;
+            }
+
+            listEl.innerHTML = users.map(u => {
+                const initial = (u.name || 'U').trim().charAt(0).toUpperCase();
+                const badgesPreview = u.badges.length > 0
+                    ? u.badges.map(b => {
                         const info = getBadgeInfo(b.name);
                         return `
-                        <span class="inline-flex items-center gap-1.5 ${info.bg} border ${info.border} px-2.5 py-1 rounded-md text-xs font-semibold mr-2 mb-2">
-                            <i class="${info.icon} ${info.iconCls}"></i>
-                            <span class="text-gray-200">${b.name}</span>
-                            <i class="fa-solid fa-circle-xmark text-red-400 hover:text-red-300 cursor-pointer ml-1 transition" onclick="adminDeleteBadge(${b.id})" title="Revoke Badge"></i>
-                        </span>`;
-                    }).join('');
-                    
-                    tbody.innerHTML += `
-                        <tr class="hover:bg-gray-750 transition">
-                            <td class="py-3 px-4 font-mono text-xs text-gray-500">#${u.id}</td>
-                            <td class="py-3 px-4 font-semibold text-white">
-                                ${u.name}
-                                <div class="text-[10px] text-gray-500 font-normal mt-0.5">${u.email}</div>
-                            </td>
-                            <td class="py-3 px-4 flex flex-wrap pt-4">
-                                ${badgesHtml || '<span class="text-gray-500 italic text-xs">No badges</span>'}
-                            </td>
-                        </tr>`;
-                });
-            } catch (e) {
-                console.error("Error loading user badges", e);
-            }
-        }
-        
-        async function adminAwardBadge() {
-            const userId = document.getElementById('badge-user-id').value;
+                            <span class="inline-flex items-center gap-1.5 ${info.bg} border ${info.border} px-3 py-1 rounded-full text-xs font-semibold">
+                                <i class="${info.icon} ${info.iconCls}"></i>
+                                <span class="text-gray-200">${escapeHtml(b.name)}</span>
+                            </span>`;
+                    }).join('')
+                    : '<span class="text-xs text-gray-500 italic">No badges assigned yet</span>';
 
-            if (!userId) return alert("Please enter a User ID.");
-            if (!selectedBadge) return alert("Please select a badge to award.");
-            
-            try {
-                const res = await fetch(`/api/admin/users/${userId}/badge`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ badge_name: selectedBadge })
-                });
-                
-                const data = await res.json();
-                if (res.ok && data.success) {
-                    // Reset selection
-                    selectedBadge = null;
-                    document.getElementById('badge-selected-label').classList.add('hidden');
-                    document.querySelectorAll('.badge-pick-btn').forEach(btn => btn.classList.remove('ring-2', 'ring-yellow-400'));
-                    loadUserBadges();
-                } else {
-                    alert(`Error: ${data.error}`);
-                }
-            } catch(e) { 
-                alert("Connection error. Failed to award badge."); 
+                return `
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gray-900/50 hover:bg-gray-900/80 border border-gray-700/70 hover:border-gray-600 rounded-2xl p-4 transition">
+                        
+                        <!-- Left: Avatar + Name + Email + Edit Badges Button right next to name -->
+                        <div class="flex items-start sm:items-center gap-3.5 min-w-0">
+                            <div class="w-11 h-11 rounded-2xl bg-gray-800 border border-gray-700 text-yellow-400 font-black text-sm flex items-center justify-center shrink-0 uppercase">
+                                ${escapeHtml(initial)}
+                            </div>
+                            <div class="min-w-0">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span class="font-bold text-white text-sm truncate">${escapeHtml(u.name)}</span>
+                                    <span class="px-2 py-0.5 bg-gray-800 text-gray-400 border border-gray-700 rounded-full font-mono text-[10px] font-bold">#${u.id}</span>
+                                    <button type="button" onclick="openEditBadgesModal(${u.id})"
+                                        class="inline-flex items-center gap-1.5 px-3 py-1 bg-yellow-500/15 hover:bg-yellow-500 text-yellow-300 hover:text-gray-950 border border-yellow-500/40 rounded-full text-xs font-bold transition shadow-sm">
+                                        <i class="fa-solid fa-pen-to-square text-[11px]"></i>
+                                        <span>Edit Badges</span>
+                                    </button>
+                                </div>
+                                <div class="text-xs text-gray-400 truncate mt-0.5">${escapeHtml(u.email)}</div>
+                            </div>
+                        </div>
+
+                        <!-- Right: Current Badges Pills -->
+                        <div class="flex flex-wrap items-center gap-1.5 sm:justify-end sm:max-w-xl">
+                            ${badgesPreview}
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+
+        function openEditBadgesModal(userId) {
+            const user = allUsersCache.find(u => u.id === Number(userId));
+            if (!user) {
+                showAdminToast('User not found in list.', 'error');
+                return;
+            }
+
+            activeModalUserId = user.id;
+            hideModalAlert();
+
+            const filterInput = document.getElementById('modal-badge-filter');
+            if (filterInput) filterInput.value = '';
+
+            document.getElementById('modal-user-avatar').textContent = (user.name || 'U').trim().charAt(0).toUpperCase();
+            document.getElementById('modal-user-name').textContent = user.name;
+            document.getElementById('modal-user-id').textContent = `#${user.id}`;
+            document.getElementById('modal-user-email').textContent = user.email;
+
+            renderModalBadges();
+
+            const modal = document.getElementById('editBadgesModal');
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                modal.classList.add('modal-open');
+            }));
+        }
+
+        function closeEditBadgesModal() {
+            const modal = document.getElementById('editBadgesModal');
+            if (!modal || modal.classList.contains('hidden')) return;
+            modal.classList.remove('modal-open');
+            document.body.style.overflow = 'auto';
+            activeModalUserId = null;
+            setTimeout(() => modal.classList.add('hidden'), 260);
+        }
+
+        function renderModalBadges() {
+            const user = allUsersCache.find(u => u.id === Number(activeModalUserId));
+            if (!user) return;
+
+            const currentContainer = document.getElementById('modal-current-badges');
+            const availableContainer = document.getElementById('modal-available-badges');
+            const countEl = document.getElementById('modal-current-count');
+            const filterQuery = (document.getElementById('modal-badge-filter')?.value || '').trim().toLowerCase();
+
+            countEl.textContent = user.badges.length;
+
+            // Render Current Badges (with Kick/Remove button)
+            if (user.badges.length === 0) {
+                currentContainer.innerHTML = `<div class="text-xs text-gray-500 italic py-2">This user currently has no badges. Click any badge below to assign one!</div>`;
+            } else {
+                currentContainer.innerHTML = user.badges.map(b => {
+                    const info = getBadgeInfo(b.name);
+                    return `
+                        <div class="inline-flex items-center gap-2 ${info.bg} border ${info.border} pl-3 pr-2 py-1.5 rounded-2xl text-xs font-semibold transition">
+                            <i class="${info.icon} ${info.iconCls}"></i>
+                            <span class="text-gray-100">${escapeHtml(b.name)}</span>
+                            <button type="button" onclick="adminKickBadgeFromModal(${b.id}, '${escapeHtml(b.name).replace(/'/g, "\\'")}')"
+                                class="ml-1 px-2 py-0.5 rounded-xl bg-red-500/20 hover:bg-red-500 text-red-300 hover:text-white text-[10px] font-bold transition flex items-center gap-1"
+                                title="Remove this badge">
+                                <i class="fa-solid fa-xmark"></i> Remove
+                            </button>
+                        </div>`;
+                }).join('');
+            }
+
+            // Render Available Badges (excluding already owned)
+            const ownedSet = new Set(user.badges.map(b => b.name.toLowerCase().trim()));
+            const availableEntries = Object.entries(BADGE_INFO).filter(([name]) => {
+                if (ownedSet.has(name.toLowerCase())) return false;
+                if (filterQuery && !name.toLowerCase().includes(filterQuery)) return false;
+                return true;
+            });
+
+            if (availableEntries.length === 0) {
+                availableContainer.innerHTML = `
+                    <div class="col-span-full text-center py-6 text-xs text-gray-500 italic bg-gray-900/40 rounded-2xl border border-dashed border-gray-700">
+                        ${ownedSet.size === Object.keys(BADGE_INFO).length ? '🎉 This user already owns every badge!' : 'No matching badges found.'}
+                    </div>`;
+            } else {
+                availableContainer.innerHTML = availableEntries.map(([name, info]) => `
+                    <button type="button" onclick="adminAssignBadgeFromModal('${name.replace(/'/g, "\\'")}')"
+                        class="group flex items-center justify-between gap-3 p-3 rounded-2xl bg-gray-900/70 hover:bg-gray-700/80 border border-gray-700/80 hover:border-yellow-500/50 transition text-left">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <span class="w-8 h-8 rounded-xl ${info.bg} border ${info.border} flex items-center justify-center shrink-0">
+                                <i class="${info.icon} ${info.iconCls} text-sm"></i>
+                            </span>
+                            <span class="text-xs font-bold text-gray-200 group-hover:text-white truncate">${escapeHtml(name)}</span>
+                        </div>
+                        <span class="px-2.5 py-1 rounded-xl bg-emerald-500/15 group-hover:bg-emerald-500 text-emerald-400 group-hover:text-gray-950 text-[11px] font-extrabold transition shrink-0 flex items-center gap-1">
+                            <i class="fa-solid fa-plus text-[10px]"></i> Add
+                        </span>
+                    </button>
+                `).join('');
             }
         }
-        
-        async function adminDeleteBadge(badgeId) {
-            const ok = await showAdminConfirm('Revoke Badge', 'Are you sure you want to revoke this badge from the user?', 'Yes, Revoke');
-            if (!ok) return;
+
+        async function adminAssignBadgeFromModal(badgeName) {
+            if (!activeModalUserId || isBadgeActionPending) return;
+            isBadgeActionPending = true;
+            hideModalAlert();
+
+            try {
+                const res = await fetch(`/api/admin/users/${activeModalUserId}/badge`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ badge_name: badgeName })
+                });
+                const data = await res.json().catch(() => ({}));
+
+                if (res.ok && data.success) {
+                    await loadUserBadges();
+                    renderModalBadges();
+                    showAdminToast(`Assigned "${badgeName}" badge!`);
+                } else {
+                    const errMsg = data.error || 'Failed to assign badge.';
+                    showModalAlert(errMsg, true);
+                    showAdminToast(errMsg, 'error');
+                }
+            } catch (e) {
+                const errMsg = 'Network error while assigning badge.';
+                showModalAlert(errMsg, true);
+                showAdminToast(errMsg, 'error');
+            } finally {
+                isBadgeActionPending = false;
+            }
+        }
+
+        async function adminKickBadgeFromModal(badgeId, badgeName) {
+            if (isBadgeActionPending) return;
+            isBadgeActionPending = true;
+            hideModalAlert();
+
             try {
                 const res = await fetch(`/api/admin/badges/${badgeId}`, { method: 'DELETE' });
+                const data = await res.json().catch(() => ({}));
+
                 if (res.ok) {
-                    loadUserBadges();
+                    await loadUserBadges();
+                    renderModalBadges();
+                    showAdminToast(`Removed "${badgeName}" badge.`);
                 } else {
-                    const data = await res.json();
-                    alert(`Error: ${data.error}`);
+                    const errMsg = data.error || 'Failed to remove badge.';
+                    showModalAlert(errMsg, true);
+                    showAdminToast(errMsg, 'error');
                 }
-            } catch(e) { 
-                alert("Connection error. Failed to revoke badge."); 
+            } catch (e) {
+                const errMsg = 'Network error while removing badge.';
+                showModalAlert(errMsg, true);
+                showAdminToast(errMsg, 'error');
+            } finally {
+                isBadgeActionPending = false;
+            }
+        }
+
+        async function loadUserBadges(showFeedback = false) {
+            try {
+                const res = await fetch('/api/admin/users/badges');
+                if (!res.ok) throw new Error('Failed to fetch user badges');
+                allUsersCache = await res.json();
+
+                const currentQuery = document.getElementById('badge-user-search')?.value || '';
+                renderUserBadgeList(getFilteredUsers(currentQuery));
+
+                if (activeModalUserId) {
+                    renderModalBadges();
+                }
+                if (showFeedback) {
+                    showAdminToast('User badge list refreshed.');
+                }
+            } catch (e) {
+                console.error('Error loading user badges', e);
+                showAdminToast('Failed to load user badge data.', 'error');
             }
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            renderBadgePicker();
             loadUserBadges();
         });
     </script>
-    <!-- Confirm Modal -->
-<div id="adminConfirmModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
-    <div id="adminConfirmContent" class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 transform transition-all">
-        <div class="flex flex-col items-center text-center">
-            <div id="adminConfirmIcon" class="w-16 h-16 bg-red-50 border-4 border-red-100 text-red-500 rounded-full flex items-center justify-center mb-5 text-2xl">
-                <i class="fas fa-trash"></i>
-            </div>
-            <h3 id="adminConfirmTitle" class="text-xl font-black text-gray-900 mb-2">Are you sure?</h3>
-            <p id="adminConfirmMessage" class="text-sm text-gray-500 font-medium mb-8">This action cannot be undone.</p>
-            <div class="flex gap-4 w-full">
-                <button id="adminConfirmCancel" class="flex-1 bg-gray-100 text-gray-600 px-4 py-3 rounded-xl font-bold hover:bg-gray-200 transition text-sm">Cancel</button>
-                <button id="adminConfirmSubmit" class="flex-1 bg-red-600 text-white px-4 py-3 rounded-xl font-bold hover:bg-red-700 shadow-lg shadow-red-200 transition text-sm">Confirm</button>
-            </div>
-        </div>
-    </div>
-</div>
 </body>
 </html>

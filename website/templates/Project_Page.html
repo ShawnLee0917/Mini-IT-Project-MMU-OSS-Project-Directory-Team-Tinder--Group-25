@@ -320,6 +320,10 @@
             <a href="{{ url_for('views.profile') }}" class="hover:text-red-200 transition">My Profile</a>
             <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
             <a href="{{ url_for('views.list_project') }}" class="hover:text-red-200 transition">List Your Project</a>
+            <a href="{{ url_for('views.notifications_page') }}" class="text-yellow-300 hover:text-white transition flex justify-between items-center" id="mobile-notif-row">
+                <span><i class="fas fa-bell mr-2"></i> Notification</span>
+                <span id="mobile-notif-badge" class="bg-yellow-400 text-red-900 px-2 rounded-full text-xs hidden">0</span>
+            </a>
             <button id="logout-btn-mobile" class="text-left text-red-200 hover:text-white transition text-sm">
                 <i class="fas fa-sign-out-alt mr-1"></i> Logout
             </button>
@@ -375,26 +379,7 @@
                 {% endif %}
                 {% if current_user_role in ['owner', 'admin'] %}
                 {% endif %}
-                {% if current_user and not current_user_role %}
-                    
-                    {% if is_invited %}
-                        <button onclick="respondToProjectInvitation('{{ invitation_id }}', 'accept')" class="bg-green-100 text-green-700 px-6 py-3 rounded-xl font-bold hover:bg-green-200 transition flex items-center gap-2 border border-green-300">
-                            <i class="fas fa-check text-xl"></i> Accept Invite
-                        </button>
-                        <button onclick="respondToProjectInvitation('{{ invitation_id }}', 'reject')" class="bg-red-100 text-red-700 px-6 py-3 rounded-xl font-bold hover:bg-red-200 transition flex items-center gap-2 border border-red-300">
-                            <i class="fas fa-times text-xl"></i> Decline
-                        </button>
-                    {% elif has_pending_request %}
-                        <button id="request-join-btn" disabled class="bg-gray-100 text-gray-400 px-6 py-3 rounded-xl font-bold flex items-center gap-2 border border-gray-200 cursor-not-allowed">
-                            <i class="fas fa-clock text-xl"></i> Request Pending
-                        </button>
-                    {% else %}
-                        <button id="request-join-btn" onclick="requestJoinProject('{{ project.id }}')" class="bg-blue-100 text-blue-700 px-6 py-3 rounded-xl font-bold hover:bg-blue-200 transition flex items-center gap-2 border border-blue-300">
-                            <i class="fas fa-user-plus text-xl"></i> Request to Join
-                        </button>
-                    {% endif %}
-                    
-                {% endif %}                
+
                 <a href="{{ project.repo_url }}" target="_blank" class="bg-gray-100 text-gray-700 px-6 py-3 rounded-xl font-bold hover:bg-gray-200 transition flex items-center gap-2">
                     <i class="fab fa-github text-xl"></i> Repository
                 </a>
@@ -756,7 +741,7 @@
 
                     <div class="grid grid-cols-3 gap-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg mb-6 mt-4">
                         <div class="text-center">
-                            <div class="text-lg font-bold text-blue-700">{{ project.members|length }}</div>
+                            <div class="text-lg font-bold text-blue-700">{{ project.members|length + 1 }}</div>
                             <div class="text-xs text-gray-600">Team Size</div>
                         </div>
                         <div class="text-center border-l border-r border-gray-200">
@@ -768,6 +753,29 @@
                             <div class="text-xs text-gray-600">Roles Needed</div>
                         </div>
                     </div>
+
+                    {% if current_user and not current_user_role %}
+                    <div class="border-t border-gray-100 pt-4 mt-4">
+                        {% if is_invited %}
+                            <div class="flex gap-2">
+                                <button onclick="respondToProjectInvitation('{{ invitation_id }}', 'accept')" class="flex-1 justify-center bg-green-100 text-green-700 px-4 py-3 rounded-xl text-sm font-bold hover:bg-green-200 transition flex items-center gap-2 border border-green-300 shadow-sm">
+                                    <i class="fas fa-check"></i> Accept Invite
+                                </button>
+                                <button onclick="respondToProjectInvitation('{{ invitation_id }}', 'reject')" class="flex-1 justify-center bg-red-100 text-red-700 px-4 py-3 rounded-xl text-sm font-bold hover:bg-red-200 transition flex items-center gap-2 border border-red-300 shadow-sm">
+                                    <i class="fas fa-times"></i> Decline
+                                </button>
+                            </div>
+                        {% elif has_pending_request %}
+                            <button id="request-join-btn" disabled class="w-full justify-center bg-gray-100 text-gray-400 px-4 py-3 rounded-xl text-sm font-bold flex items-center gap-2 border border-gray-200 cursor-not-allowed">
+                                <i class="fas fa-clock"></i> Request Pending
+                            </button>
+                        {% else %}
+                            <button id="request-join-btn" onclick="requestJoinProject('{{ project.id }}')" class="w-full justify-center bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 py-3 rounded-xl text-sm font-bold transition flex items-center gap-2 border border-blue-200 shadow-sm">
+                                <i class="fas fa-user-plus"></i> Request to Join
+                            </button>
+                        {% endif %}
+                    </div>
+                    {% endif %}
 
                     {% if current_user_role in ['owner', 'admin'] %}
                         <div class="border-t border-gray-100 pt-4 mt-4">
@@ -827,9 +835,9 @@
             </div> 
             
             <div id="join-requests-container">
-                <div id="join-requests-list" class="mb-8 space-y-2"></div>
+                <div id="join-requests-list" class="mb-8"></div>
             </div>
-            
+
             <div class="bg-white rounded-3xl border border-gray-100 p-4 shadow-sm mb-6">
     {% if has_reported_project %}
     <button disabled class="w-full flex items-center justify-center bg-gray-50 text-gray-400 border border-dashed border-gray-200 px-4 py-2.5 rounded-xl text-xs font-bold cursor-not-allowed">
@@ -2312,35 +2320,33 @@ async function loadJoinRequests() {
         if (!container) return;
         
         if (!requests.length) {
-            // Can be left empty or removed if no requests are pending
             container.innerHTML = '';
             return;
         }
 
-        // Generate a visual title/container if requests are present
         const titleHTML = `
-            <div class="bg-gray-50 px-4 py-3 rounded-t-xl border border-gray-200 border-b-0 flex justify-between items-center mt-6">
+            <div class="bg-gray-50 px-4 py-3 rounded-t-2xl border border-gray-200 flex justify-between items-center mt-6">
                 <h4 class="text-xs font-black text-gray-700 uppercase tracking-widest"><i class="fas fa-inbox text-red-500 mr-2"></i>Join Requests</h4>
                 <span class="bg-red-100 text-red-700 text-[10px] font-bold px-2 py-0.5 rounded-full">${requests.length} New</span>
             </div>
         `;
         
         const requestsHTML = requests.map(req => `
-            <div class="flex items-center justify-between gap-3 p-4 bg-white border border-gray-200 hover:bg-gray-50 transition first:rounded-t-none last:rounded-b-xl border-t-0">
-                <div class="flex items-center gap-3 flex-1 cursor-pointer user-profile-link" data-user-id="${req.user_id}">
+            <div class="flex items-center justify-between gap-3 p-4 bg-white border border-gray-200 border-t-0 hover:bg-gray-50 transition last:rounded-b-2xl overflow-hidden">
+                <div class="flex items-center gap-3 flex-1 min-w-0 cursor-pointer user-profile-link" data-user-id="${req.user_id}">
                     <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm flex-shrink-0">
                         ${req.user_name[0].toUpperCase()}
                     </div>
                     <div class="flex-1 min-w-0">
-                        <div class="text-sm font-bold text-gray-800 hover:text-blue-600 transition">${escapeHtml(req.user_name)}</div>
-                        <div class="text-xs text-gray-500">${escapeHtml(req.user_email)}</div>
+                        <div class="text-sm font-bold text-gray-800 hover:text-blue-600 transition truncate" title="${escapeHtml(req.user_name)}">${escapeHtml(req.user_name)}</div>
+                        <div class="text-xs text-gray-500 truncate" title="${escapeHtml(req.user_email)}">${escapeHtml(req.user_email)}</div>
                     </div>
                 </div>
-                <div class="flex gap-2 flex-shrink-0">
-                    <button onclick="acceptJoinRequest(${projectId}, ${req.id})" class="bg-green-100 text-green-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-green-200 transition shadow-sm whitespace-nowrap">
+                <div class="flex gap-1.5 flex-shrink-0">
+                    <button onclick="acceptJoinRequest(${projectId}, ${req.id})" class="bg-green-100 text-green-700 px-2.5 py-1.5 rounded-lg text-xs font-bold hover:bg-green-200 transition shadow-sm whitespace-nowrap">
                         <i class="fas fa-check mr-1"></i>Accept
                     </button>
-                    <button onclick="rejectJoinRequest(${projectId}, ${req.id})" class="bg-red-100 text-red-700 px-3 py-2 rounded-lg text-xs font-bold hover:bg-red-200 transition shadow-sm whitespace-nowrap">
+                    <button onclick="rejectJoinRequest(${projectId}, ${req.id})" class="bg-red-100 text-red-700 px-2.5 py-1.5 rounded-lg text-xs font-bold hover:bg-red-200 transition shadow-sm whitespace-nowrap">
                         <i class="fas fa-times mr-1"></i>Reject
                     </button>
                 </div>
@@ -2350,7 +2356,7 @@ async function loadJoinRequests() {
         container.innerHTML = titleHTML + requestsHTML;
     }
 
-    async function requestJoinProject(pId) {
+async function requestJoinProject(pId) {
         if (currentUserId === projectOwnerId) {
             await showAlertModal('Not Allowed', 'You are the project owner.');
             return;
@@ -2367,7 +2373,7 @@ async function loadJoinRequests() {
         const btn = document.getElementById('request-join-btn');
         if (btn) {
             btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-xl"></i> Sending...';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
         }
 
         try {
@@ -2382,18 +2388,18 @@ async function loadJoinRequests() {
                 await showAlertModal('Request Sent', 'Your join request has been sent to the project owner.');
                 if (btn) {
                     btn.disabled = true;
-                    btn.className = 'bg-gray-100 text-gray-400 px-6 py-3 rounded-xl font-bold flex items-center gap-2 border border-gray-200 cursor-not-allowed';
-                    btn.innerHTML = '<i class="fas fa-clock text-xl"></i> Request Pending';
+                    btn.className = 'w-full justify-center bg-gray-100 text-gray-400 px-4 py-3 rounded-xl text-sm font-bold flex items-center gap-2 border border-gray-200 cursor-not-allowed';
+                    btn.innerHTML = '<i class="fas fa-clock"></i> Request Pending';
                 }
             } else {
                 await showAlertModal('Error', data.error || 'Failed to send join request');
                 if (data.error && data.error.toLowerCase().includes('already sent') && btn) {
                     btn.disabled = true;
-                    btn.className = 'bg-gray-100 text-gray-400 px-6 py-3 rounded-xl font-bold flex items-center gap-2 border border-gray-200 cursor-not-allowed';
-                    btn.innerHTML = '<i class="fas fa-clock text-xl"></i> Request Pending';
+                    btn.className = 'w-full justify-center bg-gray-100 text-gray-400 px-4 py-3 rounded-xl text-sm font-bold flex items-center gap-2 border border-gray-200 cursor-not-allowed';
+                    btn.innerHTML = '<i class="fas fa-clock"></i> Request Pending';
                 } else if (btn) {
                     btn.disabled = false;
-                    btn.innerHTML = '<i class="fas fa-user-plus text-xl"></i> Request to Join';
+                    btn.innerHTML = '<i class="fas fa-user-plus"></i> Request to Join';
                 }
             }
         } catch (err) {
@@ -2401,7 +2407,7 @@ async function loadJoinRequests() {
             await showAlertModal('Error', 'Failed to send join request');
             if (btn) {
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-user-plus text-xl"></i> Request to Join';
+                btn.innerHTML = '<i class="fas fa-user-plus"></i> Request to Join';
             }
         }
     }
