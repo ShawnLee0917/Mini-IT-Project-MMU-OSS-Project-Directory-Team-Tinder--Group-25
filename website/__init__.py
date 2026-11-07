@@ -48,8 +48,10 @@ def create_app():
 
     with app.app_context():
         db.create_all()
+        _ensure_all_model_columns()
         try:
             _ensure_legacy_schema_columns()
+            _ensure_member_history_columns()
             _initialize_default_labels()
             _initialize_admin_system()
         except Exception as e:
@@ -93,6 +95,62 @@ def _ensure_legacy_schema_columns():
 
     except Exception as e:
         print(f"[SCHEMA] Warning during legacy column migration: {str(e)}")
+
+
+def _ensure_all_model_columns():
+    """Add any columns defined in the models but missing from existing DB tables."""
+    try:
+        inspector = inspect(db.engine)
+        existing_tables = set(inspector.get_table_names())
+
+        for table in db.metadata.sorted_tables:
+            if table.name not in existing_tables:
+                continue
+
+            existing_cols = {c['name'] for c in inspector.get_columns(table.name)}
+
+            for col in table.columns:
+                if col.name in existing_cols:
+                    continue
+
+                col_type = col.type.compile(dialect=db.engine.dialect)
+                ddl = f'ALTER TABLE "{table.name}" ADD COLUMN "{col.name}" {col_type}'
+
+                # Carry over simple constant defaults (e.g. True/False/'light')
+                default = getattr(col.default, 'arg', None)
+                if isinstance(default, bool):
+                    ddl += f" DEFAULT {1 if default else 0}"
+                elif isinstance(default, (int, float)):
+                    ddl += f" DEFAULT {default}"
+                elif isinstance(default, str):
+                    ddl += f" DEFAULT '{default}'"
+
+                with db.engine.begin() as conn:
+                    conn.execute(text(ddl))
+                print(f"[SCHEMA] Added missing column {table.name}.{col.name}")
+
+    except Exception as e:
+        print(f"[SCHEMA] Warning during auto column migration: {str(e)}")
+
+
+def _ensure_member_history_columns():
+    """Add audit columns to member_history for databases created before the edit-time feature."""
+    try:
+        inspector = inspect(db.engine)
+        if 'member_history' not in inspector.get_table_names():
+            return
+        cols = {c['name'] for c in inspector.get_columns('member_history')}
+        with db.engine.begin() as conn:
+            if 'actor_id' not in cols:
+                conn.execute(text("ALTER TABLE member_history ADD COLUMN actor_id INTEGER"))
+            if 'original_timestamp' not in cols:
+                conn.execute(text("ALTER TABLE member_history ADD COLUMN original_timestamp TIMESTAMP"))
+            if 'edited_by_id' not in cols:
+                conn.execute(text("ALTER TABLE member_history ADD COLUMN edited_by_id INTEGER"))
+            if 'edited_at' not in cols:
+                conn.execute(text("ALTER TABLE member_history ADD COLUMN edited_at TIMESTAMP"))
+    except Exception as e:
+        print(f"[SCHEMA] Warning during member_history migration: {str(e)}")
 
 
 def _initialize_default_labels():
