@@ -59,6 +59,33 @@ def get_current_user():
     user = User.query.filter_by(email=email).first()
     return user
 
+
+# ─── Member history helpers ───
+_MYT = timezone(timedelta(hours=8))   # history times are stored as naive Malaysia time
+
+def log_member_event(project_id, user_id, action, reason=None, actor_id=None):
+    """Add a MemberHistory row ('joined' | 'left' | 'removed'). Caller commits."""
+    db.session.add(MemberHistory(  # type: ignore
+        project_id=project_id, user_id=user_id, action=action,
+        reason=reason if reason else None, actor_id=actor_id))
+
+def _history_iso(dt):
+    return dt.replace(tzinfo=_MYT).isoformat() if dt else None
+
+def _can_edit_history(project, user):
+    """Only the project owner or a CURRENT project admin may edit times.
+    Someone who has left/been removed has no ProjectMember row, so they can never edit."""
+    if not user:
+        return False
+    if project.user_id == user.id:
+        return True
+    m = ProjectMember.query.filter_by(project_id=project.id, user_id=user.id).first()
+    return bool(m and m.role == 'admin')
+
+def _can_view_history(project, user):
+    """Owner / project admin (can edit) plus site admins (read-only, for moderation)."""
+    return _can_edit_history(project, user) or bool(user and getattr(user, 'is_admin', False))
+
 def parse_interests(interests_str):
     """Parse interests from JSON or comma-separated format"""
     if not interests_str:
@@ -2572,6 +2599,7 @@ def respond_to_invitation(request_id, action):
         if not existing:
             new_member = ProjectMember(project_id=invitation.project_id, user_id=current_user.id, role='member')  # type: ignore
             db.session.add(new_member)
+            log_member_event(invitation.project_id, current_user.id, 'joined')
         msg = 'Invitation accepted! You joined the project.'
     elif action == 'reject':
         invitation.status = 'rejected'
@@ -2687,12 +2715,133 @@ def remove_or_leave_member(project_id, user_id):
                 return jsonify({"error": "Admins cannot remove other admins."}), 403
 
     try:
+        if current_user.id == user_id:
+            log_member_event(project_id, user_id, 'left')
+        else:
+            log_member_event(project_id, user_id, 'removed', actor_id=current_user.id)
         db.session.delete(target_member)
         db.session.commit()
         return jsonify({"success": True, "message": "Member removed successfully"}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": f"Database error: {str(e)}"}), 500
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Member History API (view + edit time) — owner, project admin, site admin
+# ─────────────────────────────────────────────────────────────────────────
+
+@views.route('/api/project/<int:project_id>/member-history', methods=['GET'])
+def get_member_history(project_id):
+    err = require_login()
+    if err: return err
+
+    project = Project.query.get_or_404(project_id)
+    current_user = get_current_user()
+    if not _can_view_history(project, current_user):
+        return jsonify({'success': False, 'error': 'Not allowed'}), 403
+    can_edit = _can_edit_history(project, current_user)
+
+    rows = (MemberHistory.query.filter_by(project_id=project_id)
+            .order_by(MemberHistory.timestamp.desc(), MemberHistory.id.desc()).all())
+
+    return jsonify({'success': True, 'history': [{
+        'id': h.id,
+        'user_id': h.user_id,
+        'user_name': h.user.name if h.user else 'Unknown user',
+        'action': h.action,
+        'reason': h.reason,
+        'actor_name': h.actor.name if h.actor else None,
+        'timestamp': _history_iso(h.timestamp),
+        'original_timestamp': _history_iso(h.original_timestamp),
+        'edited_at': _history_iso(h.edited_at),
+        'edited_by_name': h.edited_by.name if h.edited_by else None,
+        'can_edit': can_edit,
+    } for h in rows], 'can_add': can_edit})
+
+
+@views.route('/api/project/<int:project_id>/member-history', methods=['POST'])
+def add_member_history(project_id):
+    """Owner / project admin manually adds a join, leave or removal record.
+    This only writes a history entry — it does not add or remove anyone from the team."""
+    err = require_login()
+    if err: return err
+
+    project = Project.query.get_or_404(project_id)
+    current_user = get_current_user()
+    if not _can_edit_history(project, current_user):
+        return jsonify({'error': 'Only the project owner or a project admin can add history records.'}), 403
+
+    data = request.get_json(silent=True) or {}
+    email = str(data.get('email', '')).strip().lower()
+    action = str(data.get('action', '')).strip()
+    reason = str(data.get('reason', '')).strip()
+
+    if action not in ('joined', 'left', 'removed'):
+        return jsonify({'error': 'Action must be joined, left or removed.'}), 400
+    if len(reason) > 255:
+        return jsonify({'error': 'Reason must be 255 characters or fewer.'}), 400
+
+    target = User.query.filter(db.func.lower(User.email) == email).first() if email else None
+    if not target:
+        return jsonify({'error': 'No user found with that email.'}), 404
+
+    try:
+        ts = datetime.fromisoformat(str(data['timestamp']).replace('Z', '+00:00'))
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=_MYT)
+        ts = ts.astimezone(_MYT).replace(tzinfo=None)
+    except (KeyError, ValueError):
+        return jsonify({'error': 'Invalid date/time.'}), 400
+
+    if ts > datetime.now(_MYT).replace(tzinfo=None):
+        return jsonify({'error': 'The time cannot be in the future.'}), 400
+    if project.created_at and ts < project.created_at:
+        return jsonify({'error': 'The time cannot be before the project was created.'}), 400
+
+    now = datetime.now(_MYT).replace(tzinfo=None)
+    db.session.add(MemberHistory(  # type: ignore
+        project_id=project_id, user_id=target.id, action=action,
+        reason=reason or None, timestamp=ts,
+        actor_id=current_user.id if action == 'removed' else None,
+        edited_by_id=current_user.id, edited_at=now))   # edited_at set + no original_timestamp => "added manually"
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@views.route('/api/project/<int:project_id>/member-history/<int:history_id>', methods=['PATCH'])
+def edit_member_history(project_id, history_id):
+    err = require_login()
+    if err: return err
+
+    project = Project.query.get_or_404(project_id)
+    current_user = get_current_user()
+    if not _can_edit_history(project, current_user):
+        return jsonify({'error': 'Only the project owner or a project admin can edit this time.'}), 403
+
+    h = MemberHistory.query.filter_by(id=history_id, project_id=project_id).first_or_404()
+    data = request.get_json(silent=True) or {}
+
+    try:
+        new_ts = datetime.fromisoformat(str(data['timestamp']).replace('Z', '+00:00'))
+        if new_ts.tzinfo is None:
+            new_ts = new_ts.replace(tzinfo=_MYT)
+        new_ts = new_ts.astimezone(_MYT).replace(tzinfo=None)   # store naive MYT like the rest of the app
+    except (KeyError, ValueError):
+        return jsonify({'error': 'Invalid date/time.'}), 400
+
+    if new_ts > datetime.now(_MYT).replace(tzinfo=None):
+        return jsonify({'error': 'The time cannot be in the future.'}), 400
+    if project.created_at and new_ts < project.created_at:
+        return jsonify({'error': 'The time cannot be before the project was created.'}), 400
+
+    if h.original_timestamp is None:        # keep the very first value for the audit trail
+        h.original_timestamp = h.timestamp
+    h.timestamp = new_ts
+    h.edited_by_id = current_user.id
+    h.edited_at = datetime.now(_MYT).replace(tzinfo=None)
+    db.session.commit()
+    return jsonify({'success': True})
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -2861,7 +3010,8 @@ def leave_project_immediately(project_id):
     current_user = get_current_user()
     
     # Check if user is a team member
-    if current_user not in project.members:
+    membership = ProjectMember.query.filter_by(project_id=project_id, user_id=current_user.id).first()
+    if not membership:
         return jsonify({'error': 'You are not a member of this project'}), 403
     
     data = request.get_json(silent=True) or {}
@@ -2869,7 +3019,7 @@ def leave_project_immediately(project_id):
     
     try:
         # Remove user from project members
-        project.members.remove(current_user)
+        db.session.delete(membership)
         
         # Clean up old join requests so user can rejoin later
         # Delete all previous join requests (rejected or accepted)
@@ -2881,9 +3031,7 @@ def leave_project_immediately(project_id):
             db.session.delete(old_req)
         
         # Create member history record
-        history = MemberHistory(user_id=current_user.id, project_id=project_id, action='left', reason=reason if reason else None)  # type: ignore
-        
-        db.session.add(history)
+        log_member_event(project_id, current_user.id, 'left', reason=reason)
         db.session.commit()
         
         return jsonify({'success': 'You have left the project successfully'}), 200
@@ -2903,7 +3051,8 @@ def request_leave_team(project_id):
     current_user = get_current_user()
     
     # Check if user is a team member
-    if current_user not in project.members:
+    membership = ProjectMember.query.filter_by(project_id=project_id, user_id=current_user.id).first()
+    if not membership:
         return jsonify({'error': 'You are not a member of this project'}), 403
     
     # Check if there's already a pending leave request
@@ -2987,9 +3136,10 @@ def approve_leave_request(project_id, request_id):
         return jsonify({'error': 'Request is already ' + leave_req.status}), 400
     
     # Get the member to remove
-    member = User.query.get(leave_req.user_id)
-    if member and member in project.members:
-        project.members.remove(member)
+    member_record = ProjectMember.query.filter_by(project_id=project_id, user_id=leave_req.user_id).first()
+    if member_record:
+        db.session.delete(member_record)
+        log_member_event(project_id, leave_req.user_id, 'left', reason=leave_req.reason)
     
     # Update leave request status
     leave_req.status = 'approved'

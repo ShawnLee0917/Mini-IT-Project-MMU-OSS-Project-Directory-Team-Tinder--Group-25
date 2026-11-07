@@ -217,12 +217,21 @@ class MemberHistory(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     project_id = db.Column(db.Integer, db.ForeignKey('projects.id', ondelete='CASCADE'), nullable=False)
-    action = db.Column(db.String(50), nullable=False)  # 'joined' or 'left'
+    action = db.Column(db.String(50), nullable=False)  # 'joined', 'left' or 'removed'
     timestamp = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(MYT).replace(tzinfo=None))
     reason = db.Column(db.String(255), nullable=True)  # Optional reason for leaving
+
+    # Audit trail: who removed the member, and who edited the time
+    actor_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    original_timestamp = db.Column(db.DateTime, nullable=True)   # set on first edit only
+    edited_by_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    edited_at = db.Column(db.DateTime, nullable=True)
     
     # Relationships
     project = db.relationship('Project', backref=db.backref('member_histories', cascade='all, delete-orphan'))
+    user = db.relationship('User', foreign_keys=[user_id])
+    actor = db.relationship('User', foreign_keys=[actor_id])
+    edited_by = db.relationship('User', foreign_keys=[edited_by_id])
     
     __table_args__ = (db.Index('idx_project_user', 'project_id', 'user_id'),)
 
