@@ -81,7 +81,11 @@
                 </h1>
                 <p class="text-gray-400 text-sm mt-1">Review reports and moderate student community content.</p>
             </div>
-            <div class="flex items-center gap-3">
+            <div class="flex flex-wrap items-center gap-3">
+                <span class="px-3 py-1.5 bg-blue-950/60 text-blue-300 border border-blue-800/50 rounded-lg text-xs font-bold">
+                    <i class="fa-solid fa-graduation-cap mr-1"></i>
+                    <span id="header-alumni-count">{{ pending_alumni_count|default(0) }}</span> pending alumni
+                </span>
                 <span class="px-3 py-1.5 bg-red-950/50 text-red-400 border border-red-900/40 rounded-lg text-xs font-bold">
                     {{ pending_count }} pending report{{ 's' if pending_count != 1 else '' }}
                 </span>
@@ -157,6 +161,94 @@
                             <tr>
                                 <td colspan="6" class="py-10 text-center text-gray-500 italic text-xs">
                                     <i class="fa-solid fa-circle-check text-emerald-500 mr-1"></i> No pending reports. All clear!
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alumni Account Approvals -->
+        <div class="bg-gray-800 border border-gray-700 rounded-2xl shadow-xl overflow-hidden mb-8 section-in section-in-1">
+            <div class="bg-gradient-to-r from-blue-950 to-gray-900 px-6 py-4 border-b border-gray-800 flex items-center justify-between">
+                <h2 class="text-base font-bold text-blue-300 uppercase tracking-wider flex items-center gap-2">
+                    <i class="fa-solid fa-graduation-cap"></i> Alumni Account Approvals
+                </h2>
+                <span class="text-xs bg-blue-950 text-blue-300 border border-blue-800/40 px-2.5 py-0.5 rounded-full font-bold">
+                    Auto-assigns "MMU Alumni" Badge
+                </span>
+            </div>
+            <div class="p-6">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm border-collapse">
+                        <thead>
+                            <tr class="border-b border-gray-700 text-gray-400 font-semibold text-xs uppercase tracking-wider">
+                                <th class="pb-3">Applicant</th>
+                                <th class="pb-3">Alumni Verification Details</th>
+                                <th class="pb-3 w-36">Applied At</th>
+                                <th class="pb-3 w-48 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="alumni-approval-tbody" class="divide-y divide-gray-800 text-gray-300">
+                            {% for alumni in pending_alumni|default([]) %}
+                            <tr id="alumni-row-{{ alumni.id }}" class="hover:bg-gray-750/50 transition">
+                                <td class="py-4 pr-4">
+                                    <div class="font-bold text-white">{{ alumni.name }}</div>
+                                    <div class="text-xs text-gray-400 mt-0.5">{{ alumni.email }}</div>
+                                    <span class="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 bg-emerald-950/60 text-emerald-400 border border-emerald-800/50 rounded-full text-[10px] font-bold">
+                                        <i class="fa-solid fa-circle-check"></i> Personal Email Verified
+                                    </span>
+                                </td>
+                                <td class="py-4 pr-4 text-xs space-y-1">
+                                    <div>
+                                        <span class="text-gray-500">Former ID / Email:</span>
+                                        <span class="text-gray-200 font-mono font-semibold">{{ alumni.student_id }}</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-gray-500">Grad Year &amp; Faculty:</span>
+                                        <span class="text-gray-200">{{ alumni.graduation_year }} · {{ alumni.faculty }}</span>
+                                    </div>
+                                    {% if alumni.repo_url %}
+                                    <div>
+                                        <span class="text-gray-500">Legacy Repo:</span>
+                                        {% if alumni.repo_url.startswith('http://') or alumni.repo_url.startswith('https://') %}
+                                        <a href="{{ alumni.repo_url }}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:underline ml-1 break-all">
+                                            <i class="fa-solid fa-arrow-up-right-from-square text-[10px] mr-0.5"></i>{{ alumni.repo_url }}
+                                        </a>
+                                        {% else %}
+                                        <span class="text-gray-300 ml-1 break-all">{{ alumni.repo_url }}</span>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                </td>
+                                <td class="py-4 text-xs text-gray-400 font-mono">
+                                    {{ alumni.created_at.strftime('%Y-%m-%d %H:%M') if alumni.created_at else '' }}
+                                </td>
+                                <td class="py-4 text-right">
+                                    <div class="flex justify-end gap-2">
+                                        <button type="button"
+                                            data-user-id="{{ alumni.id }}"
+                                            data-user-name="{{ alumni.name }}"
+                                            onclick="handleAlumniApproval('approve', this)"
+                                            class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition disabled:opacity-50">
+                                            <i class="fa-solid fa-check mr-1"></i> Approve
+                                        </button>
+                                        <button type="button"
+                                            data-user-id="{{ alumni.id }}"
+                                            data-user-name="{{ alumni.name }}"
+                                            onclick="handleAlumniApproval('reject', this)"
+                                            class="px-3 py-1.5 bg-red-600/80 hover:bg-red-700 text-white text-xs font-bold rounded-lg transition disabled:opacity-50">
+                                            <i class="fa-solid fa-xmark mr-1"></i> Reject
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr id="alumni-empty-row">
+                                <td colspan="4" class="py-10 text-center text-gray-500 italic text-xs">
+                                    <i class="fa-solid fa-circle-check text-emerald-500 mr-1"></i> No pending alumni applications.
                                 </td>
                             </tr>
                             {% endfor %}
@@ -450,7 +542,7 @@
         </div>
     </div>
 
-    <script>
+<script>
         // ── Rounded Toast Notification Helper (Replaces raw alert) ──
         function showAdminToast(message, type = 'success') {
             const existing = document.getElementById('admin-toast-container');
@@ -493,11 +585,24 @@
             return div.innerHTML;
         }
 
-        function showAdminConfirm(title, message, confirmText = 'Confirm') {
+        function showAdminConfirm(title, message, confirmText = 'Confirm', variant = 'danger') {
             return new Promise((resolve) => {
+                const iconBox = document.getElementById('adminConfirmIcon');
+                const submitBtn = document.getElementById('adminConfirmSubmit');
+
+                if (variant === 'success') {
+                    iconBox.className = 'w-16 h-16 bg-emerald-50 border-4 border-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-5 text-2xl';
+                    iconBox.innerHTML = '<i class="fa-solid fa-graduation-cap"></i>';
+                    submitBtn.className = 'flex-1 bg-emerald-600 text-white px-4 py-3 rounded-xl font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition text-sm';
+                } else {
+                    iconBox.className = 'w-16 h-16 bg-red-50 border-4 border-red-100 text-red-500 rounded-full flex items-center justify-center mb-5 text-2xl';
+                    iconBox.innerHTML = '<i class="fas fa-trash"></i>';
+                    submitBtn.className = 'flex-1 bg-red-600 text-white px-4 py-3 rounded-xl font-bold hover:bg-red-700 shadow-lg shadow-red-200 transition text-sm';
+                }
+
                 document.getElementById('adminConfirmTitle').textContent = title;
                 document.getElementById('adminConfirmMessage').textContent = message;
-                document.getElementById('adminConfirmSubmit').textContent = confirmText;
+                submitBtn.textContent = confirmText;
                 document.getElementById('adminConfirmModal').classList.remove('hidden');
                 requestAnimationFrame(() => requestAnimationFrame(() => {
                     document.getElementById('adminConfirmModal').classList.add('modal-open');
@@ -507,12 +612,12 @@
                     document.getElementById('adminConfirmModal').classList.remove('modal-open');
                     setTimeout(() => document.getElementById('adminConfirmModal').classList.add('hidden'), 280);
                     document.getElementById('adminConfirmCancel').onclick = null;
-                    document.getElementById('adminConfirmSubmit').onclick = null;
+                    submitBtn.onclick = null;
                     resolve(result);
                 };
 
                 document.getElementById('adminConfirmCancel').onclick = () => cleanup(false);
-                document.getElementById('adminConfirmSubmit').onclick = () => cleanup(true);
+                submitBtn.onclick = () => cleanup(true);
             });
         }
 
@@ -605,6 +710,80 @@
             row.style.transform = 'translateX(12px)';
             row.style.transition = 'all 0.3s ease';
             setTimeout(() => row.remove(), 300);
+        }
+
+        // =========================================================
+        // ALUMNI ACCOUNT APPROVALS (AUTO-ASSIGN "MMU Alumni" BADGE)
+        // =========================================================
+        async function handleAlumniApproval(action, btnEl) {
+            const userId = btnEl.dataset.userId;
+            const userName = btnEl.dataset.userName || 'this applicant';
+            const isApprove = action === 'approve';
+
+            const title = isApprove ? 'Approve Alumni Account' : 'Reject Alumni Application';
+            const msg = isApprove
+                ? `Approve ${userName}'s alumni account? They will automatically receive the "MMU Alumni" badge and an activation email.`
+                : `Reject and delete ${userName}'s application? They will be notified by email and can reapply later.`;
+
+            const ok = await showAdminConfirm(
+                title,
+                msg,
+                isApprove ? 'Yes, Approve' : 'Yes, Reject',
+                isApprove ? 'success' : 'danger'
+            );
+            if (!ok) return;
+
+            const row = document.getElementById(`alumni-row-${userId}`);
+            const rowButtons = row ? row.querySelectorAll('button') : [btnEl];
+            rowButtons.forEach(b => b.disabled = true);
+
+            const endpoint = isApprove
+                ? `/api/admin/approve-alumni/${userId}`
+                : `/api/admin/reject-alumni/${userId}`;
+
+            try {
+                const res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                const data = await res.json().catch(() => ({}));
+
+                if (res.ok && data.success) {
+                    removeRow(`alumni-row-${userId}`);
+
+                    const countEl = document.getElementById('header-alumni-count');
+                    if (countEl) {
+                        const nextVal = Math.max(0, (parseInt(countEl.textContent, 10) || 1) - 1);
+                        countEl.textContent = nextVal;
+                        if (nextVal === 0) {
+                            setTimeout(() => {
+                                const tbody = document.getElementById('alumni-approval-tbody');
+                                if (tbody && tbody.children.length === 0) {
+                                    tbody.innerHTML = `
+                                        <tr id="alumni-empty-row">
+                                            <td colspan="4" class="py-10 text-center text-gray-500 italic text-xs">
+                                                <i class="fa-solid fa-circle-check text-emerald-500 mr-1"></i> No pending alumni applications.
+                                            </td>
+                                        </tr>`;
+                                }
+                            }, 320);
+                        }
+                    }
+
+                    if (isApprove) {
+                        await loadUserBadges();
+                    }
+                    showAdminToast(data.message || (isApprove ? 'Alumni approved!' : 'Application rejected.'));
+                } else {
+                    rowButtons.forEach(b => b.disabled = false);
+                    showAdminToast(data.error || 'Failed to process alumni application.', 'error');
+                }
+            } catch (err) {
+                console.error('Alumni approval failed:', err);
+                rowButtons.forEach(b => b.disabled = false);
+                showAdminToast('Connection error. Failed to process alumni application.', 'error');
+            }
         }
 
         // =========================================================
@@ -950,6 +1129,6 @@
         document.addEventListener('DOMContentLoaded', () => {
             loadUserBadges();
         });
-    </script>
+</script>    
 </body>
 </html>

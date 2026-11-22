@@ -33,6 +33,28 @@
             <h2 class="text-2xl font-black text-gray-900 mb-1">Create account</h2>
             <p class="text-gray-400 text-sm mb-6">Join the CampusBuilds open source community</p>
 
+            <!-- Account Type Switcher (Option A) -->
+            <div class="grid grid-cols-2 gap-2 p-1.5 bg-gray-100 rounded-2xl mb-5">
+                <button type="button" id="tab-student"
+                    class="py-2.5 px-3 rounded-xl text-xs font-bold transition-all bg-white text-red-600 shadow-sm flex items-center justify-center gap-1.5">
+                    <i class="fas fa-user-graduate"></i>
+                    <span>Student / Staff</span>
+                </button>
+                <button type="button" id="tab-alumni"
+                    class="py-2.5 px-3 rounded-xl text-xs font-bold transition-all text-gray-500 hover:text-gray-800 flex items-center justify-center gap-1.5">
+                    <i class="fas fa-graduation-cap"></i>
+                    <span>Register Alumni Acc</span>
+                </button>
+            </div>
+
+            <!-- Alumni Info Banner (Hidden by default) -->
+            <div id="alumni-banner" class="hidden items-start gap-2.5 bg-blue-50 border border-blue-200 text-blue-800 text-xs px-4 py-3 rounded-xl mb-5 leading-relaxed">
+                <i class="fas fa-circle-info mt-0.5 text-blue-500 shrink-0"></i>
+                <div>
+                    <strong>MMU Alumni Registration:</strong> Register with your personal email and complete OTP verification. Once an admin approves your alumni details, your account will be activated with the <strong>MMU Alumni</strong> badge.
+                </div>
+            </div>
+
             <div id="error-msg" class="hidden items-center gap-3 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl mb-5">
                 <i class="fas fa-circle-exclamation"></i>
                 <span id="error-text"></span>
@@ -49,9 +71,46 @@
                         class="input-field w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-red-500 text-sm bg-gray-50">
                 </div>
                 <div>
-                    <label for="reg-email" class="block text-sm font-bold text-gray-700 mb-1">Email address</label>
+                    <label for="reg-email" id="email-label" class="block text-sm font-bold text-gray-700 mb-1">Email address</label>
                     <input type="email" id="reg-email" required placeholder="@student.mmu.edu.my"
                         class="input-field w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-red-500 text-sm bg-gray-50">
+                </div>
+                <!-- Alumni Verification Fields (Hidden by default) -->
+                <div id="alumni-fields" class="hidden space-y-3 p-4 bg-blue-50/50 border border-blue-100 rounded-2xl">
+                    <p class="text-xs font-extrabold uppercase tracking-wider text-blue-700 flex items-center gap-1.5">
+                        <i class="fas fa-id-card"></i> Alumni Verification Details
+                    </p>
+                    <div>
+                        <label for="alumni-student-id" class="block text-xs font-bold text-gray-700 mb-1">
+                            Former MMU Student ID / Old Email <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" id="alumni-student-id" placeholder="e.g. 120110xxxx or 120110xxxx@student.mmu.edu.my"
+                            class="input-field w-full px-3.5 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:border-red-500 text-sm bg-white">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label for="alumni-grad-year" class="block text-xs font-bold text-gray-700 mb-1">
+                                Graduation Year <span class="text-red-500">*</span>
+                            </label>
+                            <input type="number" id="alumni-grad-year" min="1996" max="2030" placeholder="e.g. 2024"
+                                class="input-field w-full px-3.5 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:border-red-500 text-sm bg-white">
+                        </div>
+                        <div>
+                            <label for="alumni-faculty" class="block text-xs font-bold text-gray-700 mb-1">
+                                Faculty
+                            </label>
+                            <input type="text" id="alumni-faculty" value="Faculty of Computing & Informatics"
+                                class="input-field w-full px-3.5 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:border-red-500 text-sm bg-white">
+                        </div>
+                    </div>
+                    <div>
+                        <label for="alumni-repo-url" class="block text-xs font-bold text-gray-700 mb-1">
+                            Project / GitHub URL <span class="text-gray-400 font-normal">(Optional)</span>
+                        </label>
+                        <input type="url" id="alumni-repo-url" placeholder="https://github.com/username/legacy-app"
+                            class="input-field w-full px-3.5 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:border-red-500 text-sm bg-white">
+                        <p class="text-[11px] text-gray-400 mt-1">Sharing your GitHub repo helps admins approve faster.</p>
+                    </div>
                 </div>
                 <div>
                     <label for="reg-password" class="block text-sm font-bold text-gray-700 mb-1">Password</label>
@@ -284,6 +343,46 @@
         document.getElementById('error-msg').classList.add('hidden');
     }
 
+    // ── Account Mode Switch (Student/Staff vs Alumni) ──
+    let isAlumniMode = false;
+
+    const tabStudent   = document.getElementById('tab-student');
+    const tabAlumni    = document.getElementById('tab-alumni');
+    const alumniBanner = document.getElementById('alumni-banner');
+    const alumniFields = document.getElementById('alumni-fields');
+    const emailLabel   = document.getElementById('email-label');
+    const emailInput   = document.getElementById('reg-email');
+    const submitLabel  = document.getElementById('btn-label');
+
+    function setRegisterMode(alumni) {
+        isAlumniMode = alumni;
+        document.getElementById('error-msg').classList.add('hidden');
+
+        if (alumni) {
+            tabAlumni.className  = 'py-2.5 px-3 rounded-xl text-xs font-bold transition-all bg-white text-red-600 shadow-sm flex items-center justify-center gap-1.5';
+            tabStudent.className = 'py-2.5 px-3 rounded-xl text-xs font-bold transition-all text-gray-500 hover:text-gray-800 flex items-center justify-center gap-1.5';
+            alumniBanner.classList.remove('hidden');
+            alumniBanner.classList.add('flex');
+            alumniFields.classList.remove('hidden');
+            emailLabel.textContent = 'Personal Email address';
+            emailInput.placeholder = 'e.g. yourname@gmail.com';
+            submitLabel.textContent = 'Submit Alumni Application';
+        } else {
+            tabStudent.className = 'py-2.5 px-3 rounded-xl text-xs font-bold transition-all bg-white text-red-600 shadow-sm flex items-center justify-center gap-1.5';
+            tabAlumni.className  = 'py-2.5 px-3 rounded-xl text-xs font-bold transition-all text-gray-500 hover:text-gray-800 flex items-center justify-center gap-1.5';
+            alumniBanner.classList.add('hidden');
+            alumniBanner.classList.remove('flex');
+            alumniFields.classList.add('hidden');
+            emailLabel.textContent = 'Email address';
+            emailInput.placeholder = '@student.mmu.edu.my';
+            submitLabel.textContent = 'Create Account';
+        }
+    }
+
+    tabStudent.addEventListener('click', () => setRegisterMode(false));
+    tabAlumni.addEventListener('click', () => setRegisterMode(true));
+
+    // ── Form Submit ──
     document.getElementById('register-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const btn     = document.getElementById('register-btn');
@@ -294,13 +393,23 @@
         const confirm  = document.getElementById('reg-confirm').value;
         if (password !== confirm) { showError('Passwords do not match'); return; }
         if (password.length < 6)  { showError('Password must be at least 6 characters'); return; }
+
+        if (isAlumniMode) {
+            const sid = document.getElementById('alumni-student-id').value.trim();
+            const yr  = document.getElementById('alumni-grad-year').value.trim();
+            if (!sid || !yr) {
+                showError('Please fill in your Former MMU Student ID / Old Email and Graduation Year');
+                return;
+            }
+        }
+
         if (!document.getElementById('agree-terms').checked) {
             showError('You must agree to the Terms of Service and Privacy Policy to create an account');
             return;
         }
 
         btn.disabled = true;
-        label.textContent = 'Creating account…';
+        label.textContent = isAlumniMode ? 'Submitting application…' : 'Creating account…';
         spinner.classList.remove('hidden');
 
         try {
@@ -324,23 +433,33 @@
                 });
             }
 
+            const payload = {
+                name:           document.getElementById('reg-name').value.trim(),
+                email:          document.getElementById('reg-email').value.trim().toLowerCase(),
+                password,
+                dev_interests:  devInterests,
+                lang_interests: langInterests,
+                terms_accepted: document.getElementById('agree-terms').checked,
+                is_alumni:      isAlumniMode
+            };
+
+            if (isAlumniMode) {
+                payload.alumni_student_id = document.getElementById('alumni-student-id').value.trim();
+                payload.graduation_year   = document.getElementById('alumni-grad-year').value.trim();
+                payload.alumni_faculty    = document.getElementById('alumni-faculty').value.trim();
+                payload.legacy_repo_url   = document.getElementById('alumni-repo-url').value.trim();
+            }
+
             const res = await fetch('/api/register', {
-                method:  'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',     
-                body:    JSON.stringify({
-                    name:     document.getElementById('reg-name').value.trim(),
-                    email:    document.getElementById('reg-email').value.trim().toLowerCase(),
-                    password,
-                    dev_interests: devInterests,
-                    lang_interests: langInterests,
-                    terms_accepted: document.getElementById('agree-terms').checked
-                })
+                method:      'POST',
+                headers:     { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body:        JSON.stringify(payload)
             });
             const data = await res.json();
             
             if (res.ok) {
-                showSuccess('Account created! Check email for OTP.');
+                showSuccess(data.message || 'Account created! Check email for OTP.');
                 localStorage.setItem('verify_email', document.getElementById('reg-email').value.trim().toLowerCase());
                 setTimeout(() => window.location.href = '/verify', 1500);
             } else {
@@ -350,9 +469,10 @@
             showError('Connection error — is the Flask server running?');
         } finally {
             btn.disabled = false;
-            label.textContent = 'Create Account';
+            label.textContent = isAlumniMode ? 'Submit Alumni Application' : 'Create Account';
             spinner.classList.add('hidden');
         }
     });
-</script></body>
+</script>
+</body>
 </html>

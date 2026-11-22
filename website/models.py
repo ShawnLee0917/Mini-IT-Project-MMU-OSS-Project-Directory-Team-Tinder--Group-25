@@ -34,6 +34,8 @@ class User(db.Model):
     karma = db.Column(db.Integer, nullable=False, default=0)
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(MYT).replace(tzinfo=None))
     is_verified = db.Column(db.Boolean, default=False)
+    is_approved = db.Column(db.Boolean, default=True, server_default=db.true(), nullable=False)
+    alumni_info = db.Column(db.Text, nullable=True)
     is_admin = db.Column(db.Boolean, default=False)  # Admin privilege for content moderation
     otp = db.Column(db.String(6), nullable=True)
     last_seen = db.Column(db.DateTime, nullable=True)

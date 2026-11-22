@@ -324,7 +324,7 @@ def admin_get_user_badges():
     if not is_admin: 
         return jsonify({'error': 'Admin permission required'}), 403
         
-    users = User.query.all()
+    users = User.query.filter_by(is_approved=True).all()
     user_data = []
     for u in users:
         user_data.append({
@@ -424,6 +424,80 @@ def get_badge_notifications():
     ).order_by(BadgeNotification.created_at.asc()).all()
 
     return jsonify([{'id': n.id, 'badge_name': n.badge_name} for n in pending])
+
+@views.route('/api/admin/approve-alumni/<int:user_id>', methods=['POST'])
+def api_admin_approve_alumni(user_id):
+    """Approve an alumni account, auto-assign 'MMU Alumni' badge, and email the user."""
+    is_admin, admin_user = check_admin_permission()
+    if not is_admin:
+        return jsonify({'error': 'Admin permission required'}), 403
+
+    user = User.query.get_or_404(user_id)
+    if getattr(user, 'is_approved', True):
+        return jsonify({'error': 'This account is already approved.'}), 400
+
+    try:
+        user.is_approved = True
+
+        _award_badge(user.id, 'MMU Alumni')
+
+        log = AdminLog(
+            admin_id=admin_user.id,
+            action='approve_alumni',
+            target_type='user',
+            target_id=user.id,
+            details=f"Approved alumni account {user.name} ({user.email}) & awarded 'MMU Alumni' badge"
+        )
+        db.session.add(log)
+        db.session.commit()
+
+        send_alumni_approval_email(user.email, user.name, approved=True)
+        return jsonify({
+            'success': True,
+            'message': f"Approved {user.name} and assigned 'MMU Alumni' badge!"
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Failed to approve alumni: {str(e)}'}), 500
+
+
+@views.route('/api/admin/reject-alumni/<int:user_id>', methods=['POST'])
+def api_admin_reject_alumni(user_id):
+    """Reject and delete an unapproved alumni application so the email can reapply later."""
+    is_admin, admin_user = check_admin_permission()
+    if not is_admin:
+        return jsonify({'error': 'Admin permission required'}), 403
+
+    user = User.query.get_or_404(user_id)
+    if getattr(user, 'is_approved', True):
+        return jsonify({'error': 'Cannot reject an already approved user.'}), 400
+
+    data = request.get_json(silent=True) or {}
+    reason = data.get('reason', '').strip()
+
+    target_email = user.email
+    target_name = user.name
+
+    try:
+        log = AdminLog(
+            admin_id=admin_user.id,
+            action='reject_alumni',
+            target_type='user',
+            target_id=user.id,
+            details=f"Rejected alumni application: {target_name} ({target_email})" + (f" — {reason}" if reason else "")
+        )
+        db.session.add(log)
+        db.session.delete(user)
+        db.session.commit()
+
+        send_alumni_approval_email(target_email, target_name, approved=False, reason=reason)
+        return jsonify({
+            'success': True,
+            'message': f'Rejected and removed application for {target_name}.'
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Failed to reject application: {str(e)}'}), 500
 
 
 @views.route('/api/badge-notifications/<int:notif_id>/dismiss', methods=['POST'])
@@ -1225,7 +1299,6 @@ def send_invite_notification_email(recipient_user, inviter_name, project):
 
 
 def send_join_request_email(project_owner, applicant_user, project):
-    """当有用户申请加入项目时，向项目 Owner 发送优化后的邮件，避免被判为 Junk"""
     app = current_app._get_current_object()
     subject = f"[CampusBuilds] New Join Request for {project.project_name}"
 
@@ -1268,6 +1341,63 @@ def send_join_request_email(project_owner, applicant_user, project):
     </html>
     """
     _send_mailgun_async(app, project_owner.email, subject, text_content, html_content)
+
+def send_alumni_approval_email(to_email, user_name, approved=True, reason=''):
+    """Notify alumni applicant after admin reviews their account."""
+    app = current_app._get_current_object()
+    if approved:
+        subject = "🎓 Your CampusBuilds Alumni Account is Approved!"
+        text_content = (
+            f"Hi {user_name},\n\n"
+            f"Great news! Your MMU Alumni account on CampusBuilds has been approved, "
+            f"and the 'MMU Alumni' badge has been automatically added to your profile.\n\n"
+            f"You can now log in with your personal email to list your project and find a maintainer:\n"
+            f"https://campusbuilds.app/login\n\n"
+            f"Best regards,\nThe CampusBuilds Team"
+        )
+        html_content = f"""
+        <div style="font-family: 'Inter', sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 16px;">
+            <h2 style="color: #111827; margin-top: 0;">🎓 Welcome Back, {html_lib.escape(user_name)}!</h2>
+            <p style="color: #4b5563; font-size: 14px; line-height: 1.6;">
+                Your <strong>MMU Alumni</strong> account on CampusBuilds has been approved, and the 
+                <strong>MMU Alumni</strong> badge has been automatically assigned to your profile.
+            </p>
+            <p style="color: #4b5563; font-size: 14px; line-height: 1.6;">
+                You can now log in using your personal email to list your project and find a student maintainer or successor.
+            </p>
+            <div style="margin-top: 20px;">
+                <a href="https://campusbuilds.app/login" style="display: inline-block; background: #dc2626; color: #ffffff; text-decoration: none; font-weight: bold; font-size: 13px; padding: 11px 22px; border-radius: 10px;">Sign In to CampusBuilds</a>
+            </div>
+        </div>
+        """
+    else:
+        subject = "[CampusBuilds] Update on Your Alumni Application"
+        reason_text = f"Reason: {reason}\n\n" if reason else ""
+        reason_html = (
+            f"<p style='color: #991b1b; background: #fef2f2; border: 1px solid #fecaca; padding: 12px; border-radius: 8px; font-size: 13px;'>"
+            f"<strong>Note:</strong> {html_lib.escape(reason)}</p>"
+        ) if reason else ""
+        text_content = (
+            f"Hi {user_name},\n\n"
+            f"We could not verify your MMU Alumni application at this time.\n"
+            f"{reason_text}"
+            f"You are welcome to submit a new application with your MMU Student ID and graduation details at:\n"
+            f"https://campusbuilds.app/register\n\n"
+            f"Best regards,\nThe CampusBuilds Team"
+        )
+        html_content = f"""
+        <div style="font-family: 'Inter', sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 16px;">
+            <h3 style="color: #111827; margin-top: 0;">CampusBuilds Alumni Verification</h3>
+            <p style="color: #4b5563; font-size: 14px; line-height: 1.6;">
+                Hi <strong>{html_lib.escape(user_name)}</strong>, we could not verify your alumni status from the details provided.
+            </p>
+            {reason_html}
+            <p style="color: #4b5563; font-size: 14px; line-height: 1.6;">
+                Feel free to reapply at <a href="https://campusbuilds.app/register" style="color: #dc2626;">campusbuilds.app/register</a> with your former MMU Student ID and graduation year.
+            </p>
+        </div>
+        """
+    _send_mailgun_async(app, to_email, subject, text_content, html_content)
     
 @views.route('/')
 @views.route('/home')
@@ -1301,9 +1431,21 @@ def api_verify_otp():
 
     if user and user.otp == otp:
         user.is_verified = True
-        user.otp = None  # Clear OTP after successful use
+        user.otp = None
         db.session.commit()
-        return jsonify({'success': True, 'message': 'Account verified!'})
+
+        if not getattr(user, 'is_approved', True):
+            return jsonify({
+                'success': True,
+                'pending_approval': True,
+                'message': 'Email verified! Your alumni application is now awaiting admin approval. You will receive an email once approved.'
+            })
+
+        return jsonify({
+            'success': True,
+            'pending_approval': False,
+            'message': 'Account verified!'
+        })
         
     return jsonify({'error': 'Invalid code. Please check and try again.'}), 401
 
@@ -1363,12 +1505,14 @@ def api_forgot_password():
 
     if not email:
         return jsonify({'error': 'Email is required'}), 400
-    if not (email.endswith('@mmu.edu.my') or email.endswith('@student.mmu.edu.my')):
-        return jsonify({'error': 'Only MMU email addresses are allowed'}), 400
 
+    is_mmu_email = email.endswith('@mmu.edu.my') or email.endswith('@student.mmu.edu.my')
     user = User.query.filter_by(email=email).first()
-    # Always return success even if email not found (security best practice)
-    if user and user.is_verified:
+
+    if not is_mmu_email and not user:
+        return jsonify({'error': 'Only MMU email addresses or registered alumni emails are allowed'}), 400
+
+    if user and user.is_verified and getattr(user, 'is_approved', True):
         otp_code  = f'{random.randint(0, 999999):06d}'
         user.otp  = otp_code
         db.session.commit()
@@ -1827,24 +1971,48 @@ def delete_project(project_id):
 # Reference: Werkzeug security - https://werkzeug.palletsprojects.com/en/stable/utils/#werkzeug.security.generate_password_hash
 @views.route('/api/register', methods=['POST'])
 def api_register():
-    import json
-    data     = request.get_json(silent=True) or {}
-    email    = data.get('email', '').strip().lower()
-    name     = data.get('name', '').strip()
-    password = data.get('password', '')
-    dev_interests = data.get('dev_interests', [])
+    data           = request.get_json(silent=True) or {}
+    email          = data.get('email', '').strip().lower()
+    name           = data.get('name', '').strip()
+    password       = data.get('password', '')
+    dev_interests  = data.get('dev_interests', [])
     lang_interests = data.get('lang_interests', [])
+    is_alumni      = bool(data.get('is_alumni', False))
 
     if not email or not password or not name:
         return jsonify({'error': 'All fields are required'}), 400
     if len(password) < 6:
         return jsonify({'error': 'Password must be at least 6 characters'}), 400
-    if not (email.endswith('@mmu.edu.my') or email.endswith('@student.mmu.edu.my')):
-        return jsonify({'error': 'Only MMU email addresses (@mmu.edu.my or @student.mmu.edu.my) are allowed'}), 400
+
+    is_mmu_email = email.endswith('@mmu.edu.my') or email.endswith('@student.mmu.edu.my')
+    alumni_info_json = None
+    alumni_faculty = None
+
+    if is_alumni:
+        if '@' not in email or '.' not in email.split('@')[-1]:
+            return jsonify({'error': 'Please enter a valid personal email address'}), 400
+        if is_mmu_email:
+            return jsonify({'error': 'You entered an MMU email. Please switch to the Student / Staff tab to register directly.'}), 400
+
+        student_id     = data.get('alumni_student_id', '').strip()
+        grad_year      = data.get('graduation_year', '').strip()
+        alumni_faculty = data.get('alumni_faculty', '').strip()
+        repo_url       = data.get('legacy_repo_url', '').strip()
+
+        if not student_id or not grad_year:
+            return jsonify({'error': 'Former MMU Student ID / Old Email and Graduation Year are required'}), 400
+
+        alumni_info_json = json.dumps({
+            'student_id': student_id,
+            'graduation_year': grad_year,
+            'faculty': alumni_faculty,
+            'repo_url': repo_url
+        })
+    else:
+        if not is_mmu_email:
+            return jsonify({'error': 'Only MMU email addresses (@mmu.edu.my or @student.mmu.edu.my) are allowed'}), 400
 
     pw_hash = generate_password_hash(password)
-    
-# --- MODIFIED: Generate OTP and store interests as JSON ---
     otp_code = f"{random.randint(0, 999999):06d}"
     interests_json = json.dumps({
         'dev_interests': dev_interests if dev_interests else [],
@@ -1858,25 +2026,32 @@ def api_register():
         user.password_hash = pw_hash
         user.otp = otp_code
         user.interests = interests_json
+        user.is_approved = not is_alumni
+        user.alumni_info = alumni_info_json
+        if alumni_faculty:
+            user.faculty = alumni_faculty
+
         db.session.add(user)
         db.session.commit()
         
         if send_otp_email(email, otp_code):
-            return jsonify({'success': True, 'message': 'Account created! Check email for OTP.'})
+            return jsonify({
+                'success': True,
+                'is_alumni': is_alumni,
+                'message': 'Application created! Check your personal email for the 6-digit OTP.' if is_alumni else 'Account created! Check email for OTP.'
+            })
         else:
             db.session.delete(user)
             db.session.commit()
             return jsonify({'error': 'Failed to send verification email. Please try again.'}), 500
             
     except Exception as e:
-        
         db.session.rollback()
         print(f"Registration error: {str(e)}")
-        
         if 'unique' in str(e).lower() or 'email' in str(e).lower():
             return jsonify({'error': 'Email already registered'}), 409
-            
         return jsonify({'error': f'Registration failed: {str(e)}'}), 400
+
 
 @views.route('/api/login', methods=['POST'])
 def api_login():
@@ -1884,17 +2059,21 @@ def api_login():
     email = data.get('email', '').strip().lower()
     password = data.get('password', '')
 
-    if not (email.endswith('@mmu.edu.my') or email.endswith('@student.mmu.edu.my')):
+    is_mmu_email = email.endswith('@mmu.edu.my') or email.endswith('@student.mmu.edu.my')
+    user = User.query.filter_by(email=email).first()
+
+    if not is_mmu_email and not user:
         return jsonify({'error': 'Only MMU email addresses (@mmu.edu.my or @student.mmu.edu.my) are allowed'}), 400
 
-    user = User.query.filter_by(email=email).first()
     if not user or not user.password_hash or \
        not check_password_hash(user.password_hash, password):
         return jsonify({'error': 'Invalid email or password'}), 401
 
-    # --- ADDED: Check if account is verified ---
     if not user.is_verified:
         return jsonify({'error': 'Please verify your email first.'}), 403
+
+    if not getattr(user, 'is_approved', True):
+        return jsonify({'error': 'Your alumni account is pending admin approval. You will receive an email once it is activated.'}), 403
     
     session['user_email'] = user.email
     session['user_name']  = user.name
@@ -4877,6 +5056,30 @@ def admin_dashboard_page():
     ).all()
     pending_reports = _enrich_pending_reports(pending_reports_raw)
 
+    pending_alumni_raw = User.query.filter_by(
+        is_verified=True,
+        is_approved=False
+    ).order_by(User.created_at.desc()).all()
+
+    pending_alumni = []
+    for u in pending_alumni_raw:
+        info = {}
+        if getattr(u, 'alumni_info', None):
+            try:
+                info = json.loads(u.alumni_info)
+            except Exception:
+                info = {'student_id': u.alumni_info}
+        pending_alumni.append({
+            'id': u.id,
+            'name': u.name,
+            'email': u.email,
+            'faculty': u.faculty,
+            'created_at': u.created_at,
+            'student_id': info.get('student_id', 'N/A'),
+            'graduation_year': info.get('graduation_year', 'N/A'),
+            'repo_url': info.get('repo_url', ''),
+        })
+
     recent_logs = AdminLog.query.order_by(AdminLog.created_at.desc()).limit(20).all()
     suspended_users = SuspendedUser.query.filter_by(is_active=True).all()
 
@@ -4890,6 +5093,8 @@ def admin_dashboard_page():
         recent_logs=recent_logs,
         suspended_users=suspended_users,
         admin_user=user,
+        pending_alumni=pending_alumni,
+        pending_alumni_count=len(pending_alumni),
     )
 
 @views.route('/api/timeline_feed', methods=['GET'])
