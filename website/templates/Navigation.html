@@ -369,43 +369,54 @@
             <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition text-sm">Home</a>
             <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition text-sm">Search</a>
             <a href="{{ url_for('views.hottest_projects') }}" class="hover:text-red-200 transition text-sm">Hottest Projects</a>
-            <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition text-sm">My Projects</a>
+            <a id="nav-my-projects" href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition text-sm">My Projects</a>
             
-            <div class="relative ml-2 mr-2">
-                <button id="notif-btn" class="text-white hover:text-red-200 transition relative p-2 focus:outline-none">
-                    <i class="fas fa-bell text-xl"></i>
-                    <span id="notif-badge" class="absolute top-1 right-0 bg-yellow-400 text-red-900 text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center hidden">0</span>
-                </button>
-                
-                <div id="notif-dropdown" class="hidden absolute right-0 mt-4 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50">
-                    <div class="bg-gray-50 px-4 py-3 border-b border-gray-100 flex justify-between items-center">
-                        <h3 class="text-sm font-bold text-gray-800"><i class="fas fa-envelope-open-text text-red-500 mr-2"></i>Notification</h3>
-                        <div class="flex items-center gap-2">
-                            <button onclick="markAllAsRead()" class="text-[10px] text-blue-600 hover:text-blue-800 font-bold transition">Mark all read</button>
-                            <span id="notif-count-text" class="text-xs text-gray-500 font-semibold bg-white px-2 py-0.5 rounded-full border">0</span>
+            <div id="nav-auth-wrapper" class="flex items-center space-x-4">
+                <div class="relative ml-2 mr-2" id="notif-btn-wrapper">
+                    <button id="notif-btn" class="text-white hover:text-red-200 transition relative p-2 focus:outline-none">
+                        <i class="fas fa-bell text-xl"></i>
+                        <span id="notif-badge" class="absolute top-1 right-0 bg-yellow-400 text-red-900 text-[10px] font-black w-4 h-4 rounded-full flex items-center justify-center hidden">0</span>
+                    </button>
+                    
+                    <div id="notif-dropdown" class="hidden absolute right-0 mt-4 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50">
+                        <div class="bg-gray-50 px-4 py-3 border-b border-gray-100 flex justify-between items-center">
+                            <h3 class="text-sm font-bold text-gray-800"><i class="fas fa-envelope-open-text text-red-500 mr-2"></i>Notification</h3>
+                            <div class="flex items-center gap-2">
+                                <button onclick="markAllAsRead()" class="text-[10px] text-blue-600 hover:text-blue-800 font-bold transition">Mark all read</button>
+                                <span id="notif-count-text" class="text-xs text-gray-500 font-semibold bg-white px-2 py-0.5 rounded-full border">0</span>
+                            </div>
                         </div>
+                        <div id="notif-list" class="max-h-64 overflow-y-auto divide-y divide-gray-50 text-gray-800">
+                            <div class="p-4 text-center text-xs text-gray-400 italic">No new notifications.</div>
+                        </div>
+                        <a href="{{ url_for('views.notifications_page') }}" class="block bg-gray-50 hover:bg-red-50 text-center py-2.5 text-xs font-bold text-red-600 border-t border-gray-100 transition">
+                            View All Notifications <i class="fas fa-arrow-right ml-1 text-[10px]"></i>
+                        </a>
                     </div>
-                    <div id="notif-list" class="max-h-64 overflow-y-auto divide-y divide-gray-50 text-gray-800">
-                        <div class="p-4 text-center text-xs text-gray-400 italic">No new notifications.</div>
-                    </div>
-                    <a href="{{ url_for('views.notifications_page') }}" class="block bg-gray-50 hover:bg-red-50 text-center py-2.5 text-xs font-bold text-red-600 border-t border-gray-100 transition">
-                        View All Notifications <i class="fas fa-arrow-right ml-1 text-[10px]"></i>
-                    </a>
                 </div>
+
+                <a href="{{ url_for('views.profile') }}" class="bg-red-800 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-500/50 cursor-pointer hover:bg-red-900 transition">
+                    <span id="nav-email" class="text-xs">…</span>
+                    <i class="fas fa-user-circle text-lg"></i>
+                </a>
+                <a id="admin-nav-btn" href="/admin/dashboard" class="hidden items-center gap-2 px-3 py-1.5 bg-red-600/80 hover:bg-red-700 text-white rounded-lg text-sm font-semibold transition-all shadow-md shadow-red-900/20">
+                            <i class="fa-solid fa-shield-halved text-xs"></i>
+                            <span>Admin</span>
+                </a>
+                <button id="logout-btn"
+                    class="bg-white text-red-700 hover:bg-red-50 text-xs font-bold px-3 py-2 rounded-xl transition">
+                    <i class="fas fa-sign-out-alt mr-1"></i>Logout
+                </button>
             </div>
 
-            <a href="{{ url_for('views.profile') }}" class="bg-red-800 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-500/50 cursor-pointer hover:bg-red-900 transition">
-                <span id="nav-email" class="text-xs">…</span>
-                <i class="fas fa-user-circle text-lg"></i>
-            </a>
-            <a id="admin-nav-btn" href="/admin/dashboard" class="hidden items-center gap-2 px-3 py-1.5 bg-red-600/80 hover:bg-red-700 text-white rounded-lg text-sm font-semibold transition-all shadow-md shadow-red-900/20">
-                        <i class="fa-solid fa-shield-halved text-xs"></i>
-                        <span>Admin</span>
-            </a>
-            <button id="logout-btn"
-                class="bg-white text-red-700 hover:bg-red-50 text-xs font-bold px-3 py-2 rounded-xl transition">
-                <i class="fas fa-sign-out-alt mr-1"></i>Logout
-            </button>
+            <div id="nav-guest-wrapper" class="hidden items-center space-x-3">
+                <a href="{{ url_for('views.login') }}" class="bg-white text-red-700 hover:bg-red-50 text-xs font-bold px-4 py-2 rounded-xl transition shadow-sm inline-flex items-center">
+                    <i class="fas fa-sign-in-alt mr-1.5"></i> Sign In
+                </a>
+                <a href="{{ url_for('views.register') }}" class="bg-red-800 hover:bg-red-900 text-white text-xs font-bold px-4 py-2 rounded-xl transition border border-red-500/50">
+                    Register
+                </a>
+            </div>
         </div>
     </div>
 
@@ -414,20 +425,29 @@
             <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
             <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
             <a href="{{ url_for('views.hottest_projects') }}" class="hover:text-red-200 transition">Hottest Projects</a>
-            <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
-            <a href="{{ url_for('views.list_project') }}" class="hover:text-red-200 transition">List Your Project</a>
-            <a href="{{ url_for('views.profile') }}" class="hover:text-red-200 transition">My Profile</a>
-            
-            <a href="{{ url_for('views.notifications_page') }}" class="text-yellow-300 hover:text-white transition flex justify-between items-center" id="mobile-notif-row">
-                <span><i class="fas fa-bell mr-2"></i> Notification</span>
-                <span id="mobile-notif-badge" class="bg-yellow-400 text-red-900 px-2 rounded-full text-xs hidden">0</span>
-            </a>
+            <div id="mobile-user-links" class="flex flex-col space-y-4">
+                <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
+                <a href="{{ url_for('views.list_project') }}" class="hover:text-red-200 transition">List Your Project</a>
+                <a href="{{ url_for('views.profile') }}" class="hover:text-red-200 transition">My Profile</a>
+                
+                <a href="{{ url_for('views.notifications_page') }}" class="text-yellow-300 hover:text-white transition flex justify-between items-center" id="mobile-notif-row">
+                    <span><i class="fas fa-bell mr-2"></i> Notification</span>
+                    <span id="mobile-notif-badge" class="bg-yellow-400 text-red-900 px-2 rounded-full text-xs hidden">0</span>
+                </a>
 
-
-            <button id="logout-btn-mobile" class="text-left text-red-200 hover:text-white transition text-sm border-t border-red-700 pt-4 mt-2">
-                <i class="fas fa-sign-out-alt mr-1"></i> Logout
-            </button>
-            <div class="text-xs font-light opacity-80" id="nav-email-mobile">…</div>
+                <button id="logout-btn-mobile" class="text-left text-red-200 hover:text-white transition text-sm border-t border-red-700 pt-4 mt-2">
+                    <i class="fas fa-sign-out-alt mr-1"></i> Logout
+                </button>
+                <div class="text-xs font-light opacity-80" id="nav-email-mobile">…</div>
+            </div>
+            <div id="mobile-guest-links" class="hidden flex-col space-y-3 pt-3 border-t border-red-700">
+                <a href="{{ url_for('views.login') }}" class="bg-white text-red-700 text-center py-2.5 rounded-xl text-sm font-bold shadow-sm">
+                    <i class="fas fa-sign-in-alt mr-1.5"></i> Sign In
+                </a>
+                <a href="{{ url_for('views.register') }}" class="border border-red-400 text-white text-center py-2.5 rounded-xl text-sm font-bold hover:bg-red-700">
+                    Register
+                </a>
+            </div>
         </div>
     </div>
 </nav>
@@ -460,7 +480,29 @@
             <div class="h-px bg-gray-200 flex-grow ml-4 mr-20"></div>
         </div>
 
-        <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
+        <!-- Guest Read-Only Announcement Banner (Visible when not logged in) -->
+        <div id="guest-post-banner" class="hidden bg-white p-6 rounded-2xl border border-gray-200 shadow-sm text-center">
+            <div class="max-w-xl mx-auto flex flex-col items-center gap-3">
+                <div class="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center text-xl shadow-inner">
+                    <i class="fas fa-compass"></i>
+                </div>
+                <h4 class="text-base font-bold text-gray-900">Exploring CampusBuilds in Read-Only Mode</h4>
+                <p class="text-xs text-gray-500 leading-relaxed">
+                    Browse active campus builds, student updates, and team discussions below. 
+                    <span class="font-medium text-gray-700">Sign in</span> to post your project, join an engineering team, or interact with student developers!
+                </p>
+                <div class="flex items-center gap-3 mt-1">
+                    <a href="{{ url_for('views.login') }}" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition shadow-sm">
+                        <i class="fas fa-sign-in-alt mr-1.5"></i> Sign In to Participate
+                    </a>
+                    <a href="{{ url_for('views.search') }}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold px-4 py-2.5 rounded-xl transition">
+                        Browse All Projects
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div id="create-post-card" class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
             <div class="flex gap-4">
                 <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-bold shrink-0">
                     <span id="post-avatar-placeholder"><i class="fas fa-user"></i></span>
@@ -1241,6 +1283,11 @@
     }
 
     async function toggleAction(postId, action, btnElement) {
+        if (isGuest) {
+            showNotif('Please sign in to like or save posts.', false);
+            setTimeout(() => { window.location.href = '/login'; }, 1000);
+            return;
+        }
         btnElement.disabled = true;
         try {
             const res = await fetch(`${API}/community_posts/${postId}/${action}`, { method: 'POST' });
@@ -1507,6 +1554,11 @@
     }
 
     async function submitPostComment(postId) {
+        if (isGuest) {
+            showNotif('Please sign in to comment.', false);
+            setTimeout(() => { window.location.href = '/login'; }, 1000);
+            return;
+        }
         const input = document.getElementById(`comment-input-${postId}`);
         const content = input.value.trim();
         if (!content) return;
@@ -1567,6 +1619,11 @@
 
     // ── Submit Community Post ───────────────────────────
     async function submitCommunityPost(btnElement) {
+        if (isGuest) {
+            showNotif('Please sign in to share a post.', false);
+            setTimeout(() => { window.location.href = '/login'; }, 1000);
+            return;
+        }
         const contentInput = document.getElementById('new-post-content');
         const categoryInput = document.getElementById('new-post-category');
         const linkInput = document.getElementById('post-link');
@@ -1687,6 +1744,29 @@
         return div.innerHTML;
     }
 
+    let isGuest = false;
+
+    function setGuestModeUI() {
+        isGuest = true;
+        const authWrapper = document.getElementById('nav-auth-wrapper');
+        const guestWrapper = document.getElementById('nav-guest-wrapper');
+        const myProjectsNav = document.getElementById('nav-my-projects');
+        const mobileUser = document.getElementById('mobile-user-links');
+        const mobileGuest = document.getElementById('mobile-guest-links');
+        const postCard = document.getElementById('create-post-card');
+        const guestBanner = document.getElementById('guest-post-banner');
+
+        if (authWrapper) authWrapper.classList.add('hidden');
+        if (myProjectsNav) myProjectsNav.classList.add('hidden');
+        if (guestWrapper) { guestWrapper.classList.remove('hidden'); guestWrapper.classList.add('flex'); }
+
+        if (mobileUser) mobileUser.classList.add('hidden');
+        if (mobileGuest) { mobileGuest.classList.remove('hidden'); mobileGuest.classList.add('flex'); }
+
+        if (postCard) postCard.classList.add('hidden');
+        if (guestBanner) guestBanner.classList.remove('hidden');
+    }
+
     // Fetch full profile from Flask
     async function initNav() {
         if (IS_FILE) {
@@ -1696,9 +1776,11 @@
         }
         try {
             const meRes = await fetch(`${API}/me`);
-            if (!meRes.ok) { window.location.href = '/login'; return; }
-            const meData = await meRes.json();
-            if (!meData.loggedIn) { window.location.href = '/login'; return; }
+            const meData = meRes.ok ? await meRes.json() : { loggedIn: false };
+            if (!meData.loggedIn) {
+                setGuestModeUI();
+                return;
+            }
             
             const profileRes = await fetch(`${API}/profile`);
             if (!profileRes.ok) throw new Error('Failed to load profile');
@@ -1713,10 +1795,11 @@
             }
             
             await loadInvitations();
+            setInterval(loadInvitations, 30000);
 
         } catch (err) {
-            console.error('Auth error:', err);
-            window.location.href = '/login';
+            console.error('Auth error, defaulting to guest view:', err);
+            setGuestModeUI();
         }
     }
 
@@ -1763,8 +1846,8 @@
         }
     }
 
-    // Re-poll badge + invitation notifications every 30 seconds
-    setInterval(loadInvitations, 30000);
+    // Re-poll badge + invitation notifications every 30 seconds (if logged in)
+    // Managed inside initNav()
 
 function customConfirm(title = 'Delete Post?', message = 'Are you sure you want to delete this post? This action cannot be undone.') {
     return new Promise((resolve) => {
