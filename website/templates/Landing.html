@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CampusBuilds | The MMU Student Open Source Hub</title>
+    <script>
+        const currentTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', currentTheme);
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f9fafb;
+            --text-primary: #111827;
+            --text-secondary: #4b5563;
+            --border-color: #e5e7eb;
+        }
+
+        html[data-theme="dark"] {
+            --bg-primary: #0f0f0f;
+            --bg-secondary: #171717;
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --border-color: #2e2e2e;
+        }
+
+        body {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        html[data-theme="dark"] .bg-white {
+            background-color: var(--bg-primary) !important;
+            border-color: var(--border-color) !important;
+        }
+
+        html[data-theme="dark"] .bg-gray-50 {
+            background-color: var(--bg-secondary) !important;
+        }
+
+        html[data-theme="dark"] .text-gray-900,
+        html[data-theme="dark"] .text-gray-800 {
+            color: var(--text-primary) !important;
+        }
+
+        html[data-theme="dark"] .text-gray-600,
+        html[data-theme="dark"] .text-gray-500 {
+            color: var(--text-secondary) !important;
+        }
+
+        html[data-theme="dark"] .border-gray-100,
+        html[data-theme="dark"] .border-gray-200 {
+            border-color: var(--border-color) !important;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in { animation: fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) both; }
+
+        @keyframes blurPulse {
+            0%, 100% {
+                filter: blur(5px);
+                opacity: 0.7;
+            }
+            50% {
+                filter: blur(7px);
+                opacity: 0.95;
+            }
+        }
+        .animated-blur {
+            filter: blur(5.5px);
+            user-select: none;
+            -webkit-user-select: none;
+            pointer-events: none;
+            display: inline-block;
+            animation: blurPulse 2.8s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen flex flex-col">
+
+<!-- Top Navigation Bar (Clean & Clutter-Free) -->
+<nav class="bg-red-700 text-white shadow-md sticky top-0 z-50">
+    <div class="container mx-auto px-6 py-3.5 flex items-center justify-between">
+        <a href="#about" class="text-2xl font-extrabold tracking-tight hover:opacity-95 transition">
+            Campus <span class="font-light text-red-200">Builds</span>
+        </a>
+
+        <!-- Minimal & Clear Center Links (Reduced to Just 2 Core Anchors) -->
+        <div class="hidden md:flex space-x-8 items-center font-medium text-sm">
+            <a href="#about" class="hover:text-red-200 transition">About</a>
+            <a href="#projects-preview" class="hover:text-red-200 transition">Showcase</a>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <button id="theme-toggle" class="p-2 rounded-xl text-white hover:bg-red-800 transition text-sm focus:outline-none" title="Toggle theme">
+                <i class="fas fa-moon text-base"></i>
+            </button>
+            <a href="{{ url_for('views.login') }}" class="bg-white text-red-700 hover:bg-red-50 text-xs font-bold px-4 py-2 rounded-xl transition shadow-sm inline-flex items-center">
+                <i class="fas fa-sign-in-alt mr-1.5"></i> Sign In
+            </a>
+        </div>
+    </div>
+</nav>
+
+<!-- Hero Section -->
+<header id="about" class="bg-white border-b border-gray-200 py-16 md:py-24 relative overflow-hidden">
+    <div class="container mx-auto px-6">
+        <div class="max-w-4xl mx-auto text-center">
+            
+            <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-red-50 border border-red-200 text-red-700 text-xs font-bold uppercase tracking-wider mb-6">
+                <i class="fas fa-code-branch"></i> The MMU Open Source Project Hub
+            </div>
+
+            <h2 class="text-4xl md:text-6xl font-black text-gray-900 tracking-tight leading-tight md:leading-none">
+                Stop Great Student Projects From <span class="text-red-600 underline decoration-red-300">Dying</span> at Graduation.
+            </h2>
+
+            <div class="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+                <a href="{{ url_for('views.register') }}" class="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white px-8 py-4 rounded-xl font-bold text-base transition shadow-lg shadow-red-200 hover:-translate-y-0.5 inline-flex items-center justify-center gap-2">
+                    <i class="fas fa-rocket"></i> Get Started with MMU Email
+                </a>
+                <a href="{{ url_for('views.login') }}" class="w-full sm:w-auto bg-white border-2 border-gray-200 hover:border-gray-400 text-gray-800 px-8 py-4 rounded-xl font-bold text-base transition inline-flex items-center justify-center gap-2">
+                    <i class="fas fa-sign-in-alt text-red-600"></i> Sign In to Existing Account
+                </a>
+            </div>
+
+            <!-- Horizontally Arranged Purpose Card -->
+            <div class="mt-12 max-w-4xl mx-auto bg-gray-50 border border-gray-200 rounded-3xl p-4 md:p-6 shadow-sm">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6 divide-y md:divide-y-0 md:divide-x divide-gray-200 text-left">
+                    
+                    <!-- 1. Showcase with a Trophy -->
+                    <div class="flex items-center gap-4 pt-4 md:pt-0 md:px-4 first:pt-0 first:pl-0">
+                        <div class="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center text-xl flex-shrink-0 shadow-sm border border-amber-200/60">
+                            <i class="fas fa-trophy"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-black text-sm text-gray-900 tracking-tight">Showcase</h4>
+                            <p class="text-xs text-gray-500 mt-0.5 leading-snug">Put your software builds in front of the entire faculty.</p>
+                        </div>
+                    </div>
+
+                    <!-- 2. Recruit Teammates with a Megaphone -->
+                    <div class="flex items-center gap-4 pt-4 md:pt-0 md:px-4">
+                        <div class="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center text-xl flex-shrink-0 shadow-sm border border-red-200/60">
+                            <i class="fas fa-bullhorn"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-black text-sm text-gray-900 tracking-tight">Recruit Teammates</h4>
+                            <p class="text-xs text-gray-500 mt-0.5 leading-snug">Find coders & designers across campus for your team.</p>
+                        </div>
+                    </div>
+
+                    <!-- 3. Hand Over Maintainership with a Baton -->
+                    <div class="flex items-center gap-4 pt-4 md:pt-0 md:px-4 last:pr-0">
+                        <div class="w-12 h-12 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center text-xl flex-shrink-0 shadow-sm border border-blue-200/60">
+                            <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24">
+                                <path d="M19.7 4.3a2 2 0 0 0-2.8 0L4.3 16.9a2 2 0 0 0 0 2.8l.02.02a2 2 0 0 0 2.8 0L19.7 7.1a2 2 0 0 0 0-2.8z" />
+                                <line x1="8.5" y1="15.5" x2="11.5" y2="12.5" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="font-black text-sm text-gray-900 tracking-tight">Hand Over Maintainership</h4>
+                            <p class="text-xs text-gray-500 mt-0.5 leading-snug">Pass the baton to juniors so your code lives on.</p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+</header>
+
+<!-- Populated Community Feed Preview -->
+<section id="feed-preview" class="py-16 md:py-20 bg-white border-y border-gray-200">
+    <div class="container mx-auto px-6">
+        
+        <div class="text-center max-w-3xl mx-auto mb-12">
+            <span class="inline-block px-3 py-1 bg-red-100 text-red-700 text-xs font-extrabold uppercase tracking-widest rounded-full mb-3">Live Feed Preview</span>
+            <h2 class="text-3xl md:text-4xl font-black text-gray-900 tracking-tight">How the Community Feed Looks When Active</h2>
+            <p class="text-gray-500 mt-2 text-sm md:text-base">
+                Students and alumni post devlogs, milestone releases, and questions attached to their live projects.
+            </p>
+        </div>
+
+        <div class="max-w-4xl mx-auto space-y-6">
+
+            <!-- Sample Post 1 (Milestone / Takeover) -->
+            <div class="bg-white border-2 border-gray-100 hover:border-red-200 rounded-3xl p-6 md:p-8 shadow-sm transition">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-11 h-11 rounded-full bg-red-600 text-white flex items-center justify-center font-bold text-sm shadow">
+                            <i class="fas fa-user text-xs"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="font-extrabold text-sm text-gray-900"><span class="animated-blur">Marcus Chen</span></span>
+                                <span class="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full"><i class="fas fa-graduation-cap mr-1"></i>MMU Alumni</span>
+                                <span class="text-[10px] font-bold bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full"><i class="fas fa-crown mr-1"></i>Owner</span>
+                            </div>
+                            <span class="text-xs text-gray-400">2 hours ago • Faculty of Computing & Informatics</span>
+                        </div>
+                    </div>
+                    <span class="bg-red-50 text-red-600 border border-red-200 text-xs font-bold px-3 py-1 rounded-full">
+                        🚀 Milestone Update
+                    </span>
+                </div>
+
+                <div class="bg-gray-50 border border-gray-200 rounded-2xl p-4 mb-4 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-xl bg-red-600 text-white flex items-center justify-center text-sm font-bold">
+                            <i class="fas fa-bus"></i>
+                        </div>
+                        <div>
+                            <span class="text-xs font-bold text-gray-400 uppercase tracking-wider block">Attached Project</span>
+                            <span class="text-sm font-black text-gray-900">Campus Transit Live (v2.0)</span>
+                        </div>
+                    </div>
+                    <span class="text-xs bg-green-100 text-green-700 font-bold px-2.5 py-1 rounded-full">Active Recruiting</span>
+                </div>
+
+                <p class="text-gray-700 text-sm leading-relaxed mb-4">
+                    Just shipped the real-time shuttle tracker backend using Node.js & GTFS feeds! As I am graduating this semester, I'm looking for <strong>1 junior Flutter maintainer</strong> to take over mobile UI maintenance. If you want to maintain a project with 300+ daily student users, view the project page to apply!
+                </p>
+
+                <div class="flex flex-wrap gap-2 mb-5">
+                    <span class="text-xs font-bold bg-gray-100 text-gray-600 px-3 py-1 rounded-full">#Flutter</span>
+                    <span class="text-xs font-bold bg-gray-100 text-gray-600 px-3 py-1 rounded-full">#NodeJS</span>
+                    <span class="text-xs font-bold bg-gray-100 text-gray-600 px-3 py-1 rounded-full">#TakeoverReady</span>
+                    <span class="text-xs font-bold bg-gray-100 text-gray-600 px-3 py-1 rounded-full">#OpenSource</span>
+                </div>
+
+                <div class="flex items-center justify-between pt-4 border-t border-gray-100 text-xs font-semibold text-gray-500">
+                    <div class="flex items-center gap-5">
+                        <span class="flex items-center gap-1.5 text-red-600 font-bold"><i class="fas fa-heart"></i> 14 Likes</span>
+                        <span class="flex items-center gap-1.5"><i class="far fa-comment"></i> 5 Comments</span>
+                        <span class="flex items-center gap-1.5 text-yellow-500 font-bold"><i class="fas fa-star"></i> 8 Stars</span>
+                    </div>
+                    <a href="{{ url_for('views.login') }}" class="text-red-600 font-bold hover:underline">
+                        Sign in to reply & apply →
+                    </a>
+                </div>
+            </div>
+
+            <!-- Sample Post 2 (Discussion & Help) -->
+            <div class="bg-white border-2 border-gray-100 hover:border-red-200 rounded-3xl p-6 md:p-8 shadow-sm transition">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-11 h-11 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shadow">
+                            <i class="fas fa-user text-xs"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="font-extrabold text-sm text-gray-900"><span class="animated-blur">Sarah Lim</span></span>
+                                <span class="text-[10px] font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded-full"><i class="fas fa-user-check mr-1"></i>Verified Student</span>
+                            </div>
+                            <span class="text-xs text-gray-400">5 hours ago • Faculty of Engineering</span>
+                        </div>
+                    </div>
+                    <span class="bg-purple-50 text-purple-700 border border-purple-200 text-xs font-bold px-3 py-1 rounded-full">
+                        ❓ Technical Question
+                    </span>
+                </div>
+
+                <div class="bg-gray-50 border border-gray-200 rounded-2xl p-4 mb-4 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center text-sm font-bold">
+                            <i class="fas fa-calendar-alt"></i>
+                        </div>
+                        <div>
+                            <span class="text-xs font-bold text-gray-400 uppercase tracking-wider block">Attached Project</span>
+                            <span class="text-sm font-black text-gray-900">MMU Course Timetable Sync</span>
+                        </div>
+                    </div>
+                    <span class="text-xs bg-blue-100 text-blue-700 font-bold px-2.5 py-1 rounded-full">Seeking Feedback</span>
+                </div>
+
+                <p class="text-gray-700 text-sm leading-relaxed mb-4">
+                    Has anyone had experience synchronizing the campus student portal timetable directly with Google Calendar ICS feeds without session timeouts? We are prototyping an auto-refresh daemon in Python. Any tips or contributions are welcome!
+                </p>
+
+                <div class="flex items-center justify-between pt-4 border-t border-gray-100 text-xs font-semibold text-gray-500">
+                    <div class="flex items-center gap-5">
+                        <span class="flex items-center gap-1.5 text-red-600 font-bold"><i class="fas fa-heart"></i> 9 Likes</span>
+                        <span class="flex items-center gap-1.5"><i class="far fa-comment"></i> 7 Comments</span>
+                        <span class="flex items-center gap-1.5 text-yellow-500 font-bold"><i class="fas fa-star"></i> 12 Stars</span>
+                    </div>
+                    <a href="{{ url_for('views.login') }}" class="text-red-600 font-bold hover:underline">
+                        Sign in to join discussion →
+                    </a>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+</section>
+
+<!-- Project Showcase Section (Simpler, Unified Layout - No Tabs, No Right Sidebar, Direct Scroll) -->
+<section id="projects-preview" class="py-16 md:py-20 bg-gray-50 border-b border-gray-200">
+    <div class="container mx-auto px-6 max-w-4xl">
+        
+        <div class="text-center max-w-2xl mx-auto mb-12">
+            <span class="inline-block px-3 py-1 bg-red-100 text-red-700 text-xs font-extrabold uppercase tracking-widest rounded-full mb-3">Project Showcase</span>
+            <h2 class="text-3xl md:text-4xl font-black text-gray-900 tracking-tight">Active Campus Projects</h2>
+            <p class="text-gray-500 mt-2 text-sm md:text-base">
+                Explore real MMU student software initiatives looking for maintainers and teammates across campus.
+            </p>
+        </div>
+
+        <div class="space-y-8">
+            
+            <!-- Project 1: Campus Initiative -->
+            <div class="bg-white rounded-3xl border border-gray-200 p-6 md:p-8 shadow-sm hover:border-red-200 transition space-y-6">
+                <!-- Header -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-100">
+                    <div>
+                        <span class="text-xs font-bold uppercase tracking-wider text-red-600 bg-red-50 px-2.5 py-1 rounded-md border border-red-200">Campus Initiative</span>
+                        <h3 class="text-2xl md:text-3xl font-black text-gray-900 mt-2 tracking-tight">Campus Builds</h3>
+                        <p class="text-xs text-gray-500 mt-1">Lead: <strong class="text-gray-800">Shawn</strong> • Faculty of Computing & Informatics</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="bg-amber-50 text-amber-600 px-3.5 py-2 rounded-xl font-bold flex items-center gap-2 border border-amber-200 text-xs shadow-sm">
+                            <i class="far fa-star"></i> 3 Favourites
+                        </span>
+                        <a href="#" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3.5 py-2 rounded-xl font-bold transition flex items-center gap-1.5 text-xs">
+                            <i class="fab fa-github"></i> Repository
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Description -->
+                <p class="text-gray-600 text-sm md:text-base leading-relaxed">
+                    We built a directory for MMU open source initiatives! Campus Builds is here for students to declare their long-term projects to the community, recruit fellow maintainers, and pass the baton so active code lives on after graduation.
+                </p>
+
+                <!-- Screenshot -->
+                <div class="rounded-2xl border border-gray-200 overflow-hidden shadow-inner bg-gray-100">
+                    <img src="https://res.cloudinary.com/mjcofru8/image/upload/v1783259516/mmu_ossd/projects/eq3xjddk8glac3us9bjs.png"
+                         alt="Campus Builds Live Platform Screenshot"
+                         class="w-full h-auto object-cover object-top hover:scale-[1.01] transition duration-300">
+                </div>
+
+                <!-- Integrated Bottom Metadata Strip -->
+                <div class="pt-4 border-t border-gray-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs">
+                    <div class="flex items-center gap-4 flex-wrap">
+                        <div class="flex items-center gap-2">
+                            <span class="text-gray-400 font-bold uppercase tracking-wider text-[11px]">Team (3):</span>
+                            <span class="text-gray-700 font-medium">Shawn (Lead), Willie Poh Kaw Lik, Yee</span>
+                        </div>
+                        <span class="hidden sm:inline text-gray-300">•</span>
+                        <div class="flex items-center gap-2">
+                            <span class="text-gray-400 font-bold uppercase tracking-wider text-[11px]">Seeking:</span>
+                            <span class="bg-purple-100 text-purple-700 font-bold px-2.5 py-0.5 rounded-full text-[11px]">Lead Maintainer</span>
+                        </div>
+                    </div>
+                    <a href="{{ url_for('views.login') }}" class="text-red-600 hover:text-red-700 font-bold inline-flex items-center gap-1.5 transition">
+                        View Details & Join <i class="fas fa-arrow-right text-[10px]"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Project 2: Capstone Management -->
+            <div class="bg-white rounded-3xl border border-gray-200 p-6 md:p-8 shadow-sm hover:border-purple-200 transition space-y-6">
+                <!-- Header -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-100">
+                    <div>
+                        <span class="text-xs font-bold uppercase tracking-wider text-purple-600 bg-purple-50 px-2.5 py-1 rounded-md border border-purple-200">Capstone Management</span>
+                        <h3 class="text-2xl md:text-3xl font-black text-gray-900 mt-2 tracking-tight">ProPro</h3>
+                        <p class="text-xs text-gray-500 mt-1">Lead: <strong class="text-gray-800">Alex Chiam</strong> • Faculty of Computing & Informatics</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="bg-amber-50 text-amber-600 px-3.5 py-2 rounded-xl font-bold flex items-center gap-2 border border-amber-200 text-xs shadow-sm">
+                            <i class="far fa-star"></i> 1 Favourite
+                        </span>
+                        <span class="bg-gray-100 text-gray-600 px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 text-xs">
+                            <i class="fab fa-github"></i> Repository
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Description -->
+                <p class="text-gray-600 text-sm md:text-base leading-relaxed">
+                    The system allows lecturers (or a group of them) to receive proposals from students for projects or assignments. Ideal for projects with student-proposed titles, Final Year Projects (FYP), or Capstone Projects.
+                </p>
+
+                <!-- Discussion Preview Quote from actual project page -->
+                <div class="bg-gray-50 border border-gray-200 rounded-2xl p-4 flex items-start gap-3">
+                    <div class="w-8 h-8 rounded-full bg-purple-100 text-purple-600 font-bold text-xs flex items-center justify-center shrink-0">
+                        <i class="fas fa-user text-xs"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold text-xs text-gray-900">Alex Chiam</span>
+                            <span class="text-[10px] text-gray-400">Discussion</span>
+                        </div>
+                        <p class="text-xs text-gray-600 mt-1 italic">"hopes and dreams"</p>
+                    </div>
+                </div>
+
+                <!-- Integrated Bottom Metadata Strip -->
+                <div class="pt-4 border-t border-gray-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs">
+                    <div class="flex items-center gap-4 flex-wrap">
+                        <div class="flex items-center gap-2">
+                            <span class="text-gray-400 font-bold uppercase tracking-wider text-[11px]">Team (6):</span>
+                            <span class="text-gray-700 font-medium">Alex Chiam (Lead), Chow Ying Tong, Keith Chong, Francis Tan, Willie Poh, Niilesh</span>
+                        </div>
+                        <span class="hidden sm:inline text-gray-300">•</span>
+                        <div class="flex items-center gap-2">
+                            <span class="text-gray-400 font-bold uppercase tracking-wider text-[11px]">Seeking:</span>
+                            <span class="bg-purple-100 text-purple-700 font-bold px-2.5 py-0.5 rounded-full text-[11px]">Backend, Frontend Developer</span>
+                        </div>
+                    </div>
+                    <a href="{{ url_for('views.login') }}" class="text-red-600 hover:text-red-700 font-bold inline-flex items-center gap-1.5 transition">
+                        View Details & Join <i class="fas fa-arrow-right text-[10px]"></i>
+                    </a>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+</section>
+
+<!-- Gamification / Badges Showcase -->
+<section id="badges" class="py-16 bg-white border-b border-gray-200">
+    <div class="container mx-auto px-6 max-w-5xl">
+        <div class="text-center mb-12">
+            <h3 class="text-xs font-black uppercase tracking-[0.25em] text-red-600 mb-2">Recognition</h3>
+            <h2 class="text-3xl font-black text-gray-900 tracking-tight">Earn Badges for Verified Contributions</h2>
+            <p class="text-gray-500 mt-2 text-sm">Recognizing authors, testers, alumni mentors, and active reviewers.</p>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
+            <div class="p-4 bg-gray-50 border border-gray-200 rounded-2xl text-center flex flex-col items-center">
+                <div class="w-12 h-12 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-lg mb-2"><i class="fas fa-scroll"></i></div>
+                <span class="font-extrabold text-xs text-gray-800">First Project</span>
+                <span class="text-[10px] text-gray-400 mt-0.5">Published a build</span>
+            </div>
+            <div class="p-4 bg-gray-50 border border-gray-200 rounded-2xl text-center flex flex-col items-center">
+                <div class="w-12 h-12 rounded-full bg-yellow-100 text-yellow-600 flex items-center justify-center text-lg mb-2"><i class="fas fa-trophy"></i></div>
+                <span class="font-extrabold text-xs text-gray-800">Top Contributor</span>
+                <span class="text-[10px] text-gray-400 mt-0.5">High team impact</span>
+            </div>
+            <div class="p-4 bg-gray-50 border border-gray-200 rounded-2xl text-center flex flex-col items-center">
+                <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-lg mb-2"><i class="fas fa-graduation-cap"></i></div>
+                <span class="font-extrabold text-xs text-gray-800">MMU Alumni</span>
+                <span class="text-[10px] text-gray-400 mt-0.5">Verified graduate</span>
+            </div>
+            <div class="p-4 bg-gray-50 border border-gray-200 rounded-2xl text-center flex flex-col items-center">
+                <div class="w-12 h-12 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center text-lg mb-2"><i class="fa-brands fa-python"></i></div>
+                <span class="font-extrabold text-xs text-gray-800">Python Expert</span>
+                <span class="text-[10px] text-gray-400 mt-0.5">Core stack master</span>
+            </div>
+            <div class="p-4 bg-gray-50 border border-gray-200 rounded-2xl text-center flex flex-col items-center">
+                <div class="w-12 h-12 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-lg mb-2"><i class="fas fa-fire-alt"></i></div>
+                <span class="font-extrabold text-xs text-gray-800">Early Adopter</span>
+                <span class="text-[10px] text-gray-400 mt-0.5">Joined beta</span>
+            </div>
+            <div class="p-4 bg-gray-50 border border-gray-200 rounded-2xl text-center flex flex-col items-center">
+                <div class="w-12 h-12 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-lg mb-2"><i class="fas fa-hands-helping"></i></div>
+                <span class="font-extrabold text-xs text-gray-800">Community Helper</span>
+                <span class="text-[10px] text-gray-400 mt-0.5">10+ helpful reviews</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Call to Action Footer Banner -->
+<section class="py-16 md:py-20 bg-gradient-to-r from-red-700 via-red-600 to-red-800 text-white text-center">
+    <div class="container mx-auto px-6 max-w-3xl">
+        <h2 class="text-3xl md:text-5xl font-black tracking-tight leading-tight">Ready to List Your Build or Join a Team?</h2>
+        <p class="text-red-100 mt-4 text-base md:text-lg leading-relaxed">
+            Create an account with your Multimedia University student email to submit projects, request to join squads, or post technical questions.
+        </p>
+        <div class="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+            <a href="{{ url_for('views.register') }}" class="w-full sm:w-auto bg-white text-red-700 hover:bg-red-50 px-8 py-4 rounded-xl font-black text-base transition shadow-xl">
+                Create Student Account
+            </a>
+            <a href="{{ url_for('views.login') }}" class="w-full sm:w-auto border-2 border-white/80 hover:bg-white/10 text-white px-8 py-4 rounded-xl font-bold text-base transition">
+                Sign In to Platform
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer class="bg-gray-900 text-gray-400 py-10 border-t border-gray-800 text-xs mt-auto">
+    <div class="container mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div>
+            <span class="font-bold text-white text-sm">CampusBuilds</span> • MMU Open Source Software Directory
+            <p class="text-gray-500 mt-1">Built by students, for students. Preserving software legacies across semesters.</p>
+        </div>
+        <div class="flex items-center space-x-6">
+            <a href="{{ url_for('views.about') }}" class="hover:text-white transition">About</a>
+            <a href="{{ url_for('views.terms_of_service') }}" class="hover:text-white transition">Terms</a>
+            <a href="{{ url_for('views.privacy_policy') }}" class="hover:text-white transition">Privacy</a>
+            <a href="{{ url_for('views.login') }}" class="hover:text-white transition font-bold text-red-400">Sign In</a>
+        </div>
+    </div>
+</footer>
+
+<script>
+    // Theme toggle
+    const themeBtn = document.getElementById('theme-toggle');
+    function updateThemeIcon(theme) {
+        if (!themeBtn) return;
+        const icon = themeBtn.querySelector('i');
+        if (theme === 'dark') {
+            icon.className = 'fas fa-sun text-yellow-400 text-base';
+        } else {
+            icon.className = 'fas fa-moon text-white text-base';
+        }
+    }
+    updateThemeIcon(currentTheme);
+
+    if (themeBtn) {
+        themeBtn.addEventListener('click', () => {
+            const activeTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', activeTheme);
+            localStorage.setItem('theme', activeTheme);
+            updateThemeIcon(activeTheme);
+        });
+    }
+
+
+    // Smooth scroll for anchor links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function(e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        });
+    });
+</script>
+</body>
+</html>

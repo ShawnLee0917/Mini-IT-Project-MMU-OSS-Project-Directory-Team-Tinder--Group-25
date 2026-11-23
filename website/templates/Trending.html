@@ -215,15 +215,25 @@
             <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
             <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
             <a href="{{ url_for('views.hottest_projects') }}" class="text-red-200 border-b-2 border-red-200">Hottest Projects</a>
-            <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
-            <a href="{{ url_for('views.profile') }}" class="bg-red-800 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-500/50 cursor-pointer hover:bg-red-900 transition">
-                <span id="nav-email" class="text-sm">{{ session.get('user_email', 'Guest') }}</span>
-                <i class="fas fa-user-circle text-lg"></i>
-            </a>
-            <button id="logout-btn"
-                class="bg-white text-red-700 hover:bg-red-50 text-xs font-bold px-3 py-2 rounded-xl transition">
-                <i class="fas fa-sign-out-alt mr-1"></i>Logout
-            </button>
+            <a id="nav-my-projects" href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
+            <div id="nav-auth-wrapper" class="flex items-center space-x-4">
+                <a href="{{ url_for('views.profile') }}" class="bg-red-800 px-4 py-2 rounded-full flex items-center space-x-3 border border-red-500/50 cursor-pointer hover:bg-red-900 transition">
+                    <span id="nav-email" class="text-sm">{{ session.get('user_email', 'Guest') }}</span>
+                    <i class="fas fa-user-circle text-lg"></i>
+                </a>
+                <button id="logout-btn"
+                    class="bg-white text-red-700 hover:bg-red-50 text-xs font-bold px-3 py-2 rounded-xl transition">
+                    <i class="fas fa-sign-out-alt mr-1"></i>Logout
+                </button>
+            </div>
+            <div id="nav-guest-wrapper" class="hidden items-center space-x-3">
+                <a href="{{ url_for('views.login') }}" class="bg-white text-red-700 hover:bg-red-50 text-xs font-bold px-4 py-2 rounded-xl transition shadow-sm inline-flex items-center">
+                    <i class="fas fa-sign-in-alt mr-1.5"></i> Sign In
+                </a>
+                <a href="{{ url_for('views.register') }}" class="bg-red-800 hover:bg-red-900 text-white text-xs font-bold px-4 py-2 rounded-xl transition border border-red-500/50">
+                    Register
+                </a>
+            </div>
         </div>
     </div>
 
@@ -232,17 +242,27 @@
             <a href="{{ url_for('views.home') }}" class="hover:text-red-200 transition">Home</a>
             <a href="{{ url_for('views.search') }}" class="hover:text-red-200 transition">Search</a>
             <a href="{{ url_for('views.hottest_projects') }}" class="hover:text-red-200 transition">Hottest Projects</a>
-            <a href="{{ url_for('views.profile') }}" class="hover:text-red-200 transition">My Profile</a>
-            <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
-            <a href="{{ url_for('views.list_project') }}" class="hover:text-red-200 transition">List Your Project</a>
-            <a href="{{ url_for('views.notifications_page') }}" class="text-yellow-300 hover:text-white transition flex justify-between items-center" id="mobile-notif-row">
-                <span><i class="fas fa-bell mr-2"></i> Notification</span>
-                <span id="mobile-notif-badge" class="bg-yellow-400 text-red-900 px-2 rounded-full text-xs hidden">0</span>
-            </a>
-            <button id="logout-btn-mobile" class="text-left text-red-200 hover:text-white transition text-sm">
-                <i class="fas fa-sign-out-alt mr-1"></i> Logout
-            </button>
-            <div class="pt-2 border-t border-red-700 text-xs font-light opacity-80" id="nav-email-mobile">{{ session.get('user_email', 'Guest') }}</div>
+            <div id="mobile-user-links" class="flex flex-col space-y-4">
+                <a href="{{ url_for('views.profile') }}" class="hover:text-red-200 transition">My Profile</a>
+                <a href="{{ url_for('views.my_projects') }}" class="hover:text-red-200 transition">My Projects</a>
+                <a href="{{ url_for('views.list_project') }}" class="hover:text-red-200 transition">List Your Project</a>
+                <a href="{{ url_for('views.notifications_page') }}" class="text-yellow-300 hover:text-white transition flex justify-between items-center" id="mobile-notif-row">
+                    <span><i class="fas fa-bell mr-2"></i> Notification</span>
+                    <span id="mobile-notif-badge" class="bg-yellow-400 text-red-900 px-2 rounded-full text-xs hidden">0</span>
+                </a>
+                <button id="logout-btn-mobile" class="text-left text-red-200 hover:text-white transition text-sm">
+                    <i class="fas fa-sign-out-alt mr-1"></i> Logout
+                </button>
+                <div class="pt-2 border-t border-red-700 text-xs font-light opacity-80" id="nav-email-mobile">{{ session.get('user_email', 'Guest') }}</div>
+            </div>
+            <div id="mobile-guest-links" class="hidden flex-col space-y-3 pt-3 border-t border-red-700">
+                <a href="{{ url_for('views.login') }}" class="bg-white text-red-700 text-center py-2.5 rounded-xl text-sm font-bold shadow-sm">
+                    <i class="fas fa-sign-in-alt mr-1.5"></i> Sign In
+                </a>
+                <a href="{{ url_for('views.register') }}" class="border border-red-400 text-white text-center py-2.5 rounded-xl text-sm font-bold hover:bg-red-700">
+                    Register
+                </a>
+            </div>
         </div>
     </div>
 </nav>
@@ -447,6 +467,21 @@
         el.addEventListener('click', closeMenu);
     });
 
+    function setGuestNav() {
+        const authWrapper = document.getElementById('nav-auth-wrapper');
+        const guestWrapper = document.getElementById('nav-guest-wrapper');
+        const myProjectsNav = document.getElementById('nav-my-projects');
+        const mobileUser = document.getElementById('mobile-user-links');
+        const mobileGuest = document.getElementById('mobile-guest-links');
+
+        if (authWrapper) authWrapper.classList.add('hidden');
+        if (myProjectsNav) myProjectsNav.classList.add('hidden');
+        if (guestWrapper) { guestWrapper.classList.remove('hidden'); guestWrapper.classList.add('flex'); }
+
+        if (mobileUser) mobileUser.classList.add('hidden');
+        if (mobileGuest) { mobileGuest.classList.remove('hidden'); mobileGuest.classList.add('flex'); }
+    }
+
     async function initNav() {
         if (IS_FILE) {
             if (document.getElementById('nav-email')) document.getElementById('nav-email').textContent = '(offline)';
@@ -455,9 +490,11 @@
         }
         try {
             const meRes = await fetch(`${API}/me`);
-            if (!meRes.ok) { window.location.href = '/login'; return; }
-            const meData = await meRes.json();
-            if (!meData.loggedIn) { window.location.href = '/login'; return; }
+            const meData = meRes.ok ? await meRes.json() : { loggedIn: false };
+            if (!meData.loggedIn) {
+                setGuestNav();
+                return;
+            }
             
             const profileRes = await fetch(`${API}/profile`);
             if (!profileRes.ok) throw new Error('Failed to load profile');
@@ -467,8 +504,8 @@
             if (document.getElementById('nav-email-mobile')) document.getElementById('nav-email-mobile').textContent = profile.email;
             
         } catch (err) {
-            console.error('Auth error:', err);
-            window.location.href = '/login';
+            console.error('Auth error, defaulting to guest view:', err);
+            setGuestNav();
         }
     }
 

@@ -1403,7 +1403,7 @@ def send_alumni_approval_email(to_email, user_name, approved=True, reason=''):
 @views.route('/home')
 def home():
     if 'user_email' not in session:
-        return redirect(url_for('views.login'))
+        return render_template("Landing.html")
     return render_template("Navigation.html")
 
 @views.route('/login')
@@ -1763,6 +1763,10 @@ def upload_success():
 
 @views.route('/list_project', methods=['GET', 'POST'])
 def list_project():
+    if 'user_email' not in session:
+        flash("Please login to list a project.", "info")
+        return redirect(url_for('views.login'))
+        
     if request.method == 'POST':
         name = request.form.get('project_name')
         repo = request.form.get('repo_url')
@@ -2089,7 +2093,7 @@ def api_logout():
 @views.route('/api/me', methods=['GET'])
 def api_me():
     if 'user_email' not in session:
-        return jsonify({'loggedIn': False}), 401
+        return jsonify({'loggedIn': False}), 200
     return jsonify({
         'loggedIn': True,
         'email':    session['user_email'],
@@ -4126,6 +4130,26 @@ def get_ai_suggestions():
     Get AI-powered project suggestions based on user interests and skills.
     Uses the unified matching algorithm.
     """
+    if 'user_email' not in session:
+        featured_projects = Project.query.filter(
+            Project.status != 'Archived',
+            Project.status != 'Suspended'
+        ).order_by(Project.created_at.desc()).limit(3).all()
+        return jsonify({
+            'success': True,
+            'user_interests': ['Featured Projects'],
+            'suggestions': [{
+                'id': p.id,
+                'project_name': p.project_name,
+                'description': p.description or '',
+                'match_score': 95,
+                'tags': [t.strip() for t in p.languages.split(',')] if p.languages else []
+            } for p in featured_projects],
+            'total': len(featured_projects),
+            'message': 'Featured Campus Projects',
+            'algorithm_version': 'guest-preview'
+        })
+
     err = require_login()
     if err:
         return err
